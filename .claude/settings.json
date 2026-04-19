@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm run *)",
-      "Bash(node -e \"require\\('./src/controllers/authController'\\); console.log\\('OK'\\);\")"
+      "Bash(node -e \"require\\('./src/controllers/authController'\\); console.log\\('OK'\\);\")",
+      "Bash(node -e \"const c = require\\('./src/controllers/authController'\\); console.log\\(c.registar.toString\\(\\).slice\\(0, 300\\)\\);\")"
     ]
   }
 }
