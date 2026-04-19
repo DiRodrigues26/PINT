@@ -4,7 +4,8 @@ const ctrl = require('../controllers/authController');
 const { autenticar } = require('../middleware/autenticar');
 
 router.post('/registo', ctrl.registar);
-router.get('/confirmar-email', ctrl.confirmarEmail);
+router.post('/confirmar-email', ctrl.confirmarEmail);
+router.post('/completar-perfil', ctrl.completarPerfil);
 router.post('/login', ctrl.login);
 router.post('/recuperar-password', ctrl.pedirRecuperacao);
 router.post('/redefinir-password', ctrl.redefinirPassword);

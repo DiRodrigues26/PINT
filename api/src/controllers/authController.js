@@ -9,13 +9,12 @@ const {
 } = require('../utils/email');
 const { calcularSaudacao } = require('../utils/saudacao');
 
-const PERFIL_CONSULTOR = 'Consultor';
+const PERFIS_PERMITIDOS_REGISTO = ['Consultor', 'Service Line', 'Talent Manager'];
 
 async function gerarSlugUnico(nome) {
   const base = gerarSlug(nome) || 'utilizador';
   let slug = base;
   let i = 1;
-  // tenta até ser único
   while (true) {
     const [existe] = await pool.query(
       'SELECT 1 FROM utilizador WHERE url_slug = ? LIMIT 1',
@@ -29,17 +28,17 @@ async function gerarSlugUnico(nome) {
 
 async function registar(req, res, next) {
   try {
-    const { nome, email, password, id_area, idioma } = req.body;
+    const { email, password, idioma } = req.body;
 
-    if (!nome || !email || !password) {
-      return res.status(400).json({ erro: 'Nome, email e password são obrigatórios.' });
+    if (!email || !password) {
+      return res.status(400).json({ erro: 'Email e password são obrigatórios.' });
     }
     if (String(password).length < 8) {
       return res.status(400).json({ erro: 'Password deve ter pelo menos 8 caracteres.' });
     }
 
     const [existe] = await pool.query(
-      'SELECT id_utilizador FROM utilizador WHERE email = ?',
+      'SELECT id_utilizador, email_confirmado FROM utilizador WHERE email = ?',
       [email]
     );
     if (existe.length > 0) {
@@ -48,62 +47,25 @@ async function registar(req, res, next) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const tokenConfirmacao = gerarTokenAleatorio();
-    const slug = await gerarSlugUnico(nome);
+    const nomeTemporario = String(email).split('@')[0];
+    const slug = await gerarSlugUnico(nomeTemporario);
 
-    const conn = await pool.getConnection();
+    await pool.query(
+      `INSERT INTO utilizador
+         (nome, email, password_hash, idioma, token_confirmacao_email, url_slug, primeiro_login_pendente)
+       VALUES (?, ?, ?, ?, ?, ?, 0)`,
+      [nomeTemporario, email, passwordHash, idioma || 'pt', tokenConfirmacao, slug]
+    );
+
     try {
-      await conn.beginTransaction();
-
-      const [result] = await conn.query(
-        `INSERT INTO utilizador
-           (nome, email, password_hash, idioma, token_confirmacao_email, url_slug, primeiro_login_pendente)
-         VALUES (?, ?, ?, ?, ?, ?, 0)`,
-        [nome, email, passwordHash, idioma || 'pt', tokenConfirmacao, slug]
-      );
-      const idUtilizador = result.insertId;
-
-      const [perfil] = await conn.query(
-        'SELECT id_perfil FROM perfil WHERE nome_perfil = ?',
-        [PERFIL_CONSULTOR]
-      );
-      if (perfil.length === 0) throw new Error('Perfil Consultor não configurado.');
-
-      await conn.query(
-        'INSERT INTO utilizador_perfil (id_utilizador, id_perfil) VALUES (?, ?)',
-        [idUtilizador, perfil[0].id_perfil]
-      );
-
-      if (id_area) {
-        await conn.query(
-          'INSERT INTO consultor_area (id_utilizador, id_area) VALUES (?, ?)',
-          [idUtilizador, id_area]
-        );
-      }
-
-      await conn.query(
-        `INSERT INTO preferencia_notificacao (id_utilizador)
-         VALUES (?)`,
-        [idUtilizador]
-      );
-
-      await conn.commit();
-
-      try {
-        await enviarConfirmacaoRegisto({ nome, email }, tokenConfirmacao);
-      } catch (e) {
-        console.warn('Aviso: falha ao enviar email de confirmação:', e.message);
-      }
-
-      return res.status(201).json({
-        mensagem: 'Registo efetuado. Verifique o seu email para confirmar a conta.',
-        id_utilizador: idUtilizador,
-      });
-    } catch (err) {
-      await conn.rollback();
-      throw err;
-    } finally {
-      conn.release();
+      await enviarConfirmacaoRegisto({ email }, tokenConfirmacao);
+    } catch (e) {
+      console.warn('Aviso: falha ao enviar email de confirmação:', e.message);
     }
+
+    res.status(201).json({
+      mensagem: 'Registo efetuado. Verifique o seu email para confirmar a conta.',
+    });
   } catch (err) {
     next(err);
   }
@@ -111,24 +73,144 @@ async function registar(req, res, next) {
 
 async function confirmarEmail(req, res, next) {
   try {
-    const { token } = req.query;
+    const token = req.body?.token || req.query?.token || req.params?.token;
     if (!token) return res.status(400).json({ erro: 'Token em falta.' });
 
     const [linhas] = await pool.query(
-      'SELECT id_utilizador FROM utilizador WHERE token_confirmacao_email = ?',
+      `SELECT id_utilizador, email_confirmado
+         FROM utilizador
+        WHERE token_confirmacao_email = ?`,
       [token]
     );
-    if (linhas.length === 0) return res.status(404).json({ erro: 'Token inválido.' });
+    if (linhas.length === 0) return res.status(404).json({ erro: 'Token inválido ou já utilizado.' });
+
+    const u = linhas[0];
+
+    // se ainda não tem perfil, considera-se "perfil pendente" → frontend redireciona para completar
+    const [perfis] = await pool.query(
+      'SELECT COUNT(*) AS n FROM utilizador_perfil WHERE id_utilizador = ?',
+      [u.id_utilizador]
+    );
+    const requerPerfil = perfis[0].n === 0;
+
+    if (!u.email_confirmado) {
+      await pool.query(
+        `UPDATE utilizador SET email_confirmado = 1 WHERE id_utilizador = ?`,
+        [u.id_utilizador]
+      );
+    }
+
+    res.json({
+      mensagem: 'Email confirmado.',
+      requer_perfil: requerPerfil,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function completarPerfil(req, res, next) {
+  try {
+    const { token, nome, perfil, id_service_line } = req.body;
+    if (!token) return res.status(400).json({ erro: 'Token em falta.' });
+    if (!nome || !perfil) {
+      return res.status(400).json({ erro: 'Nome e perfil são obrigatórios.' });
+    }
+    if (!PERFIS_PERMITIDOS_REGISTO.includes(perfil)) {
+      return res.status(400).json({ erro: 'Perfil inválido.' });
+    }
+    if (perfil === 'Consultor' && !id_service_line) {
+      return res.status(400).json({ erro: 'Service Line é obrigatória para Consultor.' });
+    }
+
+    const [linhas] = await pool.query(
+      `SELECT id_utilizador, email, idioma, ultimo_login, primeiro_login_pendente
+         FROM utilizador
+        WHERE token_confirmacao_email = ?`,
+      [token]
+    );
+    if (linhas.length === 0) return res.status(404).json({ erro: 'Token inválido ou já utilizado.' });
+
+    const u = linhas[0];
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const slug = await gerarSlugUnico(nome);
+
+      await conn.query(
+        `UPDATE utilizador
+            SET nome = ?,
+                url_slug = ?,
+                email_confirmado = 1,
+                token_confirmacao_email = NULL
+          WHERE id_utilizador = ?`,
+        [nome, slug, u.id_utilizador]
+      );
+
+      const [perfilRow] = await conn.query(
+        'SELECT id_perfil FROM perfil WHERE nome_perfil = ?',
+        [perfil]
+      );
+      if (perfilRow.length === 0) throw new Error(`Perfil "${perfil}" não configurado.`);
+
+      await conn.query(
+        `INSERT IGNORE INTO utilizador_perfil (id_utilizador, id_perfil)
+         VALUES (?, ?)`,
+        [u.id_utilizador, perfilRow[0].id_perfil]
+      );
+
+      if (perfil === 'Consultor' && id_service_line) {
+        const [areas] = await conn.query(
+          'SELECT id_area FROM area WHERE id_service_line = ? ORDER BY id_area ASC LIMIT 1',
+          [id_service_line]
+        );
+        if (areas.length > 0) {
+          await conn.query(
+            `INSERT INTO consultor_area (id_utilizador, id_area)
+             VALUES (?, ?)`,
+            [u.id_utilizador, areas[0].id_area]
+          );
+        }
+      }
+
+      await conn.query(
+        `INSERT IGNORE INTO preferencia_notificacao (id_utilizador) VALUES (?)`,
+        [u.id_utilizador]
+      );
+
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+
+    const jwt = assinarToken({ id_utilizador: u.id_utilizador });
+    const saudacao = calcularSaudacao({
+      ultimoLogin: u.ultimo_login,
+      primeiroLoginPendente: !!u.primeiro_login_pendente,
+      idioma: u.idioma,
+    });
 
     await pool.query(
-      `UPDATE utilizador
-          SET email_confirmado = 1,
-              token_confirmacao_email = NULL
-        WHERE id_utilizador = ?`,
-      [linhas[0].id_utilizador]
+      'UPDATE utilizador SET ultimo_login = CURRENT_TIMESTAMP WHERE id_utilizador = ?',
+      [u.id_utilizador]
     );
 
-    res.json({ mensagem: 'Email confirmado com sucesso. Já pode fazer login.' });
+    res.status(201).json({
+      mensagem: 'Registo concluído.',
+      token: jwt,
+      saudacao,
+      utilizador: {
+        id_utilizador: u.id_utilizador,
+        nome,
+        email: u.email,
+        perfis: [perfil],
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -231,13 +313,12 @@ async function pedirRecuperacao(req, res, next) {
       [email]
     );
 
-    // resposta genérica para não expor se o email existe
     if (linhas.length === 0) {
       return res.json({ mensagem: 'Se o email existir, será enviado um link de recuperação.' });
     }
 
     const token = gerarTokenAleatorio();
-    const expira = new Date(Date.now() + 60 * 60 * 1000); // 1h
+    const expira = new Date(Date.now() + 60 * 60 * 1000);
 
     await pool.query(
       `UPDATE utilizador
@@ -306,6 +387,7 @@ async function eu(req, res) {
 module.exports = {
   registar,
   confirmarEmail,
+  completarPerfil,
   login,
   alterarPasswordPrimeiroLogin,
   pedirRecuperacao,

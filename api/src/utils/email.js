@@ -41,17 +41,19 @@ async function enviarEmail({ para, assunto, html, texto }) {
 }
 
 async function enviarConfirmacaoRegisto(utilizador, token) {
-  const link = `${process.env.APP_URL}/api/auth/confirmar-email?token=${token}`;
+  const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const link = `${base}/confirmar-email/${token}`;
   return enviarEmail({
     para: utilizador.email,
     assunto: 'Confirme o seu registo — Softinsa Badges',
-    texto: `Olá ${utilizador.nome},\n\nPara confirmar o seu registo clique no link:\n${link}\n\nObrigado.`,
-    html: `<p>Olá ${utilizador.nome},</p><p>Para confirmar o seu registo clique <a href="${link}">aqui</a>.</p>`,
+    texto: `Para confirmar o seu registo clique no link:\n${link}\n\nObrigado.`,
+    html: `<p>Para confirmar o seu registo clique <a href="${link}">aqui</a>.</p>`,
   });
 }
 
 async function enviarRecuperacaoPassword(utilizador, token) {
-  const link = `${process.env.FRONTEND_URL}/recuperar-password?token=${token}`;
+  const base = process.env.FRONTEND_URL || 'http://localhost:5173';
+  const link = `${base}/redefinir-password/${token}`;
   return enviarEmail({
     para: utilizador.email,
     assunto: 'Recuperação de password — Softinsa Badges',

@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(node -e \"require\\('./src/controllers/authController'\\); console.log\\('OK'\\);\")"
+    ]
+  }
+}
