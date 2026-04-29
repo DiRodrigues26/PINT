@@ -23,7 +23,7 @@ export default function CompletarPerfil() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    api.get('/api/service-lines')
+    api.get('/publico/service-lines')
       .then(({ data }) => setServiceLines(data.dados || []))
       .catch(() => {});
   }, []);

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mysql -h nozomi.proxy.rlwy.net -P 15913 -u root -pjWNhrZqkBzMhmxFTwcjldSnQdiWWwZtc softinsa_badges -e \"SELECT id_utilizador, nome, email, email_confirmado, ativo FROM utilizador WHERE email = 'jaime12ribeiro34@gmail.com';\")",
+      "Bash(node -e ' *)",
+      "Bash(where node *)",
+      "Bash(command -v node)"
+    ]
+  }
+}
