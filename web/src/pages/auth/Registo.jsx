@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { api, extrairErro } from '../lib/api';
-import SplitLayout from '../components/SplitLayout';
-import InputPassword from '../components/InputPassword';
+import { api, extrairErro } from '../../lib/api';
+import SplitLayout from '../../components/SplitLayout';
+import InputPassword from '../../components/InputPassword';
 
 export default function Registo() {
   const [email, setEmail] = useState('');

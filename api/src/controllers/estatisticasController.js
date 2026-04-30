@@ -95,7 +95,7 @@ async function dashboardGestor(req, res, next) {
          FROM nivel n
          LEFT JOIN badge b ON b.id_nivel = n.id_nivel
          LEFT JOIN badge_atribuido ba ON ba.id_badge = b.id_badge
-        GROUP BY n.codigo_nivel, n.nome_nivel
+        GROUP BY n.codigo_nivel, n.nome_nivel, n.ordem
         ORDER BY n.ordem`
     );
 

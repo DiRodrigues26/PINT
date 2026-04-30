@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { api, extrairErro } from '../lib/api';
-import { useAuth } from '../context/AuthContext';
-import SplitLayout from '../components/SplitLayout';
+import { api, extrairErro } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
+import SplitLayout from '../../components/SplitLayout';
 
 const PERFIS = [
   { valor: 'Consultor', rotulo: 'Consultor' },

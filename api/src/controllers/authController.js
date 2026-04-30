@@ -77,7 +77,7 @@ async function confirmarEmail(req, res, next) {
     if (!token) return res.status(400).json({ erro: 'Token em falta.' });
 
     const [linhas] = await pool.query(
-      `SELECT id_utilizador, email_confirmado
+      `SELECT id_utilizador, email_confirmado, primeiro_login_pendente
          FROM utilizador
         WHERE token_confirmacao_email = ?`,
       [token]
@@ -93,9 +93,34 @@ async function confirmarEmail(req, res, next) {
     );
     const requerPerfil = perfis[0].n === 0;
 
-    if (!u.email_confirmado) {
+    let tokenPassword = null;
+
+    if (requerPerfil) {
+      if (!u.email_confirmado) {
+        await pool.query(
+          `UPDATE utilizador SET email_confirmado = 1 WHERE id_utilizador = ?`,
+          [u.id_utilizador]
+        );
+      }
+    } else if (u.primeiro_login_pendente) {
+      tokenPassword = gerarTokenAleatorio();
+      const expira = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
       await pool.query(
-        `UPDATE utilizador SET email_confirmado = 1 WHERE id_utilizador = ?`,
+        `UPDATE utilizador
+            SET email_confirmado = 1,
+                token_confirmacao_email = NULL,
+                token_recuperacao_password = ?,
+                token_recuperacao_expira = ?
+          WHERE id_utilizador = ?`,
+        [tokenPassword, expira, u.id_utilizador]
+      );
+    } else {
+      await pool.query(
+        `UPDATE utilizador
+            SET email_confirmado = 1,
+                token_confirmacao_email = NULL
+          WHERE id_utilizador = ?`,
         [u.id_utilizador]
       );
     }
@@ -103,6 +128,8 @@ async function confirmarEmail(req, res, next) {
     res.json({
       mensagem: 'Email confirmado.',
       requer_perfil: requerPerfil,
+      requer_password: !requerPerfil && !!u.primeiro_login_pendente,
+      token_password: tokenPassword,
     });
   } catch (err) {
     next(err);
@@ -369,7 +396,8 @@ async function redefinirPassword(req, res, next) {
       `UPDATE utilizador
           SET password_hash = ?,
               token_recuperacao_password = NULL,
-              token_recuperacao_expira = NULL
+              token_recuperacao_expira = NULL,
+              primeiro_login_pendente = 0
         WHERE id_utilizador = ?`,
       [passwordHash, linhas[0].id_utilizador]
     );

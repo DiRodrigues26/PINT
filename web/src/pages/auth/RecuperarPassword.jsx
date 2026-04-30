@@ -1,19 +1,24 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { api, extrairErro } from '../lib/api';
-import SplitLayout from '../components/SplitLayout';
+import { api, extrairErro } from '../../lib/api';
+import SplitLayout from '../../components/SplitLayout';
 
 export default function RecuperarPassword() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [enviado, setEnviado] = useState(false);
+  const [submetido, setSubmetido] = useState(false);
 
   const podeSubmeter = email.trim().length > 0 && !loading;
 
   async function submeter(e) {
     e.preventDefault();
-    if (!podeSubmeter) return;
+    setSubmetido(true);
+    if (!podeSubmeter) {
+      toast.error('Preencha o email.');
+      return;
+    }
     setLoading(true);
     try {
       await api.post('/api/auth/recuperar-password', { email });
@@ -50,11 +55,12 @@ export default function RecuperarPassword() {
               placeholder="exemplo@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="input"
+              className={`input ${submetido && !email.trim() ? 'border-rose-500 ring-2 ring-rose-100' : ''}`}
             />
+            {submetido && !email.trim() && <p className="mt-1 text-xs text-rose-600">Email obrigatório.</p>}
           </div>
 
-          <button type="submit" disabled={!podeSubmeter} className="btn-primary w-full">
+          <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? 'A enviar…' : 'Restaurar password'}
           </button>
 

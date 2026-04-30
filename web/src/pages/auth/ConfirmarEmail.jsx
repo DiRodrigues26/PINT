@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { api, extrairErro } from '../lib/api';
-import SplitLayout from '../components/SplitLayout';
+import { api, extrairErro } from '../../lib/api';
+import SplitLayout from '../../components/SplitLayout';
 
 export default function ConfirmarEmail() {
   const { token } = useParams();
@@ -15,6 +15,8 @@ export default function ConfirmarEmail() {
         const { data } = await api.post('/api/auth/confirmar-email', { token });
         if (data.requer_perfil) {
           navigate(`/completar-perfil/${token}`, { replace: true });
+        } else if (data.requer_password && data.token_password) {
+          navigate(`/redefinir-password/${data.token_password}`, { replace: true });
         } else {
           setEstado('ok');
           setTimeout(() => navigate('/login'), 1500);

@@ -1,16 +1,16 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { api, extrairErro } from '../lib/api';
-import { useAuth } from '../context/AuthContext';
-import SplitLayout from '../components/SplitLayout';
-import InputPassword from '../components/InputPassword';
+import { api, extrairErro } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
+import SplitLayout from '../../components/SplitLayout';
+import InputPassword from '../../components/InputPassword';
 
 export default function AlterarPasswordInicial() {
   const [password, setPassword] = useState('');
   const [confirmar, setConfirmar] = useState('');
   const [loading, setLoading] = useState(false);
-  const { recarregar } = useAuth();
+  const { recarregar, utilizador } = useAuth();
   const navigate = useNavigate();
 
   const podeSubmeter =
@@ -24,7 +24,7 @@ export default function AlterarPasswordInicial() {
       await api.post('/api/auth/primeiro-login', { nova_password: password });
       toast.success('Password atualizada.');
       await recarregar();
-      navigate('/');
+      navigate(utilizador?.perfis?.includes('Administrador') ? '/admin' : '/');
     } catch (err) {
       toast.error(extrairErro(err));
     } finally {

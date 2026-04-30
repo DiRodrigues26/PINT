@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import SplitLayout from '../components/SplitLayout';
+import SplitLayout from '../../components/SplitLayout';
 
 export default function VerificarEmail() {
   const location = useLocation();

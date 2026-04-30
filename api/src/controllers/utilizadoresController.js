@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const { pool } = require('../db/connection');
 const { gerarSlug } = require('../utils/slug');
 const { gerarTokenAleatorio } = require('../utils/tokens');
-const { enviarConfirmacaoRegisto } = require('../utils/email');
+const { enviarConfirmacaoRegisto, enviarRecuperacaoPassword } = require('../utils/email');
 
 async function gerarSlugUnico(nome, ignorarId = null) {
   const base = gerarSlug(nome) || 'utilizador';
@@ -23,7 +23,10 @@ async function gerarSlugUnico(nome, ignorarId = null) {
 
 async function listar(req, res, next) {
   try {
-    const { perfil, ativo, pesquisa, pagina = 1, por_pagina = 20 } = req.query;
+    const {
+      perfil, ativo, pesquisa, id_service_line, id_area,
+      pagina = 1, por_pagina = 20,
+    } = req.query;
     const limit = Math.min(parseInt(por_pagina, 10) || 20, 100);
     const offset = (Math.max(parseInt(pagina, 10) || 1, 1) - 1) * limit;
 
@@ -46,25 +49,49 @@ async function listar(req, res, next) {
       )`);
       params.push(perfil);
     }
+    if (id_service_line) {
+      where.push('(a.id_service_line = ? OR slr.id_service_line = ?)');
+      params.push(id_service_line, id_service_line);
+    }
+    if (id_area) {
+      where.push('a.id_area = ?');
+      params.push(id_area);
+    }
 
     const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const joinsSQL = `
+         LEFT JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador
+         LEFT JOIN area a ON a.id_area = ca.id_area
+         LEFT JOIN service_line sl_area ON sl_area.id_service_line = a.id_service_line
+         LEFT JOIN service_line_responsavel slr ON slr.id_utilizador = u.id_utilizador
+         LEFT JOIN service_line sl_resp ON sl_resp.id_service_line = slr.id_service_line`;
 
     const [linhas] = await pool.query(
       `SELECT u.id_utilizador, u.nome, u.email, u.ativo, u.email_confirmado,
               u.idioma, u.ultimo_login, u.created_at, u.url_slug,
-              GROUP_CONCAT(p.nome_perfil) AS perfis
+              a.id_area, a.nome AS nome_area,
+              COALESCE(sl_area.id_service_line, sl_resp.id_service_line) AS id_service_line,
+              COALESCE(sl_area.nome, sl_resp.nome) AS nome_service_line,
+              GROUP_CONCAT(DISTINCT p.nome_perfil) AS perfis
          FROM utilizador u
          LEFT JOIN utilizador_perfil up ON up.id_utilizador = u.id_utilizador
          LEFT JOIN perfil p              ON p.id_perfil     = up.id_perfil
+         ${joinsSQL}
          ${whereSQL}
-         GROUP BY u.id_utilizador
+         GROUP BY u.id_utilizador, u.nome, u.email, u.ativo, u.email_confirmado,
+                  u.idioma, u.ultimo_login, u.created_at, u.url_slug,
+                  a.id_area, a.nome, sl_area.id_service_line, sl_area.nome,
+                  sl_resp.id_service_line, sl_resp.nome
          ORDER BY u.created_at DESC
          LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
 
     const [[{ total }]] = await pool.query(
-      `SELECT COUNT(*) AS total FROM utilizador u ${whereSQL}`,
+      `SELECT COUNT(DISTINCT u.id_utilizador) AS total
+         FROM utilizador u
+         ${joinsSQL}
+         ${whereSQL}`,
       params
     );
 
@@ -135,6 +162,8 @@ async function criar(req, res, next) {
     const {
       nome, email, password, idioma = 'pt',
       perfis = [], id_area, id_service_line,
+      primeiro_login_pendente = 1,
+      enviar_email_confirmacao = 1,
     } = req.body;
 
     if (!nome || !email || !password) {
@@ -159,8 +188,17 @@ async function criar(req, res, next) {
         `INSERT INTO utilizador
            (nome, email, password_hash, idioma, url_slug, token_confirmacao_email,
             primeiro_login_pendente, email_confirmado)
-         VALUES (?, ?, ?, ?, ?, ?, 1, 0)`,
-        [nome, email, passwordHash, idioma, slug, tokenConfirmacao]
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          nome,
+          email,
+          passwordHash,
+          idioma,
+          slug,
+          enviar_email_confirmacao ? tokenConfirmacao : null,
+          primeiro_login_pendente ? 1 : 0,
+          enviar_email_confirmacao ? 0 : 1,
+        ]
       );
       const idUtilizador = result.insertId;
 
@@ -197,10 +235,12 @@ async function criar(req, res, next) {
 
       await conn.commit();
 
-      try {
-        await enviarConfirmacaoRegisto({ nome, email }, tokenConfirmacao);
-      } catch (e) {
-        console.warn('Aviso: falha ao enviar email:', e.message);
+      if (enviar_email_confirmacao) {
+        try {
+          await enviarConfirmacaoRegisto({ nome, email }, tokenConfirmacao);
+        } catch (e) {
+          console.warn('Aviso: falha ao enviar email:', e.message);
+        }
       }
 
       res.status(201).json({
@@ -221,7 +261,10 @@ async function criar(req, res, next) {
 async function atualizar(req, res, next) {
   try {
     const { id } = req.params;
-    const { nome, email, idioma, ativo } = req.body;
+    const {
+      nome, email, idioma, ativo, perfis,
+      id_area, id_service_line,
+    } = req.body;
 
     const campos = [];
     const valores = [];
@@ -236,14 +279,73 @@ async function atualizar(req, res, next) {
       valores.push(novoSlug);
     }
 
-    if (campos.length === 0) return res.status(400).json({ erro: 'Nada para atualizar.' });
+    const atualizaAssociacoes =
+      perfis !== undefined || id_area !== undefined || id_service_line !== undefined;
 
-    valores.push(id);
-    const [result] = await pool.query(
-      `UPDATE utilizador SET ${campos.join(', ')} WHERE id_utilizador = ?`,
-      valores
-    );
-    if (result.affectedRows === 0) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+    if (campos.length === 0 && !atualizaAssociacoes) {
+      return res.status(400).json({ erro: 'Nada para atualizar.' });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      if (campos.length > 0) {
+        valores.push(id);
+        const [result] = await conn.query(
+          `UPDATE utilizador SET ${campos.join(', ')} WHERE id_utilizador = ?`,
+          valores
+        );
+        if (result.affectedRows === 0) {
+          await conn.rollback();
+          return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+        }
+      }
+
+      if (perfis !== undefined) {
+        await conn.query('DELETE FROM utilizador_perfil WHERE id_utilizador = ?', [id]);
+
+        if (Array.isArray(perfis) && perfis.length > 0) {
+          const [perfisBD] = await conn.query(
+            'SELECT id_perfil FROM perfil WHERE nome_perfil IN (?)',
+            [perfis]
+          );
+          for (const p of perfisBD) {
+            await conn.query(
+              'INSERT INTO utilizador_perfil (id_utilizador, id_perfil) VALUES (?, ?)',
+              [id, p.id_perfil]
+            );
+          }
+        }
+      }
+
+      if (id_area !== undefined) {
+        await conn.query('DELETE FROM consultor_area WHERE id_utilizador = ?', [id]);
+        if (id_area) {
+          await conn.query(
+            'INSERT INTO consultor_area (id_utilizador, id_area) VALUES (?, ?)',
+            [id, id_area]
+          );
+        }
+      }
+
+      if (id_service_line !== undefined) {
+        await conn.query('DELETE FROM service_line_responsavel WHERE id_utilizador = ?', [id]);
+        if (id_service_line) {
+          await conn.query(
+            'INSERT INTO service_line_responsavel (id_utilizador, id_service_line) VALUES (?, ?)',
+            [id, id_service_line]
+          );
+        }
+      }
+
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
 
     res.json({ mensagem: 'Utilizador atualizado.' });
   } catch (err) {
@@ -358,6 +460,37 @@ async function alterarMinhaPassword(req, res, next) {
   }
 }
 
+async function reporPassword(req, res, next) {
+  try {
+    const [linhas] = await pool.query(
+      'SELECT id_utilizador, nome, email FROM utilizador WHERE id_utilizador = ?',
+      [req.params.id]
+    );
+    if (linhas.length === 0) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+
+    const token = gerarTokenAleatorio();
+    const expira = new Date(Date.now() + 60 * 60 * 1000);
+
+    await pool.query(
+      `UPDATE utilizador
+          SET token_recuperacao_password = ?,
+              token_recuperacao_expira = ?
+        WHERE id_utilizador = ?`,
+      [token, expira, req.params.id]
+    );
+
+    try {
+      await enviarRecuperacaoPassword(linhas[0], token);
+    } catch (e) {
+      console.warn('Aviso: falha ao enviar email de recuperação:', e.message);
+    }
+
+    res.json({ mensagem: 'Email de recuperação enviado.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listar,
   obter,
@@ -367,4 +500,5 @@ module.exports = {
   definirPerfis,
   atualizarMeuPerfil,
   alterarMinhaPassword,
+  reporPassword,
 };

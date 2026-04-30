@@ -14,6 +14,7 @@ router.use(autorizarPerfis('Administrador'));
 
 router.get('/',    ctrl.listar);
 router.post('/',   ctrl.criar);
+router.post('/:id/repor-password', ctrl.reporPassword);
 router.get('/:id', ctrl.obter);
 router.put('/:id', ctrl.atualizar);
 router.delete('/:id', ctrl.desativar);
