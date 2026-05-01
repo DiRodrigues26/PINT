@@ -51,7 +51,7 @@ export default function Login() {
       return;
     }
     setLoading(true);
-    const r = await login(emailNormalizado, password);
+    const r = await login(emailNormalizado, password, { guardarLogin });
     setLoading(false);
 
     if (r.ok) {

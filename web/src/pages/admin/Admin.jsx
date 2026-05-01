@@ -6,7 +6,9 @@ import { AppSidebar, AppTopbar, ShellIcon } from '../../components/AppShell';
 import Carregando from '../../components/Carregando';
 import { useAuth } from '../../context/AuthContext';
 import { estadoCandidatura, formatarData } from '../../lib/formatar';
+import AdminAreas from './AdminAreas';
 import AdminLearningPaths from './AdminLearningPaths';
+import AdminNiveis from './AdminNiveis';
 import AdminServiceLines from './AdminServiceLines';
 import AdminUtilizadores from './AdminUtilizadores';
 
@@ -312,13 +314,17 @@ export default function Admin() {
       />
       <div className="lg:pl-[260px]">
         <AppTopbar titulo={`${saudacao()}, Admin!`} subtitulo={subtitulo} utilizador={utilizador} />
-        <main className={`mx-auto py-8 ${vistaAtiva === 'utilizadores' ? 'max-w-[1720px] px-5 lg:px-8 xl:px-10' : ['learning-paths', 'service-lines'].includes(vistaAtiva) ? 'max-w-[1560px] px-5 lg:px-10 xl:px-16' : 'max-w-[1480px] px-5 lg:px-10 xl:px-[120px]'}`}>
+        <main className={`mx-auto pb-28 pt-8 lg:pb-8 ${vistaAtiva === 'utilizadores' ? 'max-w-[1720px] px-5 lg:px-8 xl:px-10' : ['learning-paths', 'service-lines', 'areas', 'niveis'].includes(vistaAtiva) ? 'max-w-[1560px] px-5 lg:px-10 xl:px-16' : 'max-w-[1480px] px-5 lg:px-10 xl:px-[120px]'}`}>
           {vistaAtiva === 'utilizadores' ? (
             <AdminUtilizadores />
           ) : vistaAtiva === 'learning-paths' ? (
             <AdminLearningPaths />
           ) : vistaAtiva === 'service-lines' ? (
             <AdminServiceLines />
+          ) : vistaAtiva === 'areas' ? (
+            <AdminAreas />
+          ) : vistaAtiva === 'niveis' ? (
+            <AdminNiveis />
           ) : carregando ? (
             <div className="flex min-h-[60vh] items-center justify-center"><Carregando /></div>
           ) : (

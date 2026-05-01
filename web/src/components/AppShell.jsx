@@ -8,6 +8,7 @@ import {
   FileText,
   Info,
   LayoutDashboard,
+  Menu,
   Shield,
   TrendingUp,
   Trophy,
@@ -29,6 +30,7 @@ const ICONES = {
   info: Info,
   shield: Shield,
   x: X,
+  menu: Menu,
 };
 
 export function ShellIcon({ nome, className = 'h-5 w-5' }) {
@@ -40,46 +42,68 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
   const perfis = utilizador?.perfis?.join(', ') || 'Utilizador';
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-20 hidden w-[260px] border-r border-slate-200 bg-white lg:block">
-      <div className="flex h-[92px] items-center gap-3 border-b border-slate-200 px-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-softinsa-600 text-lg font-bold text-white">S</div>
-        <div>
-          <div className="text-sm font-bold text-softinsa-700">Softinsa</div>
-          <div className="text-xs text-slate-500">Badges Platform</div>
+    <>
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[260px] border-r border-slate-200 bg-white lg:block">
+        <div className="flex h-[92px] items-center gap-3 border-b border-slate-200 px-6">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-softinsa-600 text-lg font-bold text-white">S</div>
+          <div>
+            <div className="text-sm font-bold text-softinsa-700">Softinsa</div>
+            <div className="text-xs text-slate-500">Badges Platform</div>
+          </div>
         </div>
-      </div>
-      <nav className="h-[calc(100vh-224px)] overflow-y-auto px-4 py-6">
-        <div className="space-y-1">
+        <nav className="h-[calc(100vh-224px)] overflow-y-auto px-4 py-6">
+          <div className="space-y-1">
+            {menu.map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => onSelect(item.chave)}
+                className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
+                  ativo === item.chave
+                    ? 'bg-[#eaf3ff] text-softinsa-700 shadow-[inset_3px_0_0_#39639c]'
+                    : 'text-slate-700 hover:bg-slate-50 hover:text-softinsa-700'
+                }`}
+              >
+                <ShellIcon nome={item.icon} className="h-5 w-5 shrink-0" />
+                <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
+        </nav>
+        <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 px-5 py-5">
+          <div className="truncate text-sm font-bold text-slate-900">{utilizador?.nome || 'Utilizador'}</div>
+          <div className="mt-1 truncate text-xs text-slate-500">{utilizador?.email || '-'}</div>
+          <div className="mt-2 truncate text-xs font-medium text-softinsa-600">{perfis}</div>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="mt-4 w-full text-center text-xs font-semibold text-slate-700 underline underline-offset-2 hover:text-softinsa-700"
+          >
+            Terminar sessão
+          </button>
+        </div>
+      </aside>
+
+      <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+        <div className="flex gap-2 overflow-x-auto pb-1">
           {menu.map((item) => (
             <button
               key={item.label}
               type="button"
               onClick={() => onSelect(item.chave)}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
+              className={`flex min-w-[76px] flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-medium transition ${
                 ativo === item.chave
-                  ? 'bg-[#eaf3ff] text-softinsa-700 shadow-[inset_3px_0_0_#39639c]'
-                  : 'text-slate-700 hover:bg-slate-50 hover:text-softinsa-700'
+                  ? 'bg-[#eaf3ff] text-softinsa-700'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-softinsa-700'
               }`}
             >
               <ShellIcon nome={item.icon} className="h-5 w-5 shrink-0" />
-              <span>{item.label}</span>
+              <span className="line-clamp-1 max-w-[68px]">{item.label.replace('Gestão de ', '')}</span>
             </button>
           ))}
         </div>
       </nav>
-      <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 px-5 py-5">
-        <div className="truncate text-sm font-bold text-slate-900">{utilizador?.nome || 'Utilizador'}</div>
-        <div className="mt-1 truncate text-xs text-slate-500">{utilizador?.email || '-'}</div>
-        <div className="mt-2 truncate text-xs font-medium text-softinsa-600">{perfis}</div>
-        <button
-          type="button"
-          onClick={onLogout}
-          className="mt-4 w-full text-center text-xs font-semibold text-slate-700 underline underline-offset-2 hover:text-softinsa-700"
-        >
-          Terminar sessão
-        </button>
-      </div>
-    </aside>
+    </>
   );
 }
 

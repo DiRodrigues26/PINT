@@ -27,6 +27,19 @@ const estatisticasRoutes   = require('./routes/estatisticasRoutes');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
+
+app.use((req, res, next) => {
+  const deveForcarHttps = process.env.NODE_ENV === 'production' && process.env.DISABLE_HTTPS_REDIRECT !== 'true';
+  const protocolo = req.headers['x-forwarded-proto'];
+
+  if (deveForcarHttps && protocolo && protocolo !== 'https') {
+    return res.redirect(308, `https://${req.headers.host}${req.originalUrl}`);
+  }
+
+  return next();
+});
+
 app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,

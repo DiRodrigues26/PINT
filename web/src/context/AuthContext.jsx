@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { api, extrairErro } from '../lib/api';
+import { api, extrairErro, guardarToken, limparToken, obterToken } from '../lib/api';
 
 const AuthContext = createContext(null);
 
@@ -9,7 +9,7 @@ export function AuthProvider({ children }) {
   const [carregando, setCarregando] = useState(true);
 
   const carregarEu = useCallback(async () => {
-    const token = localStorage.getItem('token');
+    const token = obterToken();
     if (!token) {
       setUtilizador(null);
       setCarregando(false);
@@ -19,7 +19,7 @@ export function AuthProvider({ children }) {
       const { data } = await api.get('/api/auth/eu');
       setUtilizador(data.utilizador);
     } catch {
-      localStorage.removeItem('token');
+      limparToken();
       setUtilizador(null);
     } finally {
       setCarregando(false);
@@ -30,10 +30,10 @@ export function AuthProvider({ children }) {
     carregarEu();
   }, [carregarEu]);
 
-  async function login(email, password) {
+  async function login(email, password, opcoes = {}) {
     try {
       const { data } = await api.post('/api/auth/login', { email, password });
-      localStorage.setItem('token', data.token);
+      guardarToken(data.token, opcoes.guardarLogin !== false);
       setUtilizador(data.utilizador);
       setSaudacao(data.saudacao);
       return { ok: true, dados: data };
@@ -43,7 +43,7 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
-    localStorage.removeItem('token');
+    limparToken();
     setUtilizador(null);
     setSaudacao(null);
   }

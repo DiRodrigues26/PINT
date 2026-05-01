@@ -11,6 +11,7 @@ export default function NovaPassword() {
   const [confirmar, setConfirmar] = useState('');
   const [loading, setLoading] = useState(false);
   const [submetido, setSubmetido] = useState(false);
+  const [sucesso, setSucesso] = useState(false);
   const navigate = useNavigate();
 
   const podeSubmeter =
@@ -33,8 +34,8 @@ export default function NovaPassword() {
         nova_password: password,
         confirmar_password: confirmar,
       });
+      setSucesso(true);
       toast.success('A sua password foi redefinida com sucesso');
-      navigate('/login');
     } catch (err) {
       toast.error(extrairErro(err));
     } finally {
@@ -44,7 +45,17 @@ export default function NovaPassword() {
 
   return (
     <SplitLayout>
-      <form onSubmit={submeter} className="space-y-5">
+      {sucesso ? (
+        <div className="space-y-5">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl text-emerald-600">✓</div>
+          <h1 className="text-3xl font-extrabold tracking-tight">Password redefinida</h1>
+          <p className="text-sm leading-6 text-slate-600">A sua password foi redefinida com sucesso.</p>
+          <button type="button" className="btn-primary w-full" onClick={() => navigate('/login')}>
+            Voltar ao login
+          </button>
+        </div>
+      ) : (
+      <form onSubmit={submeter} className="space-y-5" noValidate>
         <h1 className="text-4xl font-extrabold tracking-tight">Nova password</h1>
 
         <div>
@@ -54,6 +65,7 @@ export default function NovaPassword() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
+            required={false}
             minLength={8}
             className={submetido && password.length < 8 ? 'border-rose-500 ring-2 ring-rose-100' : ''}
           />
@@ -67,6 +79,7 @@ export default function NovaPassword() {
             value={confirmar}
             onChange={(e) => setConfirmar(e.target.value)}
             autoComplete="new-password"
+            required={false}
             minLength={8}
             className={submetido && (confirmar.length < 8 || password !== confirmar) ? 'border-rose-500 ring-2 ring-rose-100' : ''}
           />
@@ -84,6 +97,7 @@ export default function NovaPassword() {
           <Link to="/login" className="link font-medium">Cancelar</Link>
         </div>
       </form>
+      )}
     </SplitLayout>
   );
 }

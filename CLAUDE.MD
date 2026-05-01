@@ -33,8 +33,15 @@ npm run dev
 ## Base de dados
 - BD: `softinsa_badges`.
 - Ligacao configurada via `api/.env`.
+- Schema local para consulta: `api/database/schema.sql`.
+- Rotina obrigatoria: antes de criar/alterar queries SQL, endpoints que leem/escrevem na BD, CRUDs, dashboards, graficos ou designs que dependam de dados reais, consultar primeiro `api/database/schema.sql` para confirmar nomes de tabelas, colunas, chaves estrangeiras, tipos e relacoes.
+- Se houver duvida entre o codigo e o schema, validar o schema local primeiro e so depois recorrer a ligacao Railway quando for mesmo necessario testar dados reais.
 - A BD real no Railway tem colunas usadas pelo codigo atual, incluindo `url_slug`, `ultimo_login`, `totp_secret` e `totp_ativo`.
 - Evitar commitar ficheiros `.env` com credenciais reais.
+
+## Hierarquia de badges
+- Documento guia: `docs/hierarquia-badges-softinsa.md`.
+- Rotina obrigatoria: antes de implementar CRUDs, dashboards, filtros, dropdowns ou validacoes de Learning Paths, Service Lines, Areas, Niveis, Requisitos, Badges, Candidaturas ou Evidencias, consultar `docs/hierarquia-badges-softinsa.md` e depois confirmar colunas/relacoes em `api/database/schema.sql`.
 
 ## Perfis de utilizador
 - `Consultor` — submete candidaturas a badges e carrega evidencias.

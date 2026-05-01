@@ -10,7 +10,10 @@ export default function RecuperarPassword() {
   const [enviado, setEnviado] = useState(false);
   const [submetido, setSubmetido] = useState(false);
 
-  const podeSubmeter = email.trim().length > 0 && !loading;
+  const emailNormalizado = email.trim();
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailNormalizado);
+  const emailInvalido = submetido && (!emailNormalizado || !emailValido);
+  const podeSubmeter = emailNormalizado.length > 0 && emailValido && !loading;
 
   async function submeter(e) {
     e.preventDefault();
@@ -21,7 +24,7 @@ export default function RecuperarPassword() {
     }
     setLoading(true);
     try {
-      await api.post('/api/auth/recuperar-password', { email });
+      await api.post('/api/auth/recuperar-password', { email: emailNormalizado });
       setEnviado(true);
     } catch (err) {
       toast.error(extrairErro(err));
@@ -42,7 +45,7 @@ export default function RecuperarPassword() {
           <Link to="/login" className="link text-sm">← Voltar ao login</Link>
         </div>
       ) : (
-        <form onSubmit={submeter} className="space-y-5">
+        <form onSubmit={submeter} className="space-y-5" noValidate>
           <h1 className="text-4xl font-extrabold tracking-tight leading-tight">Restaurar<br />password</h1>
 
           <div>
@@ -50,14 +53,14 @@ export default function RecuperarPassword() {
             <input
               id="email"
               type="email"
-              required
               autoComplete="email"
               placeholder="exemplo@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className={`input ${submetido && !email.trim() ? 'border-rose-500 ring-2 ring-rose-100' : ''}`}
+              className={`input ${emailInvalido ? 'border-rose-500 ring-2 ring-rose-100' : ''}`}
             />
-            {submetido && !email.trim() && <p className="mt-1 text-xs text-rose-600">Email obrigatório.</p>}
+            {submetido && !emailNormalizado && <p className="mt-1 text-xs text-rose-600">Email obrigatório.</p>}
+            {submetido && emailNormalizado && !emailValido && <p className="mt-1 text-xs text-rose-600">Email inválido.</p>}
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full">

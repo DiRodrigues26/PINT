@@ -2,32 +2,77 @@ const { pool } = require('../db/connection');
 
 async function listar(req, res, next) {
   try {
-    const { id_service_line } = req.query;
+    const { id_learning_path, id_service_line, pesquisa, ativo, pagina, por_pagina } = req.query;
     const where = [];
     const params = [];
+    if (id_learning_path) { where.push('sl.id_learning_path = ?'); params.push(id_learning_path); }
     if (id_service_line) { where.push('a.id_service_line = ?'); params.push(id_service_line); }
+    if (pesquisa) {
+      where.push('(a.nome LIKE ? OR a.descricao LIKE ? OR sl.nome LIKE ? OR lp.nome LIKE ?)');
+      params.push(`%${pesquisa}%`, `%${pesquisa}%`, `%${pesquisa}%`, `%${pesquisa}%`);
+    }
+    if (ativo !== undefined && ativo !== '') {
+      where.push('a.ativo = ?');
+      params.push(ativo === '1' || ativo === 'true' ? 1 : 0);
+    }
+
     const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const usarPaginacao = pagina !== undefined || por_pagina !== undefined;
+    const limit = Math.min(parseInt(por_pagina, 10) || 20, 100);
+    const paginaAtual = Math.max(parseInt(pagina, 10) || 1, 1);
+    const offset = (paginaAtual - 1) * limit;
+    const paginacaoSQL = usarPaginacao ? 'LIMIT ? OFFSET ?' : '';
+    const paginacaoParams = usarPaginacao ? [limit, offset] : [];
 
     const [linhas] = await pool.query(
-      `SELECT a.*, sl.nome AS nome_service_line, lp.id_learning_path, lp.nome AS nome_learning_path
+      `SELECT a.*, sl.nome AS nome_service_line, lp.id_learning_path, lp.nome AS nome_learning_path,
+              COUNT(DISTINCT n.id_nivel) AS total_niveis,
+              COUNT(DISTINCT b.id_badge) AS total_badges
          FROM area a
          JOIN service_line sl ON sl.id_service_line = a.id_service_line
          JOIN learning_path lp ON lp.id_learning_path = sl.id_learning_path
+         LEFT JOIN nivel n ON n.id_area = a.id_area
+         LEFT JOIN badge b ON b.id_nivel = n.id_nivel
          ${whereSQL}
-        ORDER BY a.nome ASC`,
+        GROUP BY a.id_area, a.id_service_line, a.nome, a.descricao, a.ativo,
+                 a.created_at, a.updated_at, sl.nome, lp.id_learning_path, lp.nome
+        ORDER BY a.nome ASC
+        ${paginacaoSQL}`,
+      [...params, ...paginacaoParams]
+    );
+
+    const [[{ total }]] = await pool.query(
+      `SELECT COUNT(*) AS total
+         FROM area a
+         JOIN service_line sl ON sl.id_service_line = a.id_service_line
+         JOIN learning_path lp ON lp.id_learning_path = sl.id_learning_path
+         ${whereSQL}`,
       params
     );
-    res.json({ dados: linhas });
+
+    res.json({
+      dados: linhas,
+      total,
+      pagina: usarPaginacao ? paginaAtual : 1,
+      por_pagina: usarPaginacao ? limit : total,
+    });
   } catch (err) { next(err); }
 }
 
 async function obter(req, res, next) {
   try {
     const [linhas] = await pool.query(
-      `SELECT a.*, sl.nome AS nome_service_line
+      `SELECT a.*, sl.nome AS nome_service_line, lp.id_learning_path, lp.nome AS nome_learning_path,
+              COUNT(DISTINCT n.id_nivel) AS total_niveis,
+              COUNT(DISTINCT b.id_badge) AS total_badges
          FROM area a
          JOIN service_line sl ON sl.id_service_line = a.id_service_line
-        WHERE id_area = ?`,
+         JOIN learning_path lp ON lp.id_learning_path = sl.id_learning_path
+         LEFT JOIN nivel n ON n.id_area = a.id_area
+         LEFT JOIN badge b ON b.id_nivel = n.id_nivel
+        WHERE a.id_area = ?
+        GROUP BY a.id_area, a.id_service_line, a.nome, a.descricao, a.ativo,
+                 a.created_at, a.updated_at, sl.nome, lp.id_learning_path, lp.nome`,
       [req.params.id]
     );
     if (linhas.length === 0) return res.status(404).json({ erro: 'Área não encontrada.' });
