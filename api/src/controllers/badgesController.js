@@ -38,7 +38,8 @@ async function listar(req, res, next) {
               n.codigo_nivel, n.nome_nivel, n.ordem AS ordem_nivel,
               a.id_area, a.nome AS nome_area,
               sl.id_service_line, sl.nome AS nome_service_line,
-              lp.id_learning_path, lp.nome AS nome_learning_path
+              lp.id_learning_path, lp.nome AS nome_learning_path,
+              (SELECT COUNT(*) FROM requisito r WHERE r.id_nivel = b.id_nivel) AS total_requisitos
          FROM badge b
          JOIN nivel n         ON n.id_nivel         = b.id_nivel
          JOIN area a          ON a.id_area          = n.id_area

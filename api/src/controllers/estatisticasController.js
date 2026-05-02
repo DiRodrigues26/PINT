@@ -9,11 +9,22 @@ async function dashboardConsultor(req, res, next) {
       [idUtilizador]
     );
 
+    const [[{ badges_em_processo }]] = await pool.query(
+      `SELECT COUNT(*) AS badges_em_processo FROM candidatura_badge
+        WHERE id_consultor = ? AND estado_atual NOT IN ('APPROVED','REJECTED','CLOSED')`,
+      [idUtilizador]
+    );
+
     const [[{ pontos_totais }]] = await pool.query(
       `SELECT COALESCE(SUM(b.pontos), 0) AS pontos_totais
          FROM badge_atribuido ba
          JOIN badge b ON b.id_badge = ba.id_badge
         WHERE ba.id_consultor = ?`,
+      [idUtilizador]
+    );
+
+    const [[{ conquistas }]] = await pool.query(
+      'SELECT COUNT(*) AS conquistas FROM utilizador_conquista WHERE id_utilizador = ?',
       [idUtilizador]
     );
 
@@ -25,39 +36,105 @@ async function dashboardConsultor(req, res, next) {
       [idUtilizador]
     );
 
-    // progresso por nível na área do consultor
-    const [area] = await pool.query(
-      `SELECT id_area FROM consultor_area WHERE id_utilizador = ? AND ativo = 1 LIMIT 1`,
+    const [areaRows] = await pool.query(
+      `SELECT ca.id_area, a.nome AS nome_area,
+              sl.id_service_line, sl.nome AS nome_service_line,
+              lp.id_learning_path, lp.nome AS nome_learning_path
+         FROM consultor_area ca
+         JOIN area a ON a.id_area = ca.id_area
+         JOIN service_line sl ON sl.id_service_line = a.id_service_line
+         JOIN learning_path lp ON lp.id_learning_path = sl.id_learning_path
+        WHERE ca.id_utilizador = ? AND ca.ativo = 1 LIMIT 1`,
       [idUtilizador]
     );
+
     let progressoNiveis = [];
-    if (area.length > 0) {
-      const [linhas] = await pool.query(
+    let proximoNivelProgresso = 0;
+    let nomeLP = null;
+    let badgesRecomendados = [];
+
+    if (areaRows.length > 0) {
+      const { id_area, nome_learning_path } = areaRows[0];
+      nomeLP = nome_learning_path;
+
+      const [niveis] = await pool.query(
         `SELECT n.id_nivel, n.codigo_nivel, n.nome_nivel, n.ordem,
-                b.id_badge, b.titulo,
-                ba.id_badge_atribuido IS NOT NULL AS obtido
+                COUNT(DISTINCT r.id_requisito) AS total_requisitos,
+                b.id_badge,
+                (ba.id_badge_atribuido IS NOT NULL) AS badge_obtido,
+                (SELECT COUNT(DISTINCT ev.id_requisito)
+                   FROM candidatura_badge cb2
+                   JOIN evidencia ev ON ev.id_candidatura = cb2.id_candidatura
+                  WHERE cb2.id_badge = b.id_badge AND cb2.id_consultor = ?) AS requisitos_cumpridos
            FROM nivel n
+           LEFT JOIN requisito r ON r.id_nivel = n.id_nivel
            LEFT JOIN badge b ON b.id_nivel = n.id_nivel
-           LEFT JOIN badge_atribuido ba
-             ON ba.id_badge = b.id_badge AND ba.id_consultor = ?
-          WHERE n.id_area = ?
+           LEFT JOIN badge_atribuido ba ON ba.id_badge = b.id_badge AND ba.id_consultor = ?
+          WHERE n.id_area = ? AND n.ativo = 1
+          GROUP BY n.id_nivel, n.codigo_nivel, n.nome_nivel, n.ordem, b.id_badge, ba.id_badge_atribuido
           ORDER BY n.ordem ASC`,
-        [idUtilizador, area[0].id_area]
+        [idUtilizador, idUtilizador, id_area]
       );
-      progressoNiveis = linhas;
+
+      progressoNiveis = niveis.map((n) => {
+        const total = Number(n.total_requisitos) || 0;
+        const cumpridos = n.badge_obtido ? total : (Number(n.requisitos_cumpridos) || 0);
+        const percentagem = total > 0 ? Math.round((cumpridos / total) * 100) : 0;
+        return {
+          codigo_nivel: n.codigo_nivel,
+          nome_nivel: n.nome_nivel,
+          ordem: n.ordem,
+          total_requisitos: total,
+          requisitos_cumpridos: cumpridos,
+          percentagem,
+          badge_obtido: !!n.badge_obtido,
+        };
+      });
+
+      const incompleto = progressoNiveis.find((n) => !n.badge_obtido);
+      proximoNivelProgresso = incompleto ? incompleto.percentagem : 100;
+
+      const [recomendados] = await pool.query(
+        `SELECT b.id_badge, b.titulo, b.pontos, b.imagem_url, b.is_conquista_especial,
+                n.codigo_nivel, n.nome_nivel,
+                sl.nome AS nome_service_line,
+                a.nome AS nome_area
+           FROM badge b
+           JOIN nivel n ON n.id_nivel = b.id_nivel
+           JOIN area a ON a.id_area = n.id_area
+           JOIN service_line sl ON sl.id_service_line = a.id_service_line
+           LEFT JOIN badge_atribuido ba ON ba.id_badge = b.id_badge AND ba.id_consultor = ?
+          WHERE n.id_area = ? AND b.ativo = 1 AND ba.id_badge_atribuido IS NULL
+          ORDER BY n.ordem ASC
+          LIMIT 3`,
+        [idUtilizador, id_area]
+      );
+      badgesRecomendados = recomendados;
     }
 
-    const [[{ conquistas }]] = await pool.query(
-      'SELECT COUNT(*) AS conquistas FROM utilizador_conquista WHERE id_utilizador = ?',
+    const [atividadeRecente] = await pool.query(
+      `SELECT hc.estado_destino, hc.acao, hc.comentario, hc.data_evento,
+              b.titulo AS badge_titulo
+         FROM historico_candidatura hc
+         JOIN candidatura_badge cb ON cb.id_candidatura = hc.id_candidatura
+         JOIN badge b ON b.id_badge = cb.id_badge
+        WHERE cb.id_consultor = ?
+        ORDER BY hc.data_evento DESC
+        LIMIT 5`,
       [idUtilizador]
     );
 
     res.json({
       badges_obtidos,
+      badges_em_processo,
       pontos_totais,
       conquistas,
+      proximo_nivel_progresso: proximoNivelProgresso,
+      nome_learning_path: nomeLP,
       candidaturas_por_estado: candidaturasPorEstado,
       progresso_niveis: progressoNiveis,
+      badges_recomendados: badgesRecomendados,
+      atividade_recente: atividadeRecente,
     });
   } catch (err) { next(err); }
 }

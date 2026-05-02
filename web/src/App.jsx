@@ -10,6 +10,9 @@ import RecuperarPassword from './pages/auth/RecuperarPassword';
 import NovaPassword from './pages/auth/NovaPassword';
 import AlterarPasswordInicial from './pages/auth/AlterarPasswordInicial';
 import Admin from './pages/admin/Admin';
+import ConsultorDashboard from './pages/consultor/Dashboard';
+import CatalogoBadges from './pages/consultor/CatalogoBadges';
+import MeusBadges from './pages/consultor/MeusBadges';
 
 function PerfilEmDesenvolvimento() {
   const { utilizador } = useAuth();
@@ -35,6 +38,9 @@ function Inicio() {
   if (utilizador?.perfis?.includes('Administrador')) {
     return <Navigate to="/admin" replace />;
   }
+  if (utilizador?.perfis?.includes('Consultor')) {
+    return <Navigate to="/dashboard" replace />;
+  }
   return <PerfilEmDesenvolvimento />;
 }
 
@@ -56,13 +62,19 @@ export default function App() {
       <Route path="/admin" element={
         <RotaProtegida perfis={['Administrador']}><Admin /></RotaProtegida>
       } />
-      <Route path="/badges" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
+      {/* Rotas do Consultor */}
+      <Route path="/dashboard" element={
+        <RotaProtegida perfis={['Consultor', 'Administrador']}><ConsultorDashboard /></RotaProtegida>
+      } />
+      <Route path="/badges" element={<RotaProtegida><CatalogoBadges /></RotaProtegida>} />
       <Route path="/badges/:id" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
       <Route path="/candidaturas" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
       <Route path="/candidaturas/:id" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
-      <Route path="/meus-badges" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
+      <Route path="/candidaturas/nova" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
+      <Route path="/meus-badges" element={<RotaProtegida><MeusBadges /></RotaProtegida>} />
       <Route path="/conquistas" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
       <Route path="/notificacoes" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
+      <Route path="/perfil" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
       <Route path="/gestao" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
 
       <Route path="*" element={

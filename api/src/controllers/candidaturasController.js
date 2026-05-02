@@ -91,10 +91,13 @@ async function listar(req, res, next) {
     const [linhas] = await pool.query(
       `SELECT cb.id_candidatura, cb.estado_atual, cb.data_abertura, cb.data_submissao, cb.data_fecho,
               cb.id_consultor, u.nome AS nome_consultor, u.email AS email_consultor,
-              cb.id_badge, b.titulo AS titulo_badge, b.imagem_url,
+              cb.id_badge, b.titulo AS titulo_badge, b.imagem_url, b.pontos,
+              b.is_conquista_especial,
               n.codigo_nivel, n.nome_nivel,
               a.id_area, a.nome AS nome_area,
-              sl.id_service_line, sl.nome AS nome_service_line
+              sl.id_service_line, sl.nome AS nome_service_line,
+              (SELECT COUNT(*) FROM requisito r WHERE r.id_nivel = b.id_nivel) AS total_requisitos,
+              (SELECT COUNT(*) FROM evidencia e WHERE e.id_candidatura = cb.id_candidatura) AS evidencias_count
          FROM candidatura_badge cb
          JOIN utilizador u    ON u.id_utilizador = cb.id_consultor
          JOIN badge b         ON b.id_badge      = cb.id_badge
