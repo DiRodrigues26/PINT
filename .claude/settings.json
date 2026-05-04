@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/c/Users/diogo/Desktop/softinsa-badges/web/**)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\diogo\\\\Desktop\\\\softinsa-badges\\\\web\\\\node_modules\\\\lucide-react\\\\dist\\\\esm\\\\icons\" | Where-Object { $_.Name -match \"target|sparkles|activity|send|chevron\" } | Select-Object -ExpandProperty Name)",
+      "PowerShell(Get-ChildItem \"c:\\\\Users\\\\diogo\\\\Desktop\\\\softinsa-badges\\\\web\\\\node_modules\" | Where-Object { $_.Name -match \"lucide\" } | Select-Object -ExpandProperty Name)"
+    ]
+  }
+}

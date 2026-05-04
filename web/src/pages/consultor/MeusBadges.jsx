@@ -1,26 +1,76 @@
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Award, Calendar, CheckCircle, ExternalLink, Search, Sparkles, Star, X } from 'lucide-react';
-import { api } from '../../lib/api';
+import {
+  Award, Calendar, CheckCircle, Download, ExternalLink,
+  Share2, Search, Sparkles, Star, TriangleAlert, X,
+} from 'lucide-react';
+import { api, extrairErro } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
+import BadgeModal from '../../components/BadgeModal';
+import toast from 'react-hot-toast';
 
 function formatarData(d) {
   if (!d) return null;
   return new Date(d).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-const NIVEL_BG = { A: 'bg-softinsa-600', B: 'bg-blue-500', C: 'bg-indigo-500', D: 'bg-violet-600', E: 'bg-purple-700' };
+function diasParaExpirar(dataExp) {
+  if (!dataExp) return null;
+  return Math.ceil((new Date(dataExp) - Date.now()) / 86_400_000);
+}
+
+const NIVEL_BG   = { A: 'bg-softinsa-600', B: 'bg-blue-500', C: 'bg-indigo-500', D: 'bg-violet-600', E: 'bg-purple-700' };
 const NIVEL_TEXT = { A: 'text-softinsa-600', B: 'text-blue-600', C: 'text-indigo-600', D: 'text-violet-700', E: 'text-purple-700' };
 
 /* ─── Card de badge obtido ──────────────────────────────────────────────── */
-function CardObtido({ item }) {
-  const navigate = useNavigate();
+function CardObtido({ item, onAbrirModal }) {
+  const queryClient = useQueryClient();
   const expirado = item.data_expiracao && new Date(item.data_expiracao) < new Date();
+  const dias = diasParaExpirar(item.data_expiracao);
+  const expiraEmBreve = !expirado && dias !== null && dias <= 30;
+
+  /* LinkedIn share */
+  const partilharLinkedIn = useMutation({
+    mutationFn: () => api.post(`/api/badge-atribuido/${item.id_badge_atribuido}/linkedin`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meus-badges'] });
+      const url = item.url_publica || `${window.location.origin}/publico/badges/verificar/${item.token_publico}`;
+      window.open(
+        `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+        '_blank',
+      );
+    },
+    onError: (err) => toast.error(extrairErro(err, 'Erro ao partilhar.')),
+  });
+
+  function descarregarPDF() {
+    toast('A preparar o certificado...', { icon: '📄' });
+    api.get(`/api/badge-atribuido/${item.id_badge_atribuido}/certificado`, { responseType: 'blob' })
+      .then(({ data }) => {
+        const url = URL.createObjectURL(data);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `certificado-${item.titulo?.replace(/\s+/g, '-')}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch(() => toast.error('Certificado ainda não disponível para este badge.'));
+  }
 
   return (
-    <div className="relative flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className={`relative flex flex-col rounded-xl border bg-white p-5 shadow-sm ${
+      expirado ? 'border-red-200' : expiraEmBreve ? 'border-amber-300' : 'border-slate-200'
+    }`}>
+      {/* Alerta expiração próxima (req 21) */}
+      {expiraEmBreve && (
+        <div className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+          <TriangleAlert className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+          Expira em {dias} dia{dias !== 1 ? 's' : ''}
+        </div>
+      )}
+
       {/* Tag status */}
       <div className="absolute right-4 top-4">
         {item.is_conquista_especial ? (
@@ -59,7 +109,8 @@ function CardObtido({ item }) {
       </div>
 
       {item.pontos > 0 && (
-        <p className={`mt-2 text-sm font-bold ${NIVEL_TEXT[item.codigo_nivel] || 'text-softinsa-600'}`}>
+        <p className={`mt-2 flex items-center gap-1 text-sm font-bold ${NIVEL_TEXT[item.codigo_nivel] || 'text-softinsa-600'}`}>
+          <Star className="h-3.5 w-3.5 fill-current" />
           {item.pontos} pontos
         </p>
       )}
@@ -72,7 +123,7 @@ function CardObtido({ item }) {
           </div>
         )}
         {item.data_expiracao && (
-          <div className="flex items-center gap-1.5">
+          <div className={`flex items-center gap-1.5 ${expirado ? 'text-red-500 font-semibold' : expiraEmBreve ? 'text-amber-600 font-semibold' : ''}`}>
             <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
             Expira em: {formatarData(item.data_expiracao)}
           </div>
@@ -80,18 +131,51 @@ function CardObtido({ item }) {
       </div>
 
       <div className="mt-4 flex flex-col gap-2">
+        {/* Ver detalhes */}
         <button
           type="button"
-          onClick={() => navigate(`/badges/${item.id_badge}`)}
+          onClick={() => onAbrirModal(item.id_badge)}
           className="w-full rounded-lg bg-softinsa-600 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700"
         >
           Ver Detalhes
         </button>
+
+        {/* Linha: LinkedIn + PDF */}
+        <div className="flex gap-2">
+          {/* LinkedIn share (req 11) */}
+          <button
+            type="button"
+            title={item.linkedin_shared ? 'Já partilhado no LinkedIn' : 'Partilhar no LinkedIn'}
+            onClick={() => partilharLinkedIn.mutate()}
+            disabled={partilharLinkedIn.isPending}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold transition ${
+              item.linkedin_shared
+                ? 'border-blue-200 bg-blue-50 text-blue-600'
+                : 'border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600'
+            }`}
+          >
+            <Share2 className="h-3.5 w-3.5" strokeWidth={1.8} />
+            {item.linkedin_shared ? 'Partilhado' : 'LinkedIn'}
+          </button>
+
+          {/* Download PDF (req 18) */}
+          <button
+            type="button"
+            title="Descarregar certificado PDF"
+            onClick={descarregarPDF}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600 transition hover:border-softinsa-300 hover:text-softinsa-700"
+          >
+            <Download className="h-3.5 w-3.5" strokeWidth={1.8} />
+            Certificado
+          </button>
+        </div>
+
+        {/* Página pública */}
         {item.url_publica && (
           <button
             type="button"
             onClick={() => window.open(item.url_publica, '_blank')}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700"
           >
             <ExternalLink className="h-3.5 w-3.5" /> Ver Página Pública
           </button>
@@ -102,7 +186,7 @@ function CardObtido({ item }) {
 }
 
 /* ─── Card de candidatura em progresso ─────────────────────────────────── */
-function CardEmProgresso({ item }) {
+function CardEmProgresso({ item, onAbrirModal }) {
   const navigate = useNavigate();
   const total = Number(item.total_requisitos) || 0;
   const evCount = Number(item.evidencias_count) || 0;
@@ -138,7 +222,8 @@ function CardEmProgresso({ item }) {
       </div>
 
       {item.pontos > 0 && (
-        <p className={`mt-2 text-sm font-bold ${NIVEL_TEXT[item.codigo_nivel] || 'text-softinsa-600'}`}>
+        <p className={`mt-2 flex items-center gap-1 text-sm font-bold ${NIVEL_TEXT[item.codigo_nivel] || 'text-softinsa-600'}`}>
+          <Star className="h-3.5 w-3.5 fill-current" />
           {item.pontos} pontos
         </p>
       )}
@@ -152,10 +237,9 @@ function CardEmProgresso({ item }) {
         )}
       </div>
 
-      {/* Barra progresso */}
       {total > 0 && (
         <div className="mt-3">
-          <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+          <div className="flex items-center justify-between mb-1 text-xs text-slate-500">
             <span>{evCount}/{total} requisitos</span>
             <span className="font-semibold text-softinsa-600">{pct}%</span>
           </div>
@@ -175,7 +259,7 @@ function CardEmProgresso({ item }) {
         </button>
         <button
           type="button"
-          onClick={() => navigate(`/badges/${item.id_badge}`)}
+          onClick={() => onAbrirModal(item.id_badge)}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700"
         >
           <ExternalLink className="h-3.5 w-3.5" /> Ver Detalhes
@@ -187,6 +271,7 @@ function CardEmProgresso({ item }) {
 
 /* ─── Página principal ──────────────────────────────────────────────────── */
 export default function MeusBadges() {
+  const [modalBadgeId, setModalBadgeId] = useState(null);
   const [pesquisa, setPesquisa] = useState('');
   const [filtroArea, setFiltroArea] = useState('');
   const [filtroSL, setFiltroSL] = useState('');
@@ -206,52 +291,50 @@ export default function MeusBadges() {
   });
 
   const isLoading = loadObtidos || loadCand;
-
   const obtidos = obtidosData?.dados ?? [];
   const candidaturasAtivas = useMemo(
     () => (candidaturasData?.dados ?? []).filter(c => !['APPROVED', 'REJECTED', 'CLOSED'].includes(c.estado_atual)),
-    [candidaturasData]
+    [candidaturasData],
   );
 
   const kpis = useMemo(() => {
     const agora = new Date();
     return {
-      total: obtidos.length,
-      pontos: obtidos.reduce((s, b) => s + (Number(b.pontos) || 0), 0),
+      total:       obtidos.length,
+      pontos:      obtidos.reduce((s, b) => s + (Number(b.pontos) || 0), 0),
       emProgresso: candidaturasAtivas.length,
-      expirados: obtidos.filter(b => b.data_expiracao && new Date(b.data_expiracao) < agora).length,
+      expirados:   obtidos.filter(b => b.data_expiracao && new Date(b.data_expiracao) < agora).length,
     };
   }, [obtidos, candidaturasAtivas]);
 
   const badgesObtidosFiltrados = useMemo(() => {
     let lista = obtidos;
-    if (pesquisa) lista = lista.filter(b => b.titulo.toLowerCase().includes(pesquisa.toLowerCase()));
-    if (filtroArea) lista = lista.filter(b => String(b.id_area) === filtroArea || b.nome_area?.toLowerCase().includes(filtroArea.toLowerCase()));
-    if (filtroSL) lista = lista.filter(b => b.nome_service_line?.toLowerCase().includes(filtroSL.toLowerCase()));
+    if (pesquisa)    lista = lista.filter(b => b.titulo.toLowerCase().includes(pesquisa.toLowerCase()));
+    if (filtroArea)  lista = lista.filter(b => b.nome_area === filtroArea);
+    if (filtroSL)    lista = lista.filter(b => b.nome_service_line === filtroSL);
     if (filtroNivel) lista = lista.filter(b => b.codigo_nivel === filtroNivel);
-    if (filtroEstado === 'ativo') lista = lista.filter(b => !b.data_expiracao || new Date(b.data_expiracao) >= new Date());
+    if (filtroEstado === 'ativo')    lista = lista.filter(b => !b.data_expiracao || new Date(b.data_expiracao) >= new Date());
     if (filtroEstado === 'expirado') lista = lista.filter(b => b.data_expiracao && new Date(b.data_expiracao) < new Date());
     return lista;
   }, [obtidos, pesquisa, filtroArea, filtroSL, filtroNivel, filtroEstado]);
 
   const candidaturasFiltradas = useMemo(() => {
     let lista = candidaturasAtivas;
-    if (pesquisa) lista = lista.filter(c => c.titulo_badge.toLowerCase().includes(pesquisa.toLowerCase()));
+    if (pesquisa)    lista = lista.filter(c => c.titulo_badge.toLowerCase().includes(pesquisa.toLowerCase()));
     if (filtroNivel) lista = lista.filter(c => c.codigo_nivel === filtroNivel);
     if (filtroEstado && filtroEstado !== 'em_progresso') lista = [];
     return lista;
   }, [candidaturasAtivas, pesquisa, filtroNivel, filtroEstado]);
 
   const mostrarCandidaturas = !filtroEstado || filtroEstado === 'em_progresso';
-  const mostrarObtidos = !filtroEstado || filtroEstado === 'ativo' || filtroEstado === 'expirado';
+  const mostrarObtidos      = !filtroEstado || filtroEstado === 'ativo' || filtroEstado === 'expirado';
 
-  function limparFiltros() {
-    setPesquisa(''); setFiltroArea(''); setFiltroSL(''); setFiltroNivel(''); setFiltroEstado('');
-  }
+  function limparFiltros() { setPesquisa(''); setFiltroArea(''); setFiltroSL(''); setFiltroNivel(''); setFiltroEstado(''); }
   const temFiltros = pesquisa || filtroArea || filtroSL || filtroNivel || filtroEstado;
 
   return (
     <div className="min-h-screen bg-[#f3f6fa]">
+      {modalBadgeId && <BadgeModal idBadge={modalBadgeId} onFechar={() => setModalBadgeId(null)} />}
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
         <ConsultorTopbar subtitulo="Os Meus Badges" />
@@ -265,22 +348,17 @@ export default function MeusBadges() {
           {/* KPIs */}
           {!isLoading && (
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-medium text-slate-500">Total Badges Obtidos</p>
-                <p className="mt-2 text-3xl font-bold text-softinsa-700">{kpis.total}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-medium text-slate-500">Total Pontos</p>
-                <p className="mt-2 text-3xl font-bold text-amber-500">{kpis.pontos.toLocaleString('pt-PT')}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-medium text-slate-500">Badges em Progresso</p>
-                <p className="mt-2 text-3xl font-bold text-emerald-500">{kpis.emProgresso}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <p className="text-xs font-medium text-slate-500">Badges Expirados</p>
-                <p className="mt-2 text-3xl font-bold text-red-500">{kpis.expirados}</p>
-              </div>
+              {[
+                { label: 'Total Badges Obtidos', valor: kpis.total,                                       cor: 'text-softinsa-700' },
+                { label: 'Total Pontos',          valor: kpis.pontos.toLocaleString('pt-PT'),              cor: 'text-amber-500' },
+                { label: 'Badges em Progresso',   valor: kpis.emProgresso,                                cor: 'text-emerald-600' },
+                { label: 'Badges Expirados',      valor: kpis.expirados,                                  cor: 'text-red-500' },
+              ].map(({ label, valor, cor }) => (
+                <div key={label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <p className="text-xs font-medium text-slate-500">{label}</p>
+                  <p className={`mt-2 text-3xl font-bold ${cor}`}>{valor}</p>
+                </div>
+              ))}
             </div>
           )}
 
@@ -289,12 +367,8 @@ export default function MeusBadges() {
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative flex-1 min-w-[160px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
-                <input
-                  value={pesquisa}
-                  onChange={e => setPesquisa(e.target.value)}
-                  placeholder="Pesquisar badge"
-                  className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-softinsa-400"
-                />
+                <input value={pesquisa} onChange={e => setPesquisa(e.target.value)} placeholder="Pesquisar badge"
+                  className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-softinsa-400" />
               </div>
               <select value={filtroArea} onChange={e => setFiltroArea(e.target.value)} className="rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-softinsa-400">
                 <option value="">Todas as áreas</option>
@@ -326,21 +400,16 @@ export default function MeusBadges() {
             <div className="flex min-h-[40vh] items-center justify-center"><Carregando /></div>
           ) : (
             <>
-              {/* Candidaturas em progresso */}
               {mostrarCandidaturas && candidaturasFiltradas.length > 0 && (
                 <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {candidaturasFiltradas.map(c => <CardEmProgresso key={c.id_candidatura} item={c} />)}
+                  {candidaturasFiltradas.map(c => <CardEmProgresso key={c.id_candidatura} item={c} onAbrirModal={setModalBadgeId} />)}
                 </div>
               )}
-
-              {/* Badges obtidos */}
               {mostrarObtidos && badgesObtidosFiltrados.length > 0 && (
                 <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 ${mostrarCandidaturas && candidaturasFiltradas.length > 0 ? 'mt-5' : 'mt-6'}`}>
-                  {badgesObtidosFiltrados.map(b => <CardObtido key={b.id_badge_atribuido} item={b} />)}
+                  {badgesObtidosFiltrados.map(b => <CardObtido key={b.id_badge_atribuido} item={b} onAbrirModal={setModalBadgeId} />)}
                 </div>
               )}
-
-              {/* Vazio */}
               {candidaturasFiltradas.length === 0 && badgesObtidosFiltrados.length === 0 && (
                 <div className="mt-16 flex flex-col items-center text-center">
                   <Award className="h-14 w-14 text-slate-300" strokeWidth={1} />

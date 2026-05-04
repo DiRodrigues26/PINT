@@ -106,9 +106,15 @@ async function dashboardConsultor(req, res, next) {
            JOIN service_line sl ON sl.id_service_line = a.id_service_line
            LEFT JOIN badge_atribuido ba ON ba.id_badge = b.id_badge AND ba.id_consultor = ?
           WHERE n.id_area = ? AND b.ativo = 1 AND ba.id_badge_atribuido IS NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM candidatura_badge cb2
+               WHERE cb2.id_badge = b.id_badge
+                 AND cb2.id_consultor = ?
+                 AND cb2.estado_atual NOT IN ('REJECTED','CLOSED')
+            )
           ORDER BY n.ordem ASC
           LIMIT 3`,
-        [idUtilizador, id_area]
+        [idUtilizador, id_area, idUtilizador]
       );
       badgesRecomendados = recomendados;
     }

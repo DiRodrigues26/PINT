@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Award, Activity, Star, Target, CheckCircle, Send, Sparkles, Calendar } from 'lucide-react';
+import { Award, Activity, Star, Target, CheckCircle, Send, Sparkles, Calendar, PartyPopper, Trophy } from 'lucide-react';
 import { api } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
+import BadgeModal from '../../components/BadgeModal';
 
 function useDashboard() {
   return useQuery({
@@ -69,7 +71,7 @@ function BarraProgresso({ nivel }) {
 }
 
 /* ─── Badge Card ────────────────────────────────────────────────────────── */
-function BadgeCard({ badge }) {
+function BadgeCard({ badge, onCandidatar }) {
   const navigate = useNavigate();
 
   return (
@@ -129,14 +131,14 @@ function BadgeCard({ badge }) {
       <div className="mt-4 flex flex-col gap-2">
         <button
           type="button"
-          onClick={() => navigate(`/candidaturas/nova?badge=${badge.id_badge}`)}
+          onClick={() => onCandidatar(badge.id_badge)}
           className="w-full rounded-lg bg-softinsa-600 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700"
         >
           Candidatar-me
         </button>
         <button
           type="button"
-          onClick={() => navigate(`/badges/${badge.id_badge}`)}
+          onClick={() => onCandidatar(badge.id_badge)}
           className="w-full rounded-lg border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700"
         >
           Ver Detalhes
@@ -187,9 +189,13 @@ function ItemAtividade({ item }) {
 /* ─── Página principal ──────────────────────────────────────────────────── */
 export default function ConsultorDashboard() {
   const { data, isLoading } = useDashboard();
+  const [modalBadgeId, setModalBadgeId] = useState(null);
 
   return (
     <div className="min-h-screen bg-[#f3f6fa]">
+      {modalBadgeId && (
+        <BadgeModal idBadge={modalBadgeId} onFechar={() => setModalBadgeId(null)} />
+      )}
       <ConsultorSidebar />
 
       <div className="lg:pl-[260px]">
@@ -234,11 +240,40 @@ export default function ConsultorDashboard() {
                   <h2 className="text-lg font-bold text-slate-900">Badges recomendados para si</h2>
                   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {data.badges_recomendados.map((badge) => (
-                      <BadgeCard key={badge.id_badge} badge={badge} />
+                      <BadgeCard key={badge.id_badge} badge={badge} onCandidatar={setModalBadgeId} />
                     ))}
                   </div>
                 </section>
               )}
+
+              {/* Marcos & Celebrações (req 16) */}
+              {(() => {
+                const n = data?.badges_obtidos ?? 0;
+                const marcos = [
+                  { min: 1,  max: 1,  emoji: '🎉', titulo: 'Primeiro Badge!',          desc: 'Obtiveste o teu primeiro badge. Continua assim!' },
+                  { min: 3,  max: 4,  emoji: '🚀', titulo: 'A ganhar ritmo!',          desc: `${n} badges obtidos. Estás no bom caminho!` },
+                  { min: 5,  max: 9,  emoji: '⭐', titulo: 'Consultor em destaque!',   desc: `${n} badges obtidos. O teu perfil está a crescer.` },
+                  { min: 10, max: 19, emoji: '🏆', titulo: 'Especialista reconhecido!',desc: `${n} badges — marca impressionante!` },
+                  { min: 20, max: Infinity, emoji: '💎', titulo: 'Elite da Softinsa!', desc: `${n} badges. Estás entre os melhores consultores!` },
+                ];
+                const marco = marcos.find(m => n >= m.min && n <= m.max);
+                if (!marco) return null;
+                return (
+                  <section className="mt-10">
+                    <h2 className="text-lg font-bold text-slate-900">Marco Alcançado</h2>
+                    <div className="mt-4 flex items-center gap-4 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 p-5 shadow-sm">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-100 text-2xl">
+                        {marco.emoji}
+                      </div>
+                      <div>
+                        <p className="text-base font-bold text-amber-800">{marco.titulo}</p>
+                        <p className="mt-0.5 text-sm text-amber-700">{marco.desc}</p>
+                      </div>
+                      <Trophy className="ml-auto h-8 w-8 shrink-0 text-amber-400" strokeWidth={1.5} />
+                    </div>
+                  </section>
+                );
+              })()}
 
               {/* Atividade Recente */}
               {data?.atividade_recente?.length > 0 && (

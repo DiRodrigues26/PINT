@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { Award, Calendar, CheckCircle, Filter, Search, Sparkles, Star, X } from 'lucide-react';
+import { Award, Calendar, CheckCircle, ChevronDown, ChevronUp, Filter, Search, Sparkles, Star, X } from 'lucide-react';
 import { api } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
+import BadgeModal from '../../components/BadgeModal';
 
 const NIVEIS = [
   { value: '', label: 'Todos os níveis' },
@@ -22,8 +22,7 @@ function formatarData(d) {
 
 const NIVEL_BG = { A: 'bg-softinsa-600', B: 'bg-blue-500', C: 'bg-indigo-500', D: 'bg-violet-600', E: 'bg-purple-700' };
 
-function BadgeCatalogoCard({ badge, candidatura, obtido }) {
-  const navigate = useNavigate();
+function BadgeCatalogoCard({ badge, candidatura, obtido, onAbrirModal }) {
   const expirado = obtido?.data_expiracao && new Date(obtido.data_expiracao) < new Date();
   const emProgresso = candidatura && !['APPROVED', 'REJECTED', 'CLOSED'].includes(candidatura.estado_atual);
   const total = Number(badge.total_requisitos) || 0;
@@ -106,7 +105,7 @@ function BadgeCatalogoCard({ badge, candidatura, obtido }) {
 
       <button
         type="button"
-        onClick={() => navigate(`/badges/${badge.id_badge}`)}
+        onClick={() => onAbrirModal(badge.id_badge)}
         className="mt-4 w-full rounded-lg bg-softinsa-600 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700"
       >
         Ver Detalhes
@@ -116,6 +115,8 @@ function BadgeCatalogoCard({ badge, candidatura, obtido }) {
 }
 
 export default function CatalogoBadges() {
+  const [modalBadgeId, setModalBadgeId] = useState(null);
+  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [pesquisa, setPesquisa] = useState('');
   const [filtroArea, setFiltroArea] = useState('');
   const [filtroSL, setFiltroSL] = useState('');
@@ -198,6 +199,9 @@ export default function CatalogoBadges() {
 
   return (
     <div className="min-h-screen bg-[#f3f6fa]">
+      {modalBadgeId && (
+        <BadgeModal idBadge={modalBadgeId} onFechar={() => setModalBadgeId(null)} />
+      )}
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
         <ConsultorTopbar subtitulo="Catálogo de Badges – Learning Path: Jornada Técnica" />
@@ -208,75 +212,102 @@ export default function CatalogoBadges() {
             Explore todos os badges disponíveis, consulte requisitos e candidate-se aos que se adequam ao seu perfil.
           </p>
 
-          {/* Filtros */}
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Filter className="h-4 w-4 text-slate-600" strokeWidth={1.8} />
-              <span className="text-sm font-bold text-slate-700">Filtros</span>
-            </div>
+          {/* Filtros expansíveis */}
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm">
+            {/* Cabeçalho — sempre visível */}
+            <button
+              type="button"
+              onClick={() => setFiltrosAbertos(v => !v)}
+              className="flex w-full items-center justify-between px-5 py-4 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-slate-600" strokeWidth={1.8} />
+                <span className="text-sm font-bold text-slate-700">Filtros</span>
+                {temFiltros && (
+                  <span className="rounded-full bg-softinsa-600 px-2 py-0.5 text-[11px] font-bold text-white">
+                    {[pesquisa, filtroArea, filtroSL, filtroNivel, filtroPontos, filtroExpiracao].filter(Boolean).length}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {temFiltros && (
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); limparFiltros(); }}
+                    className="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-red-500 transition"
+                  >
+                    <X className="h-3.5 w-3.5" /> Limpar
+                  </button>
+                )}
+                {filtrosAbertos
+                  ? <ChevronUp className="h-4 w-4 text-slate-400" strokeWidth={2} />
+                  : <ChevronDown className="h-4 w-4 text-slate-400" strokeWidth={2} />
+                }
+              </div>
+            </button>
 
-            {/* Pesquisa */}
-            <div className="mb-4">
-              <label className="mb-1.5 block text-xs font-medium text-slate-600">Pesquisa por Nome</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
-                <input
-                  value={pesquisa}
-                  onChange={e => setPesquisa(e.target.value)}
-                  placeholder="Pesquisar badges..."
-                  className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-4 text-sm outline-none focus:border-softinsa-400 focus:ring-2 focus:ring-softinsa-100"
-                />
-              </div>
-            </div>
+            {/* Corpo expansível */}
+            {filtrosAbertos && (
+              <div className="border-t border-slate-100 px-5 pb-5 pt-4">
+                {/* Pesquisa */}
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-xs font-medium text-slate-600">Pesquisa por Nome</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
+                    <input
+                      value={pesquisa}
+                      onChange={e => setPesquisa(e.target.value)}
+                      placeholder="Pesquisar badges..."
+                      className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-4 text-sm outline-none focus:border-softinsa-400 focus:ring-2 focus:ring-softinsa-100"
+                    />
+                  </div>
+                </div>
 
-            {/* Dropdowns row 1 */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Área</label>
-                <select value={filtroArea} onChange={e => setFiltroArea(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400">
-                  <option value="">Todas as áreas</option>
-                  {areas.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Service Line</label>
-                <select value={filtroSL} onChange={e => setFiltroSL(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400">
-                  <option value="">Todas as service lines</option>
-                  {serviceLines.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Nível</label>
-                <select value={filtroNivel} onChange={e => setFiltroNivel(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400">
-                  {NIVEIS.map(n => <option key={n.value} value={n.value}>{n.label}</option>)}
-                </select>
-              </div>
-            </div>
+                {/* Dropdowns row 1 */}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Área</label>
+                    <select value={filtroArea} onChange={e => setFiltroArea(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400">
+                      <option value="">Todas as áreas</option>
+                      {areas.map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Service Line</label>
+                    <select value={filtroSL} onChange={e => setFiltroSL(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400">
+                      <option value="">Todas as service lines</option>
+                      {serviceLines.map(s => <option key={s.id} value={s.id}>{s.nome}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Nível</label>
+                    <select value={filtroNivel} onChange={e => setFiltroNivel(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400">
+                      {NIVEIS.map(n => <option key={n.value} value={n.value}>{n.label}</option>)}
+                    </select>
+                  </div>
+                </div>
 
-            {/* Dropdowns row 2 */}
-            <div className="mt-4 flex flex-wrap items-end gap-4">
-              <div className="flex-1 min-w-[160px]">
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Pontos</label>
-                <select value={filtroPontos} onChange={e => setFiltroPontos(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400">
-                  <option value="">Todos</option>
-                  <option value="com">Com pontos</option>
-                  <option value="sem">Sem pontos</option>
-                </select>
+                {/* Dropdowns row 2 */}
+                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Pontos</label>
+                    <select value={filtroPontos} onChange={e => setFiltroPontos(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400">
+                      <option value="">Todos</option>
+                      <option value="com">Com pontos</option>
+                      <option value="sem">Sem pontos</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-medium text-slate-600">Expiração</label>
+                    <select value={filtroExpiracao} onChange={e => setFiltroExpiracao(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400">
+                      <option value="">Todos</option>
+                      <option value="com">Com expiração</option>
+                      <option value="sem">Sem expiração</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-[160px]">
-                <label className="mb-1.5 block text-xs font-medium text-slate-600">Expiração</label>
-                <select value={filtroExpiracao} onChange={e => setFiltroExpiracao(e.target.value)} className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400">
-                  <option value="">Todos</option>
-                  <option value="com">Com expiração</option>
-                  <option value="sem">Sem expiração</option>
-                </select>
-              </div>
-              {temFiltros && (
-                <button type="button" onClick={limparFiltros} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900">
-                  <X className="h-4 w-4" /> Limpar Filtros
-                </button>
-              )}
-            </div>
+            )}
           </div>
 
           {/* Badges Grid */}
@@ -296,6 +327,7 @@ export default function CatalogoBadges() {
                   badge={badge}
                   candidatura={candidaturasMap.get(badge.id_badge)}
                   obtido={obtidosMap.get(badge.id_badge)}
+                  onAbrirModal={setModalBadgeId}
                 />
               ))}
             </div>

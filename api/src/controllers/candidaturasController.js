@@ -300,7 +300,7 @@ async function submeter(req, res, next) {
         estado_origem: candidatura.estado_atual,
         estado_destino: 'SUBMITTED',
         acao: 'SUBMISSAO',
-        comentario: req.body.comentario,
+        comentario: req.body?.comentario ?? null,
       });
 
       // notificar talent managers
