@@ -157,22 +157,30 @@ async function dashboardGestor(req, res, next) {
     );
 
     const [porLP] = await pool.query(
-      `SELECT lp.id_learning_path, lp.nome, COUNT(ba.id_badge_atribuido) AS total
+      `SELECT lp.id_learning_path, lp.nome, COUNT(DISTINCT b.id_badge) AS total
          FROM learning_path lp
          LEFT JOIN service_line sl ON sl.id_learning_path = lp.id_learning_path
          LEFT JOIN area a          ON a.id_service_line    = sl.id_service_line
          LEFT JOIN nivel n         ON n.id_area            = a.id_area
          LEFT JOIN badge b         ON b.id_nivel           = n.id_nivel
-         LEFT JOIN badge_atribuido ba ON ba.id_badge       = b.id_badge
         GROUP BY lp.id_learning_path, lp.nome`
+    );
+
+    const [porArea] = await pool.query(
+      `SELECT a.id_area, a.nome, COUNT(DISTINCT b.id_badge) AS total
+         FROM area a
+         LEFT JOIN nivel n ON n.id_area = a.id_area
+         LEFT JOIN badge b ON b.id_nivel = n.id_nivel
+        GROUP BY a.id_area, a.nome
+        ORDER BY total DESC, a.nome ASC
+        LIMIT 6`
     );
 
     const [porNivel] = await pool.query(
       `SELECT n.codigo_nivel, n.nome_nivel,
-              COUNT(ba.id_badge_atribuido) AS total
+              COUNT(DISTINCT b.id_badge) AS total
          FROM nivel n
          LEFT JOIN badge b ON b.id_nivel = n.id_nivel
-         LEFT JOIN badge_atribuido ba ON ba.id_badge = b.id_badge
         GROUP BY n.codigo_nivel, n.nome_nivel, n.ordem
         ORDER BY n.ordem`
     );
@@ -191,15 +199,50 @@ async function dashboardGestor(req, res, next) {
         GROUP BY estado_atual`
     );
 
+    const [badgeMaisObtido] = await pool.query(
+      `SELECT b.titulo, COUNT(*) AS total
+         FROM badge_atribuido ba
+         JOIN badge b ON b.id_badge = ba.id_badge
+        WHERE ba.data_atribuicao >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')
+        GROUP BY b.id_badge, b.titulo
+        ORDER BY total DESC, b.titulo ASC
+        LIMIT 1`
+    );
+
+    const [melhorServiceLine] = await pool.query(
+      `SELECT sl.nome, COUNT(*) AS total
+         FROM badge_atribuido ba
+         JOIN badge b ON b.id_badge = ba.id_badge
+         JOIN nivel n ON n.id_nivel = b.id_nivel
+         JOIN area a ON a.id_area = n.id_area
+         JOIN service_line sl ON sl.id_service_line = a.id_service_line
+        GROUP BY sl.id_service_line, sl.nome
+        ORDER BY total DESC, sl.nome ASC
+        LIMIT 1`
+    );
+
+    const [[{ total_conquistas_especiais }]] = await pool.query(
+      'SELECT COUNT(*) AS total_conquistas_especiais FROM utilizador_conquista'
+    );
+
+    const [[{ total_acoes_registadas }]] = await pool.query(
+      'SELECT COUNT(*) AS total_acoes_registadas FROM historico_candidatura'
+    );
+
     res.json({
       total_utilizadores,
       total_badges_ativos,
       total_badges_atribuidos,
       total_candidaturas_abertas,
       badges_por_learning_path: porLP,
+      badges_por_area: porArea,
       badges_por_nivel: porNivel,
       badges_por_mes: badgesMensal,
       estados_candidatura: estadosCandidatura,
+      badge_mais_obtido_mes: badgeMaisObtido[0] || null,
+      melhor_service_line: melhorServiceLine[0] || null,
+      total_conquistas_especiais,
+      total_acoes_registadas,
     });
   } catch (err) { next(err); }
 }

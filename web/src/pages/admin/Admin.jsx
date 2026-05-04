@@ -59,6 +59,25 @@ function mesCurto(valor) {
   return data.toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '');
 }
 
+function quebrarLabel(texto, max = 16) {
+  const palavras = String(texto || '').split(/\s+/).filter(Boolean);
+  const linhas = [];
+  let atual = '';
+
+  for (const palavra of palavras) {
+    const candidato = atual ? `${atual} ${palavra}` : palavra;
+    if (candidato.length <= max || !atual) {
+      atual = candidato;
+    } else {
+      linhas.push(atual);
+      atual = palavra;
+    }
+  }
+
+  if (atual) linhas.push(atual);
+  return linhas.slice(0, 3);
+}
+
 function formatarSlaRestante(candidatura, slas) {
   if (!candidatura?.data_submissao) return '-';
   const estado = candidatura.estado_atual;
@@ -108,17 +127,19 @@ function Painel({ titulo, children, className = '' }) {
 }
 
 function BarChart({ dados }) {
+  const [hovered, setHovered] = useState(null);
   const items = (dados || []).slice(0, 6);
   const max = Math.max(...items.map((i) => Number(i.total) || 0), 1);
-  const largura = 640;
-  const altura = 210;
-  const margem = { top: 8, right: 16, bottom: 42, left: 42 };
+  const largura = 900;
+  const altura = 260;
+  const margem = { top: 34, right: 24, bottom: 72, left: 46 };
   const plotW = largura - margem.left - margem.right;
   const plotH = altura - margem.top - margem.bottom;
-  const barW = items.length ? plotW / items.length - 24 : 0;
+  const barW = items.length ? Math.max(plotW / items.length - 32, 42) : 0;
 
   return (
-    <svg viewBox={`0 0 ${largura} ${altura}`} className="h-56 w-full">
+    <div>
+      <svg viewBox={`0 0 ${largura} ${altura}`} className="h-[300px] w-full">
       {[0, 0.25, 0.5, 0.75, 1].map((p) => {
         const y = margem.top + plotH - plotH * p;
         return (
@@ -131,30 +152,62 @@ function BarChart({ dados }) {
       <line x1={margem.left} y1={margem.top + plotH} x2={largura - margem.right} y2={margem.top + plotH} stroke="#9ca3af" />
       {items.map((item, idx) => {
         const valor = Number(item.total) || 0;
-        const x = margem.left + idx * (plotW / items.length) + 12;
+        const ativo = hovered === idx;
+        const x = margem.left + idx * (plotW / items.length) + 16;
         const h = (valor / max) * (plotH - 8);
         const y = margem.top + plotH - h;
+        const centro = x + barW / 2;
         return (
-          <g key={item.id_learning_path || item.nome || idx}>
-            <rect x={x} y={y} width={barW} height={h} rx="6" fill="#3f68a2" />
-            <text x={x + barW / 2} y={altura - 18} textAnchor="middle" fontSize="12" fill="#64748b">
-              {String(item.nome || 'Sem nome').slice(0, 18)}
+          <g
+            key={item.id_area || item.id_learning_path || item.nome || idx}
+            onMouseEnter={() => setHovered(idx)}
+            onMouseLeave={() => setHovered(null)}
+            className="cursor-default"
+          >
+            <rect x={x} y={y} width={barW} height={h} rx="8" fill={ativo ? '#315f9f' : '#3f68a2'} />
+            <text
+              x={centro}
+              y={Math.max(y - 10, 18)}
+              textAnchor="middle"
+              fontSize="14"
+              fontWeight="700"
+              fill="#315f9f"
+              opacity={ativo ? 1 : 0}
+            >
+              {numero(valor)} badges
+            </text>
+            <text x={centro} y={altura - 38} textAnchor="middle" fontSize="12" fill="#64748b">
+              {quebrarLabel(item.nome || 'Sem nome', 18).map((linha, linhaIdx) => (
+                <tspan key={linha} x={centro} dy={linhaIdx === 0 ? 0 : 15}>
+                  {linha}
+                </tspan>
+              ))}
             </text>
           </g>
         );
       })}
       {items.length === 0 && <text x="50%" y="50%" textAnchor="middle" fill="#94a3b8">Sem dados</text>}
-    </svg>
+      </svg>
+      <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-slate-500 sm:grid-cols-3">
+        {items.map((item) => (
+          <div key={item.id_area || item.id_learning_path || item.nome} className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-3 py-2">
+            <span className="truncate">{item.nome || 'Sem nome'}</span>
+            <span className="font-bold text-softinsa-700">{numero(item.total)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
 function PieChart({ dados }) {
+  const [hovered, setHovered] = useState(null);
   const items = (dados || []).filter((i) => Number(i.total) > 0);
   const total = items.reduce((s, i) => s + Number(i.total || 0), 0);
   let acumulado = 0;
-  const r = 78;
-  const cx = 150;
-  const cy = 95;
+  const r = 84;
+  const cx = 128;
+  const cy = 108;
 
   function ponto(angulo) {
     const rad = (angulo - 90) * Math.PI / 180;
@@ -162,12 +215,14 @@ function PieChart({ dados }) {
   }
 
   return (
-    <div className="flex min-h-56 items-center justify-center">
-      <svg viewBox="0 0 360 210" className="h-56 w-full max-w-md">
+    <div className="grid min-h-[300px] gap-6 lg:grid-cols-[minmax(280px,1fr)_240px]">
+      <div className="flex items-center justify-center">
+      <svg viewBox="0 0 300 240" className="h-[280px] w-full max-w-md">
         {total === 0 ? (
           <text x="50%" y="50%" textAnchor="middle" fill="#94a3b8">Sem dados</text>
         ) : items.map((item, idx) => {
           const valor = Number(item.total) || 0;
+          const ativo = hovered === idx;
           const inicio = (acumulado / total) * 360;
           acumulado += valor;
           const fim = (acumulado / total) * 360;
@@ -181,19 +236,44 @@ function PieChart({ dados }) {
               d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${grande} 1 ${x2} ${y2} Z`}
               fill={cor}
               stroke="#fff"
-              strokeWidth="2"
+              strokeWidth={ativo ? '4' : '2'}
+              opacity={hovered === null || ativo ? 1 : 0.45}
+              onMouseEnter={() => setHovered(idx)}
+              onMouseLeave={() => setHovered(null)}
+              className="cursor-default"
             />
           );
         })}
-        <g transform="translate(84 190)">
-          {(dados || []).slice(0, 5).map((item, idx) => (
-            <g key={item.codigo_nivel || idx} transform={`translate(${idx * 44} 0)`}>
-              <rect width="14" height="14" fill={CORES_NIVEL[idx % CORES_NIVEL.length]} />
-              <text x="20" y="12" fontSize="13" fill="#64748b">{item.codigo_nivel}</text>
-            </g>
-          ))}
-        </g>
+        {hovered !== null && items[hovered] && (
+          <g>
+            <rect x="82" y="92" width="92" height="34" rx="17" fill="#ffffff" stroke="#dbe3ef" />
+            <text x="128" y="114" textAnchor="middle" fontSize="13" fontWeight="700" fill="#1e293b">
+              {items[hovered].codigo_nivel}: {numero(items[hovered].total)}
+            </text>
+          </g>
+        )}
       </svg>
+      </div>
+      <div className="flex flex-col justify-center gap-2">
+        {(dados || []).slice(0, 5).map((item, idx) => {
+          const ativo = hovered === idx;
+          return (
+            <button
+              key={item.codigo_nivel || idx}
+              type="button"
+              onMouseEnter={() => setHovered(idx)}
+              onMouseLeave={() => setHovered(null)}
+              className={`flex items-center justify-between rounded-md px-3 py-2 text-left text-sm transition ${ativo ? 'bg-[#eaf3ff]' : 'bg-slate-50 hover:bg-slate-100'}`}
+            >
+              <span className="flex items-center gap-2 text-slate-600">
+                <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: CORES_NIVEL[idx % CORES_NIVEL.length] }} />
+                Nível {item.codigo_nivel}
+              </span>
+              <span className="font-bold text-softinsa-700">{numero(item.total)} badges</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -287,17 +367,31 @@ export default function Admin() {
 
   const kpis = useMemo(() => {
     const totalEstados = (dados.estados_candidatura || []).reduce((s, e) => s + Number(e.total || 0), 0);
-    const aprovadas = (dados.estados_candidatura || []).find((e) => e.estado_atual === 'APPROVED')?.total || 0;
     return {
-      percentagemAtribuidos: percentagem(aprovadas, totalEstados),
+      percentagemAtribuidos: percentagem(dados.total_badges_atribuidos, dados.total_badges_ativos),
       totalEstados,
     };
-  }, [dados.estados_candidatura]);
+  }, [dados.estados_candidatura, dados.total_badges_atribuidos, dados.total_badges_ativos]);
 
-  const melhorLinha = useMemo(() => {
-    const ordenadas = [...(dados.badges_por_learning_path || [])].sort((a, b) => Number(b.total) - Number(a.total));
-    return ordenadas[0]?.nome || '-';
-  }, [dados.badges_por_learning_path]);
+  const estadosResumo = useMemo(() => {
+    const mapa = new Map((dados.estados_candidatura || []).map((e) => [e.estado_atual, Number(e.total) || 0]));
+    return [
+      { chave: 'OPEN', total: mapa.get('OPEN') || 0, label: 'Open', cor: 'text-slate-600' },
+      { chave: 'SUBMITTED', total: mapa.get('SUBMITTED') || 0, label: 'Submitted', cor: 'text-blue-600' },
+      {
+        chave: 'EM_VALIDACAO',
+        total: (mapa.get('IN_TALENT_REVIEW') || 0) + (mapa.get('IN_SERVICE_LINE_REVIEW') || 0),
+        label: 'Em Validação',
+        cor: 'text-amber-600',
+      },
+      {
+        chave: 'FECHADO',
+        total: (mapa.get('APPROVED') || 0) + (mapa.get('REJECTED') || 0) + (mapa.get('CLOSED') || 0),
+        label: 'Fechado',
+        cor: 'text-emerald-600',
+      },
+    ];
+  }, [dados.estados_candidatura]);
 
   const slaTalent = listaSlas.find((s) => s.fase === 'TALENT_REVIEW');
   const slaService = listaSlas.find((s) => s.fase === 'SERVICE_LINE_REVIEW');
@@ -322,7 +416,7 @@ export default function Admin() {
           utilizador={utilizador}
           onLogout={() => setMostrarLogout(true)}
         />
-        <main className={`mx-auto pb-28 pt-8 lg:pb-8 ${vistaAtiva === 'utilizadores' ? 'max-w-[1720px] px-5 lg:px-8 xl:px-10' : ['learning-paths', 'service-lines', 'areas', 'niveis', 'badges', 'eventos', 'requisitos'].includes(vistaAtiva) ? 'max-w-[1560px] px-5 lg:px-10 xl:px-16' : 'max-w-[1480px] px-5 lg:px-10 xl:px-[120px]'}`}>
+        <main className={`mx-auto pb-28 pt-8 lg:pb-8 ${vistaAtiva === 'utilizadores' ? 'max-w-[1720px] px-5 lg:px-8 xl:px-10' : ['learning-paths', 'service-lines', 'areas', 'niveis', 'badges', 'eventos', 'requisitos'].includes(vistaAtiva) ? 'max-w-[1560px] px-5 lg:px-10 xl:px-16' : 'max-w-[1760px] px-5 lg:px-8 xl:px-10 2xl:px-12'}`}>
           {vistaAtiva === 'utilizadores' ? (
             <AdminUtilizadores />
           ) : vistaAtiva === 'learning-paths' ? (
@@ -345,22 +439,18 @@ export default function Admin() {
             <div className="space-y-8">
               <section>
                 <h2 className="mb-4 text-lg font-bold">KPIs Gerais</h2>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-4">
                   <StatCard titulo="Total Utilizadores" valor={numero(dados.total_utilizadores)} variacao="+0%" icon="users" />
                   <StatCard titulo="Total Badges Atribuídos" valor={numero(dados.total_badges_atribuidos)} variacao="+0%" icon="badge" />
                   <StatCard titulo="% Badges Atribuídos" valor={`${kpis.percentagemAtribuidos}%`} icon="trend" />
                   <StatCard titulo="Candidaturas por Estado">
                     <div className="mt-4 space-y-3">
-                      {(dados.estados_candidatura || []).slice(0, 4).map((e) => {
-                        const info = estadoCandidatura(e.estado_atual);
-                        return (
-                          <div key={e.estado_atual} className="flex items-center justify-between text-sm">
-                            <span className="text-slate-500">{info.label}</span>
-                            <span className="font-bold text-softinsa-600">{numero(e.total)}</span>
-                          </div>
-                        );
-                      })}
-                      {(dados.estados_candidatura || []).length === 0 && <div className="text-sm text-slate-400">Sem candidaturas</div>}
+                      {estadosResumo.map((e) => (
+                        <div key={e.chave} className="flex items-center justify-between text-sm">
+                          <span className="text-slate-500">{e.label}</span>
+                          <span className={`font-bold ${e.cor}`}>{numero(e.total)}</span>
+                        </div>
+                      ))}
                     </div>
                   </StatCard>
                 </div>
@@ -368,11 +458,11 @@ export default function Admin() {
 
               <section>
                 <h2 className="mb-4 text-lg font-bold">Estatísticas</h2>
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-                  <Painel titulo="Badges por Learning Path">
-                    <BarChart dados={dados.badges_por_learning_path} />
+                <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(520px,0.95fr)]">
+                  <Painel titulo="Badges por Área" className="min-w-0">
+                    <BarChart dados={dados.badges_por_area || dados.badges_por_learning_path} />
                   </Painel>
-                  <Painel titulo="Badges por Nível (A-E)">
+                  <Painel titulo="Badges por Nível (A-E)" className="min-w-0">
                     <PieChart dados={dados.badges_por_nivel} />
                   </Painel>
                 </div>
@@ -382,7 +472,7 @@ export default function Admin() {
                 <LineChart dados={dados.badges_por_mes} />
               </Painel>
 
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
                 <Painel titulo="Controlo SLA">
                   <div className="space-y-4 text-sm">
                     <div className="flex items-center justify-between">
@@ -413,12 +503,16 @@ export default function Admin() {
                     {(ranking.data?.dados || []).length === 0 && <div className="text-slate-400">Sem ranking disponível</div>}
                     <div className="my-4 border-t border-slate-200" />
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Learning Path com mais badges</span>
-                      <span className="font-bold text-softinsa-600">{melhorLinha}</span>
+                      <span className="text-slate-500">Badge mais obtido do mês</span>
+                      <span className="font-bold text-softinsa-600">{dados.badge_mais_obtido_mes?.titulo || '-'}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-slate-500">Badges ativos</span>
-                      <span className="font-bold text-softinsa-600">{numero(dados.total_badges_ativos)}</span>
+                      <span className="text-slate-500">Melhor Service Line</span>
+                      <span className="font-bold text-softinsa-600">{dados.melhor_service_line?.nome || '-'}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Conquistas especiais</span>
+                      <span className="font-bold text-softinsa-600">{numero(dados.total_conquistas_especiais)}</span>
                     </div>
                   </div>
                 </Painel>
@@ -466,7 +560,7 @@ export default function Admin() {
                 </div>
               </section>
 
-              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
                 <Painel titulo="Avisos Ativos">
                   <div className="divide-y divide-slate-200">
                     {listaAvisos.slice(0, 4).map((aviso) => (
@@ -499,7 +593,7 @@ export default function Admin() {
                   </div>
                   <div className="mt-5 flex items-center justify-between">
                     <span className="text-slate-500">Total ações registadas</span>
-                    <span className="text-2xl font-bold text-softinsa-600">{numero(kpis.totalEstados + Number(dados.total_badges_atribuidos || 0))}</span>
+                    <span className="text-2xl font-bold text-softinsa-600">{numero(dados.total_acoes_registadas)}</span>
                   </div>
                   <Link to="/gestao" className="btn-secondary mt-6 w-full bg-slate-100">Ver Histórico Completo</Link>
                 </Painel>

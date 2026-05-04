@@ -1,4 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { Award, Bell, BookOpen, FileText, LayoutDashboard, LogOut, Trophy, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -21,7 +22,6 @@ function getSaudacao(nome) {
 export function ConsultorSidebar() {
   const { utilizador, logout } = useAuth();
   const navigate = useNavigate();
-  const perfis = utilizador?.perfis?.join(', ') || 'Consultor';
 
   function handleLogout() {
     logout();
@@ -65,18 +65,15 @@ export function ConsultorSidebar() {
           </div>
         </nav>
 
-        {/* User + logout */}
-        <div className="border-t border-white/10 px-5 py-5">
-          <div className="truncate text-sm font-semibold text-white">{utilizador?.nome || 'Utilizador'}</div>
-          <div className="mt-0.5 truncate text-[11px] text-white/50">{utilizador?.email || '-'}</div>
-          <div className="mt-1.5 truncate text-[11px] font-medium text-white/60">{perfis}</div>
+        {/* Logout */}
+        <div className="absolute bottom-0 left-0 right-0 border-t border-white/10 px-5 py-5">
           <button
             type="button"
             onClick={handleLogout}
-            className="mt-4 flex items-center gap-2 text-xs font-semibold text-white/70 hover:text-white transition"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white/75 transition hover:border-white/25 hover:bg-white/10 hover:text-white"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
-            Terminar Sessão
+            Terminar sessão
           </button>
         </div>
       </aside>
@@ -107,8 +104,11 @@ export function ConsultorSidebar() {
 }
 
 export function ConsultorTopbar({ subtitulo }) {
-  const { utilizador } = useAuth();
+  const { utilizador, logout } = useAuth();
+  const navigate = useNavigate();
+  const [aberto, setAberto] = useState(false);
   const nome = utilizador?.nome || 'Utilizador';
+  const perfis = utilizador?.perfis?.join(', ') || 'Consultor';
   const saudacao = getSaudacao(nome);
   const iniciais = nome
     .split(' ')
@@ -118,6 +118,12 @@ export function ConsultorTopbar({ subtitulo }) {
     .join('')
     .toUpperCase();
 
+  function handleLogout() {
+    setAberto(false);
+    logout();
+    navigate('/login');
+  }
+
   return (
     <header className="sticky top-0 z-10 bg-softinsa-gradient">
       <div className="flex h-[72px] items-center justify-between px-5 lg:px-8">
@@ -126,20 +132,48 @@ export function ConsultorTopbar({ subtitulo }) {
           {subtitulo && <p className="mt-0.5 text-xs text-white/60">{subtitulo}</p>}
         </div>
         <div className="flex items-center gap-5">
-          <div className="hidden items-center gap-2 text-sm font-semibold sm:flex">
-            <span className="cursor-pointer text-white">PT</span>
-            <span className="h-4 w-px bg-white/30" />
-            <span className="cursor-pointer text-white/50 hover:text-white">EN</span>
-            <span className="h-4 w-px bg-white/30" />
-            <span className="cursor-pointer text-white/50 hover:text-white">ES</span>
+          <div className="hidden items-center gap-3 text-lg sm:flex">
+            <span title="Português" aria-label="Português" className="leading-none">🇵🇹</span>
+            <span title="English" aria-label="English" className="leading-none opacity-70">🇬🇧</span>
+            <span title="Español" aria-label="Español" className="leading-none opacity-70">🇪🇸</span>
           </div>
           <NavLink to="/notificacoes" className="relative text-white/70 hover:text-white" aria-label="Notificações">
             <Bell className="h-5 w-5" strokeWidth={1.8} />
             <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
           </NavLink>
-          <div className="hidden text-sm font-semibold text-white sm:block">{nome}</div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-softinsa-500 text-sm font-bold text-white">
-            {iniciais}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setAberto((valor) => !valor)}
+              className="flex items-center gap-3 rounded-full border border-transparent px-2.5 py-1.5 transition hover:border-white/20 hover:bg-white/10 hover:shadow-sm"
+              aria-haspopup="menu"
+              aria-expanded={aberto}
+            >
+              <span className="hidden max-w-[180px] truncate pl-1 text-sm font-semibold text-white sm:block">{nome}</span>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-softinsa-500 text-sm font-bold text-white">
+                {iniciais}
+              </span>
+            </button>
+
+            {aberto && (
+              <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-xl border border-white/10 bg-slate-950 text-white shadow-lg" role="menu">
+                <div className="border-b border-white/10 px-4 py-4">
+                  <div className="truncate text-sm font-bold">{nome}</div>
+                  <div className="mt-1 truncate text-xs text-white/55">{utilizador?.email || '-'}</div>
+                  <div className="mt-2 inline-flex rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
+                    {perfis}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-white/75 transition hover:bg-white/10 hover:text-white"
+                  onClick={handleLogout}
+                >
+                  <LogOut className="h-4 w-4" strokeWidth={1.8} />
+                  Terminar sessão
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -133,11 +133,11 @@ export function AppTopbar({ titulo, subtitulo, utilizador, onLogout }) {
             <button
               type="button"
               onClick={() => setAberto((valor) => !valor)}
-              className="flex items-center gap-3 rounded-full pr-1 transition hover:bg-white/40"
+              className="flex items-center gap-3 rounded-full border border-transparent px-2.5 py-1.5 transition hover:border-white/60 hover:bg-white/45 hover:shadow-sm"
               aria-haspopup="menu"
               aria-expanded={aberto}
             >
-              <span className="hidden text-sm font-semibold text-slate-900 sm:block">{utilizador?.nome || 'Admin'}</span>
+              <span className="hidden max-w-[180px] truncate pl-1 text-sm font-semibold text-slate-900 sm:block">{utilizador?.nome || 'Admin'}</span>
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
                 {(utilizador?.nome || 'Admin').slice(0, 2).toUpperCase()}
               </span>
