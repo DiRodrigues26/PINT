@@ -1,0 +1,975 @@
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  Eye,
+  FileText,
+  Pencil,
+  Plus,
+  Power,
+  Search,
+  Trash2,
+  TriangleAlert,
+  Upload,
+  X,
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import { api, extrairErro } from '../../lib/api';
+import { formatarData } from '../../lib/formatar';
+
+const ICONES = {
+  download: Download,
+  edit: Pencil,
+  eye: Eye,
+  file: FileText,
+  left: ChevronLeft,
+  plus: Plus,
+  power: Power,
+  right: ChevronRight,
+  search: Search,
+  trash: Trash2,
+  upload: Upload,
+  warning: TriangleAlert,
+  x: X,
+};
+
+const NIVEIS = {
+  A: 'Júnior',
+  B: 'Intermédio',
+  C: 'Sénior',
+  D: 'Especialista',
+  E: 'Líder de conhecimento',
+  Especial: 'Especial',
+};
+
+const FORM_INICIAL = {
+  titulo: '',
+  codigo_nivel: 'A',
+  id_nivel: '',
+  pontos: 0,
+  imagem_url: '',
+  tem_expiracao: true,
+  validade_dias: 30,
+  requisitos: [],
+  pesquisaRequisito: '',
+  filtroNivelRequisito: '',
+  filtroTipoRequisito: '',
+  ativo: true,
+};
+
+function Icon({ nome, className = 'h-5 w-5' }) {
+  const Componente = ICONES[nome] || FileText;
+  return <Componente className={className} aria-hidden="true" strokeWidth={1.8} />;
+}
+
+function Modal({ titulo, children, onFechar, icon, iconTone = 'blue', size = 'md' }) {
+  const sizeClass = size === 'sm' ? 'max-w-xl' : size === 'lg' ? 'max-w-4xl' : 'max-w-2xl';
+  const iconClass = {
+    amber: 'bg-amber-100 text-orange-500',
+    rose: 'bg-rose-100 text-red-600',
+    blue: 'bg-softinsa-100 text-softinsa-700',
+  }[iconTone];
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4">
+      <div className={`max-h-[96vh] w-full ${sizeClass} overflow-hidden rounded-[28px] bg-white shadow-xl`}>
+        <div className="flex items-center justify-between border-b-4 border-slate-200 px-7 py-5">
+          <div className="flex items-center gap-4">
+            {icon && (
+              <div className={`flex h-14 w-14 items-center justify-center rounded-full ${iconClass}`}>
+                <Icon nome={icon} className="h-8 w-8" />
+              </div>
+            )}
+            <h2 className="text-3xl font-bold tracking-tight text-slate-900">{titulo}</h2>
+          </div>
+          <button type="button" onClick={onFechar} className="rounded-md p-2 text-slate-500 hover:bg-slate-100">
+            <Icon nome="x" className="h-9 w-9" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+async function obterTodasDaRota(rota, params = {}) {
+  const primeira = (await api.get(rota, { params: { ...params, pagina: 1, por_pagina: 100 } })).data;
+  const todas = [...(primeira.dados || [])];
+  const totalPaginas = Math.ceil((primeira.total || 0) / (primeira.por_pagina || 100));
+
+  for (let p = 2; p <= totalPaginas; p += 1) {
+    const resposta = (await api.get(rota, { params: { ...params, pagina: p, por_pagina: 100 } })).data;
+    todas.push(...(resposta.dados || []));
+  }
+
+  return { dados: todas };
+}
+
+function dificuldade(badge) {
+  const codigo = badge.codigo_nivel || '';
+  const nome = badge.nome_nivel || '';
+  return codigo ? `(${codigo}) ${nome}`.trim() : '—';
+}
+
+function dataExpiracao(badge) {
+  if (!badge.tem_expiracao) return null;
+  if (badge.data_expiracao_badge) return badge.data_expiracao_badge;
+  if (!badge.validade_dias || !badge.created_at) return null;
+  const data = new Date(badge.created_at);
+  if (Number.isNaN(data.getTime())) return null;
+  data.setDate(data.getDate() + Number(badge.validade_dias));
+  return data.toISOString();
+}
+
+function estadoBadge(badge) {
+  if (badge.estado_badge) return badge.estado_badge;
+  if (badge.ativo === 0 || badge.ativo === false) return 'Inativo';
+  const expira = dataExpiracao(badge);
+  if (expira && new Date(expira).getTime() < Date.now()) return 'Expirado';
+  return 'Ativo';
+}
+
+function estadoClasses(estado) {
+  if (estado === 'Inativo') return 'bg-rose-100 text-rose-700';
+  if (estado === 'Expirado') return 'bg-yellow-100 text-yellow-800';
+  return 'bg-emerald-100 text-emerald-700';
+}
+
+function expiracaoTexto(badge) {
+  const expira = dataExpiracao(badge);
+  return expira ? formatarData(expira) : 'Não tem';
+}
+
+function descricaoCurta(texto) {
+  if (!texto) return '—';
+  return texto.length > 28 ? `${texto.slice(0, 28)}...` : texto;
+}
+
+function encontrarNivelNoContexto({ codigo, nivelAtual, filtros, niveis }) {
+  if (codigo === 'Especial') return null;
+
+  const porArea = nivelAtual?.id_area || filtros.id_area;
+  if (porArea) {
+    const nivel = niveis.find((item) => String(item.id_area) === String(porArea) && item.codigo_nivel === codigo);
+    if (nivel) return nivel;
+  }
+
+  const porServiceLine = nivelAtual?.id_service_line || filtros.id_service_line;
+  if (porServiceLine) {
+    const nivel = niveis.find((item) => String(item.id_service_line) === String(porServiceLine) && item.codigo_nivel === codigo);
+    if (nivel) return nivel;
+  }
+
+  const porLearningPath = nivelAtual?.id_learning_path || filtros.id_learning_path;
+  if (porLearningPath) {
+    const nivel = niveis.find((item) => String(item.id_learning_path) === String(porLearningPath) && item.codigo_nivel === codigo);
+    if (nivel) return nivel;
+  }
+
+  return niveis.find((item) => item.codigo_nivel === codigo) || null;
+}
+
+function prepararPayload(form, niveis, filtros, badgeAtual = null) {
+  const nivelAtual = badgeAtual ? {
+    id_area: badgeAtual.id_area,
+    id_service_line: badgeAtual.id_service_line,
+    id_learning_path: badgeAtual.id_learning_path,
+  } : null;
+  const nivel = niveis.find((item) => String(item.id_nivel) === String(form.id_nivel))
+    || encontrarNivelNoContexto({ codigo: form.codigo_nivel, nivelAtual, filtros, niveis });
+
+  if (!nivel) {
+    throw new Error(form.codigo_nivel === 'Especial'
+      ? 'O nível Especial ainda não existe na hierarquia.'
+      : 'Seleciona uma Área ou Nível nos filtros para criar o badge no contexto certo.');
+  }
+
+  return {
+    id_nivel: Number(nivel.id_nivel),
+    titulo: form.titulo.trim(),
+    pontos: Number(form.pontos) || 0,
+    imagem_url: form.imagem_url || null,
+    tem_expiracao: form.tem_expiracao,
+    validade_dias: form.tem_expiracao ? Number(form.validade_dias) || null : null,
+    ativo: form.ativo,
+    requisitos: form.requisitos,
+  };
+}
+
+function gerarCsvBadges(items) {
+  const linhas = [
+    ['Nome do Badge', 'Nivel Associado', 'Area', 'Service Line', 'Learning Path', 'Pontos', 'Expiracao', 'Data Criacao', 'Estado'],
+    ...items.map((badge) => [
+      badge.titulo,
+      dificuldade(badge),
+      badge.nome_area || '',
+      badge.nome_service_line || '',
+      badge.nome_learning_path || '',
+      badge.pontos || 0,
+      expiracaoTexto(badge),
+      formatarData(badge.created_at),
+      estadoBadge(badge),
+    ]),
+  ];
+
+  return linhas
+    .map((linha) => linha.map((valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`).join(';'))
+    .join('\n');
+}
+
+function descarregarCsv(nomeFicheiro, csv) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeFicheiro;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function escaparHtml(valor) {
+  return String(valor ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function imprimirTabelaBadges(items) {
+  const linhas = items.map((badge) => `
+    <tr>
+      <td>${escaparHtml(badge.titulo)}</td>
+      <td>${escaparHtml(dificuldade(badge))}</td>
+      <td>${escaparHtml(badge.nome_area)}</td>
+      <td>${escaparHtml(badge.nome_service_line)}</td>
+      <td>${escaparHtml(badge.nome_learning_path)}</td>
+      <td>${escaparHtml(badge.pontos || 0)}</td>
+      <td>${escaparHtml(expiracaoTexto(badge))}</td>
+      <td>${escaparHtml(formatarData(badge.created_at))}</td>
+      <td>${escaparHtml(estadoBadge(badge))}</td>
+    </tr>
+  `).join('');
+
+  const janela = window.open('', '_blank');
+  if (!janela) return;
+  janela.document.write(`
+    <!doctype html>
+    <html>
+      <head>
+        <title>Badges</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #1f2937; padding: 24px; }
+          h1 { font-size: 22px; margin-bottom: 18px; }
+          table { border-collapse: collapse; width: 100%; font-size: 12px; }
+          th, td { border: 1px solid #d7dde5; padding: 8px; text-align: left; }
+          th { background: #f1f5f9; }
+        </style>
+      </head>
+      <body>
+        <h1>Gestão de Badges</h1>
+        <table>
+          <thead>
+            <tr>
+              <th>Nome do Badge</th><th>Nível Associado</th><th>Área</th>
+              <th>Service Line</th><th>Learning Path</th><th>Pontos</th>
+              <th>Expiração</th><th>Data Criação</th><th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>${linhas || '<tr><td colspan="9">Sem resultados</td></tr>'}</tbody>
+        </table>
+      </body>
+    </html>
+  `);
+  janela.document.close();
+  janela.focus();
+  janela.print();
+}
+
+function FormBadge({
+  form,
+  setForm,
+  requisitos,
+  niveis,
+  filtros,
+  badgeAtual,
+  modo,
+  onSubmit,
+  onCancelar,
+  loading,
+}) {
+  const requisitosFiltrados = useMemo(() => {
+    const pesquisa = form.pesquisaRequisito.trim().toLowerCase();
+    return requisitos.filter((req) => {
+      const passaPesquisa = !pesquisa
+        || req.titulo?.toLowerCase().includes(pesquisa)
+        || req.descricao?.toLowerCase().includes(pesquisa);
+      const passaNivel = !form.filtroNivelRequisito || req.codigo_nivel === form.filtroNivelRequisito;
+      const passaTipo = !form.filtroTipoRequisito || req.tipo_evidencia === form.filtroTipoRequisito;
+      return passaPesquisa && passaNivel && passaTipo;
+    });
+  }, [form.filtroNivelRequisito, form.filtroTipoRequisito, form.pesquisaRequisito, requisitos]);
+
+  function atualizarNivel(codigo) {
+    const nivelAtual = badgeAtual ? {
+      id_area: badgeAtual.id_area,
+      id_service_line: badgeAtual.id_service_line,
+      id_learning_path: badgeAtual.id_learning_path,
+    } : null;
+    const nivel = encontrarNivelNoContexto({ codigo, nivelAtual, filtros, niveis });
+    setForm((atual) => ({
+      ...atual,
+      codigo_nivel: codigo,
+      id_nivel: nivel ? String(nivel.id_nivel) : '',
+    }));
+  }
+
+  function alternarRequisito(id) {
+    setForm((atual) => {
+      const existe = atual.requisitos.includes(id);
+      return {
+        ...atual,
+        requisitos: existe
+          ? atual.requisitos.filter((item) => item !== id)
+          : [...atual.requisitos, id],
+      };
+    });
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <div className="max-h-[72vh] space-y-6 overflow-y-auto px-7 py-4">
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-900">
+            Título do badge<span className="text-red-600">*</span>
+          </label>
+          <input
+            className="input"
+            required
+            placeholder="Badge"
+            value={form.titulo}
+            onChange={(e) => setForm((atual) => ({ ...atual, titulo: e.target.value }))}
+          />
+        </div>
+
+        <div>
+          <div className="mb-3 text-sm font-medium text-slate-900">Nível</div>
+          <div className="flex flex-wrap gap-5 text-base text-slate-700">
+            {Object.keys(NIVEIS).map((codigo) => (
+              <label key={codigo} className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  className="h-4 w-4 text-softinsa-600"
+                  checked={form.codigo_nivel === codigo}
+                  onChange={() => atualizarNivel(codigo)}
+                />
+                {codigo}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-900">Pontos do badge</label>
+          <input
+            type="number"
+            min="0"
+            className="input"
+            value={form.pontos}
+            onChange={(e) => setForm((atual) => ({ ...atual, pontos: e.target.value }))}
+          />
+        </div>
+
+        <div>
+          <label className="mb-3 block text-sm font-medium text-slate-900">
+            Imagem do badge<span className="text-red-600">*</span>
+          </label>
+          <button
+            type="button"
+            className="mx-auto flex h-36 w-[90%] flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-center hover:bg-slate-50"
+            onClick={() => toast('Upload de imagem do badge será ligado ao módulo de ficheiros.')}
+          >
+            <Icon nome="upload" className="h-9 w-9 text-slate-900" />
+            <span className="mt-3 text-sm text-slate-400">PNG, JPEG, JPG ou WEBM (máx. 5MB)</span>
+            <span className="mt-2 text-sm font-medium text-slate-900">Clique para fazer upload</span>
+          </button>
+        </div>
+
+        <div>
+          <label className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-900">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded text-softinsa-600"
+              checked={form.tem_expiracao}
+              onChange={(e) => setForm((atual) => ({ ...atual, tem_expiracao: e.target.checked }))}
+            />
+            Data expiração
+          </label>
+          <div className="grid grid-cols-[140px_1fr] gap-5">
+            <select className="input" disabled={!form.tem_expiracao} value="dias" onChange={() => {}}>
+              <option value="dias">Dias</option>
+            </select>
+            <input
+              type="number"
+              min="1"
+              className="input"
+              disabled={!form.tem_expiracao}
+              value={form.validade_dias}
+              onChange={(e) => setForm((atual) => ({ ...atual, validade_dias: e.target.value }))}
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="mb-3 block text-sm font-medium text-slate-900">
+            Requisitos<span className="text-red-600">*</span>
+          </label>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_180px_220px]">
+            <label className="relative block">
+              <Icon nome="search" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <input
+                className="input pl-11"
+                placeholder="Pesquisar requisitos..."
+                value={form.pesquisaRequisito}
+                onChange={(e) => setForm((atual) => ({ ...atual, pesquisaRequisito: e.target.value }))}
+              />
+            </label>
+            <select className="input" value={form.filtroNivelRequisito} onChange={(e) => setForm((atual) => ({ ...atual, filtroNivelRequisito: e.target.value }))}>
+              <option value="">Nível (Todos)</option>
+              {Object.keys(NIVEIS).filter((codigo) => codigo !== 'Especial').map((codigo) => <option key={codigo} value={codigo}>{codigo}</option>)}
+            </select>
+            <select className="input" value={form.filtroTipoRequisito} onChange={(e) => setForm((atual) => ({ ...atual, filtroTipoRequisito: e.target.value }))}>
+              <option value="">Tipo evidência (Todos)</option>
+              <option value="Certificado">Certificado</option>
+              <option value="Curso">Curso</option>
+              <option value="Documento">Documento</option>
+              <option value="Badge">Badge</option>
+              <option value="Outro">Outro</option>
+            </select>
+          </div>
+
+          <div className="mt-1 overflow-hidden rounded-xl border border-slate-200">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="w-16 px-4 py-4 text-center"></th>
+                  <th className="px-4 py-4 text-center">Título</th>
+                  <th className="px-4 py-4 text-center">Descrição</th>
+                  <th className="px-4 py-4 text-center">Nível</th>
+                  <th className="px-4 py-4 text-center">Tipo evidência</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200">
+                {requisitosFiltrados.slice(0, 5).map((req) => (
+                  <tr key={req.id_requisito}>
+                    <td className="px-4 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded text-softinsa-600"
+                        checked={form.requisitos.includes(req.id_requisito)}
+                        onChange={() => alternarRequisito(req.id_requisito)}
+                      />
+                    </td>
+                    <td className="px-4 py-4 text-center font-medium text-slate-800">{req.titulo}</td>
+                    <td className="px-4 py-4 text-center text-slate-600" title={req.descricao || ''}>{descricaoCurta(req.descricao)}</td>
+                    <td className="px-4 py-4 text-center text-slate-600">{dificuldade(req)}</td>
+                    <td className="px-4 py-4 text-center text-slate-600">{req.tipo_evidencia || '—'}</td>
+                  </tr>
+                ))}
+                {requisitosFiltrados.length === 0 && (
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Sem requisitos disponíveis.</td></tr>
+                )}
+              </tbody>
+            </table>
+            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 px-6 py-3 text-sm text-slate-500 md:flex-row">
+              <span>A mostrar {Math.min(requisitosFiltrados.length, 5)} de {requisitosFiltrados.length} resultados</span>
+              <div className="flex items-center gap-3">
+                <button type="button" className="btn-secondary h-10 w-10 px-0 opacity-40" disabled><Icon nome="left" className="h-5 w-5" /></button>
+                <span className="font-semibold text-slate-700">Página 1 de 1</span>
+                <button type="button" className="btn-secondary h-10 w-10 px-0 opacity-40" disabled><Icon nome="right" className="h-5 w-5" /></button>
+              </div>
+              <button type="button" className="btn-primary" onClick={() => toast('Criação de requisitos será ligada ao CRUD de Requisitos.')}>
+                <Icon nome="plus" className="h-4 w-4" /> Criar Requisito
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-3 text-sm font-medium text-slate-900">Estado</div>
+          <div className="flex gap-5 text-base text-slate-700">
+            <label className="flex items-center gap-2">
+              <input type="radio" className="h-4 w-4 text-softinsa-600" checked={form.ativo} onChange={() => setForm((atual) => ({ ...atual, ativo: true }))} />
+              Ativo
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" className="h-4 w-4 text-softinsa-600" checked={!form.ativo} onChange={() => setForm((atual) => ({ ...atual, ativo: false }))} />
+              Inativo
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">
+        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>Cancelar</button>
+        <button type="submit" className="btn-primary min-w-36" disabled={loading}>
+          {loading ? 'A guardar...' : modo === 'criar' ? 'Criar Badge' : 'Editar Badge'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export default function AdminBadges() {
+  const qc = useQueryClient();
+  const [filtros, setFiltros] = useState({
+    pesquisa: '',
+    id_learning_path: '',
+    id_service_line: '',
+    id_area: '',
+    id_nivel: '',
+    estado: '',
+  });
+  const [pagina, setPagina] = useState(1);
+  const [modal, setModal] = useState(null);
+  const [form, setForm] = useState(FORM_INICIAL);
+
+  const badges = useQuery({
+    queryKey: ['admin', 'badges', filtros, pagina],
+    queryFn: async () => (await api.get('/api/badges', {
+      params: {
+        pagina,
+        por_pagina: 5,
+        pesquisa: filtros.pesquisa || undefined,
+        id_learning_path: filtros.id_learning_path || undefined,
+        id_service_line: filtros.id_service_line || undefined,
+        id_area: filtros.id_area || undefined,
+        id_nivel: filtros.id_nivel || undefined,
+        estado: filtros.estado || undefined,
+      },
+    })).data,
+  });
+
+  const learningPaths = useQuery({
+    queryKey: ['admin', 'badges', 'learning-paths-select'],
+    queryFn: async () => obterTodasDaRota('/api/learning-paths'),
+  });
+
+  const serviceLines = useQuery({
+    queryKey: ['admin', 'badges', 'service-lines-select'],
+    queryFn: async () => obterTodasDaRota('/api/service-lines'),
+  });
+
+  const areas = useQuery({
+    queryKey: ['admin', 'badges', 'areas-select'],
+    queryFn: async () => obterTodasDaRota('/api/areas'),
+  });
+
+  const niveis = useQuery({
+    queryKey: ['admin', 'badges', 'niveis-select'],
+    queryFn: async () => obterTodasDaRota('/api/niveis'),
+  });
+
+  const requisitos = useQuery({
+    queryKey: ['admin', 'badges', 'requisitos-select'],
+    queryFn: async () => obterTodasDaRota('/api/requisitos'),
+  });
+
+  const criar = useMutation({
+    mutationFn: async () => (await api.post('/api/badges', prepararPayload(form, listaNiveis, filtros))).data,
+    onSuccess: () => {
+      toast.success('Badge criado.');
+      setModal(null);
+      qc.invalidateQueries({ queryKey: ['admin', 'badges'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
+      qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
+    },
+    onError: (err) => toast.error(extrairErro(err)),
+  });
+
+  const atualizar = useMutation({
+    mutationFn: async () => (await api.put(`/api/badges/${modal.badge.id_badge}`, prepararPayload(form, listaNiveis, filtros, modal.badge))).data,
+    onSuccess: () => {
+      toast.success('Badge atualizado.');
+      setModal(null);
+      qc.invalidateQueries({ queryKey: ['admin', 'badges'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
+      qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
+    },
+    onError: (err) => toast.error(extrairErro(err)),
+  });
+
+  const alternarEstado = useMutation({
+    mutationFn: async (badge) => (await api.put(`/api/badges/${badge.id_badge}`, { ativo: !(badge.ativo !== 0) })).data,
+    onSuccess: () => {
+      toast.success('Estado atualizado.');
+      qc.invalidateQueries({ queryKey: ['admin', 'badges'] });
+      qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
+    },
+    onError: (err) => toast.error(extrairErro(err)),
+  });
+
+  const eliminar = useMutation({
+    mutationFn: async () => (await api.delete(`/api/badges/${modal.badge.id_badge}`)).data,
+    onSuccess: () => {
+      toast.success('Badge eliminado.');
+      setModal(null);
+      qc.invalidateQueries({ queryKey: ['admin', 'badges'] });
+      qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
+    },
+    onError: (err) => toast.error(extrairErro(err)),
+  });
+
+  const lista = badges.data?.dados || [];
+  const total = badges.data?.total || 0;
+  const porPagina = badges.data?.por_pagina || 5;
+  const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
+  const lps = learningPaths.data?.dados || [];
+  const sls = serviceLines.data?.dados || [];
+  const listaAreas = areas.data?.dados || [];
+  const listaNiveis = niveis.data?.dados || [];
+  const listaRequisitos = requisitos.data?.dados || [];
+
+  const serviceLinesFiltro = useMemo(() => {
+    if (!filtros.id_learning_path) return sls;
+    return sls.filter((sl) => String(sl.id_learning_path) === String(filtros.id_learning_path));
+  }, [filtros.id_learning_path, sls]);
+
+  const areasFiltro = useMemo(() => {
+    if (filtros.id_service_line) return listaAreas.filter((area) => String(area.id_service_line) === String(filtros.id_service_line));
+    if (filtros.id_learning_path) return listaAreas.filter((area) => String(area.id_learning_path) === String(filtros.id_learning_path));
+    return listaAreas;
+  }, [filtros.id_learning_path, filtros.id_service_line, listaAreas]);
+
+  const niveisFiltro = useMemo(() => {
+    if (filtros.id_area) return listaNiveis.filter((nivel) => String(nivel.id_area) === String(filtros.id_area));
+    if (filtros.id_service_line) return listaNiveis.filter((nivel) => String(nivel.id_service_line) === String(filtros.id_service_line));
+    if (filtros.id_learning_path) return listaNiveis.filter((nivel) => String(nivel.id_learning_path) === String(filtros.id_learning_path));
+    return listaNiveis;
+  }, [filtros.id_area, filtros.id_learning_path, filtros.id_service_line, listaNiveis]);
+
+  function atualizarFiltro(campo, valor) {
+    setFiltros((atual) => {
+      const proximo = { ...atual, [campo]: valor };
+
+      if (campo === 'id_learning_path') {
+        proximo.id_service_line = '';
+        proximo.id_area = '';
+        proximo.id_nivel = '';
+      }
+      if (campo === 'id_service_line') {
+        proximo.id_area = '';
+        proximo.id_nivel = '';
+        const serviceLine = sls.find((sl) => String(sl.id_service_line) === String(valor));
+        if (serviceLine?.id_learning_path) proximo.id_learning_path = String(serviceLine.id_learning_path);
+      }
+      if (campo === 'id_area') {
+        proximo.id_nivel = '';
+        const area = listaAreas.find((item) => String(item.id_area) === String(valor));
+        if (area) {
+          proximo.id_service_line = String(area.id_service_line);
+          proximo.id_learning_path = String(area.id_learning_path);
+        }
+      }
+      if (campo === 'id_nivel') {
+        const nivel = listaNiveis.find((item) => String(item.id_nivel) === String(valor));
+        if (nivel) {
+          proximo.id_area = String(nivel.id_area);
+          proximo.id_service_line = String(nivel.id_service_line);
+          proximo.id_learning_path = String(nivel.id_learning_path);
+        }
+      }
+
+      return proximo;
+    });
+    setPagina(1);
+  }
+
+  function limparFiltros() {
+    setFiltros({ pesquisa: '', id_learning_path: '', id_service_line: '', id_area: '', id_nivel: '', estado: '' });
+    setPagina(1);
+  }
+
+  function abrirCriacao() {
+    if (learningPaths.isLoading || serviceLines.isLoading || areas.isLoading || niveis.isLoading || requisitos.isLoading) {
+      toast('A carregar a hierarquia. Tenta novamente dentro de instantes.');
+      return;
+    }
+    if (lps.length === 0) return toast.error('Antes de criar um Badge, cria primeiro um Learning Path.');
+    if (sls.length === 0) return toast.error('Antes de criar um Badge, cria primeiro uma Service Line.');
+    if (listaAreas.length === 0) return toast.error('Antes de criar um Badge, cria primeiro uma Área.');
+    if (listaNiveis.length === 0) return toast.error('Antes de criar um Badge, cria primeiro um Nível.');
+    if (!filtros.id_area && !filtros.id_nivel && listaAreas.length > 1) {
+      return toast.error('Seleciona primeiro uma Área ou Nível nos filtros para criar o badge no contexto certo.');
+    }
+
+    const nivelBase = filtros.id_nivel
+      ? listaNiveis.find((nivel) => String(nivel.id_nivel) === String(filtros.id_nivel))
+      : encontrarNivelNoContexto({ codigo: 'A', filtros, niveis: listaNiveis });
+
+    setForm({
+      ...FORM_INICIAL,
+      codigo_nivel: nivelBase?.codigo_nivel || 'A',
+      id_nivel: nivelBase ? String(nivelBase.id_nivel) : '',
+    });
+    return setModal({ tipo: 'criar' });
+  }
+
+  async function abrirEdicao(badge) {
+    setModal({ tipo: 'editar', badge, carregando: true });
+    try {
+      const detalhe = (await api.get(`/api/badges/${badge.id_badge}`)).data;
+      const item = detalhe.badge;
+      setForm({
+        ...FORM_INICIAL,
+        titulo: item.titulo || '',
+        codigo_nivel: item.codigo_nivel || 'A',
+        id_nivel: item.id_nivel ? String(item.id_nivel) : '',
+        pontos: item.pontos ?? 0,
+        imagem_url: item.imagem_url || '',
+        tem_expiracao: Boolean(item.tem_expiracao),
+        validade_dias: item.validade_dias || 30,
+        ativo: item.ativo !== 0,
+        requisitos: (detalhe.requisitos || []).map((req) => req.id_requisito),
+      });
+      setModal({ tipo: 'editar', badge: item });
+    } catch (err) {
+      setModal(null);
+      toast.error(extrairErro(err, 'Não foi possível abrir o badge.'));
+    }
+  }
+
+  async function obterTodosFiltrados() {
+    return (await obterTodasDaRota('/api/badges', {
+      pesquisa: filtros.pesquisa || undefined,
+      id_learning_path: filtros.id_learning_path || undefined,
+      id_service_line: filtros.id_service_line || undefined,
+      id_area: filtros.id_area || undefined,
+      id_nivel: filtros.id_nivel || undefined,
+      estado: filtros.estado || undefined,
+    })).dados;
+  }
+
+  async function exportarExcel() {
+    try {
+      const todos = await obterTodosFiltrados();
+      descarregarCsv('badges.csv', gerarCsvBadges(todos));
+    } catch (err) {
+      toast.error(extrairErro(err, 'Não foi possível exportar os badges.'));
+    }
+  }
+
+  async function exportarPdf() {
+    try {
+      const todos = await obterTodosFiltrados();
+      imprimirTabelaBadges(todos);
+    } catch (err) {
+      toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-[1560px] space-y-7">
+      <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Badges</h1>
+        <div className="flex flex-wrap gap-3">
+          <button type="button" className="btn-secondary" onClick={exportarExcel}>
+            <Icon nome="file" className="h-4 w-4" /> Exportar Excel
+          </button>
+          <button type="button" className="btn-secondary" onClick={exportarPdf}>
+            <Icon nome="file" className="h-4 w-4" /> Exportar PDF
+          </button>
+          <button type="button" className="btn-primary" onClick={abrirCriacao}>
+            <Icon nome="plus" className="h-4 w-4" /> Criar Badge
+          </button>
+        </div>
+      </header>
+
+      <section className="rounded-lg bg-white p-5 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 2xl:grid-cols-[1fr_210px_220px_200px_190px_190px_200px]">
+          <label className="relative block">
+            <Icon nome="search" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+            <input
+              className="input pl-10"
+              placeholder="Pesquisar badge..."
+              value={filtros.pesquisa}
+              onChange={(e) => atualizarFiltro('pesquisa', e.target.value)}
+            />
+          </label>
+          <select className="input" value={filtros.id_learning_path} onChange={(e) => atualizarFiltro('id_learning_path', e.target.value)}>
+            <option value="">Learning paths (Todos)</option>
+            {lps.map((lp) => <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>)}
+          </select>
+          <select className="input" value={filtros.id_service_line} onChange={(e) => atualizarFiltro('id_service_line', e.target.value)}>
+            <option value="">Service Lines (Todas)</option>
+            {serviceLinesFiltro.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
+          </select>
+          <select className="input" value={filtros.id_area} onChange={(e) => atualizarFiltro('id_area', e.target.value)}>
+            <option value="">Área (Todas)</option>
+            {areasFiltro.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
+          </select>
+          <select className="input" value={filtros.id_nivel} onChange={(e) => atualizarFiltro('id_nivel', e.target.value)}>
+            <option value="">Nível (Todos)</option>
+            {niveisFiltro.map((nivel) => (
+              <option key={nivel.id_nivel} value={nivel.id_nivel}>
+                {nivel.codigo_nivel} - {nivel.nome_nivel}
+              </option>
+            ))}
+          </select>
+          <select className="input" value={filtros.estado} onChange={(e) => atualizarFiltro('estado', e.target.value)}>
+            <option value="">Estado (Todos)</option>
+            <option value="ativo">Ativo</option>
+            <option value="expirado">Expirado</option>
+            <option value="inativo">Inativo</option>
+          </select>
+          <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
+            <Icon nome="x" className="h-4 w-4" /> Limpar Filtros
+          </button>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="min-w-[1360px] w-full text-sm">
+            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-4 py-4 text-left">Nome do Badge</th>
+                <th className="px-4 py-4 text-left">Nível Associado</th>
+                <th className="px-4 py-4 text-left">Área</th>
+                <th className="px-4 py-4 text-left">Service Line</th>
+                <th className="px-4 py-4 text-left">Learning Path</th>
+                <th className="px-4 py-4 text-center">Pontos</th>
+                <th className="px-4 py-4 text-center">Expiração</th>
+                <th className="px-4 py-4 text-center">Data Criação</th>
+                <th className="px-4 py-4 text-center">Estado</th>
+                <th className="px-4 py-4 text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {badges.isLoading ? (
+                <tr><td colSpan={10} className="px-5 py-12 text-center text-slate-500">A carregar badges...</td></tr>
+              ) : lista.map((badge) => {
+                const estado = estadoBadge(badge);
+                return (
+                  <tr key={badge.id_badge} className="text-slate-700">
+                    <td className="px-4 py-5 font-semibold text-slate-800">{badge.titulo}</td>
+                    <td className="px-4 py-5 text-slate-500">{dificuldade(badge)}</td>
+                    <td className="px-4 py-5 text-slate-500">{badge.nome_area}</td>
+                    <td className="px-4 py-5 text-slate-500">{badge.nome_service_line}</td>
+                    <td className="px-4 py-5 text-slate-500">{badge.nome_learning_path}</td>
+                    <td className="px-4 py-5 text-center font-semibold text-slate-800">{badge.pontos || 0}</td>
+                    <td className="px-4 py-5 text-center text-slate-600">{expiracaoTexto(badge)}</td>
+                    <td className="px-4 py-5 text-center text-slate-600">{formatarData(badge.created_at)}</td>
+                    <td className="px-4 py-5 text-center">
+                      <span className={`badge-pill ${estadoClasses(estado)}`}>{estado}</span>
+                    </td>
+                    <td className="px-4 py-5">
+                      <div className="flex items-center justify-center gap-4 text-softinsa-700">
+                        <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Ver" onClick={() => setModal({ tipo: 'ver', badge })}><Icon nome="eye" className="h-5 w-5" /></button>
+                        <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Editar" onClick={() => abrirEdicao(badge)}><Icon nome="edit" className="h-5 w-5" /></button>
+                        <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={badge.ativo !== 0 ? 'Desativar' : 'Ativar'} onClick={() => badge.ativo !== 0 ? setModal({ tipo: 'desativar', badge }) : alternarEstado.mutate(badge)}><Icon nome="power" className="h-5 w-5" /></button>
+                        <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title="Eliminar" onClick={() => setModal({ tipo: 'eliminar', badge })}><Icon nome="trash" className="h-5 w-5" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {!badges.isLoading && lista.length === 0 && (
+                <tr><td colSpan={10} className="px-5 py-12 text-center text-slate-500">Nenhum badge encontrado.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-6 py-4 text-sm text-slate-500 md:flex-row">
+          <span>Mostrando {lista.length} de {total} resultados</span>
+          <div className="flex items-center gap-3">
+            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)} aria-label="Página anterior">
+              <Icon nome="left" className="h-5 w-5" />
+            </button>
+            <span className="rounded-md bg-softinsa-600 px-4 py-2 font-semibold text-white">{pagina}</span>
+            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)} aria-label="Página seguinte">
+              <Icon nome="right" className="h-5 w-5" />
+            </button>
+          </div>
+        </footer>
+      </section>
+
+      {['criar', 'editar'].includes(modal?.tipo) && (
+        <Modal titulo={modal.tipo === 'criar' ? 'Criar Badge' : 'Editar Badge'} onFechar={() => setModal(null)} size="lg">
+          {modal.carregando ? (
+            <div className="px-7 py-12 text-center text-slate-500">A carregar badge...</div>
+          ) : (
+            <FormBadge
+              form={form}
+              setForm={setForm}
+              requisitos={listaRequisitos}
+              niveis={listaNiveis}
+              filtros={filtros}
+              badgeAtual={modal.badge}
+              modo={modal.tipo}
+              onSubmit={(e) => { e.preventDefault(); modal.tipo === 'criar' ? criar.mutate() : atualizar.mutate(); }}
+              onCancelar={() => setModal(null)}
+              loading={modal.tipo === 'criar' ? criar.isPending : atualizar.isPending}
+            />
+          )}
+        </Modal>
+      )}
+
+      {modal?.tipo === 'ver' && (
+        <Modal titulo="Detalhe do Badge" onFechar={() => setModal(null)}>
+          <div className="grid grid-cols-1 gap-4 px-7 py-5 text-sm md:grid-cols-2">
+            <div><div className="text-slate-500">Nome</div><div className="font-semibold">{modal.badge.titulo}</div></div>
+            <div><div className="text-slate-500">Nível</div><div className="font-semibold">{dificuldade(modal.badge)}</div></div>
+            <div><div className="text-slate-500">Área</div><div className="font-semibold">{modal.badge.nome_area}</div></div>
+            <div><div className="text-slate-500">Service Line</div><div className="font-semibold">{modal.badge.nome_service_line}</div></div>
+            <div><div className="text-slate-500">Learning Path</div><div className="font-semibold">{modal.badge.nome_learning_path}</div></div>
+            <div><div className="text-slate-500">Pontos</div><div className="font-semibold">{modal.badge.pontos || 0}</div></div>
+            <div><div className="text-slate-500">Expiração</div><div className="font-semibold">{expiracaoTexto(modal.badge)}</div></div>
+            <div><div className="text-slate-500">Estado</div><div className="font-semibold">{estadoBadge(modal.badge)}</div></div>
+            <div className="md:col-span-2"><div className="text-slate-500">Descrição</div><div className="font-semibold">{modal.badge.descricao || '—'}</div></div>
+          </div>
+        </Modal>
+      )}
+
+      {modal?.tipo === 'desativar' && (
+        <Modal titulo="Desativar Badge" icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
+          <div className="px-7 py-6">
+            <p className="text-base leading-7 text-slate-600">
+              Tem a certeza que pretende desativar o badge “{modal.badge.titulo}”?
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 px-7 pb-6">
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button
+              type="button"
+              className="btn bg-orange-500 px-7 text-white hover:bg-orange-600"
+              disabled={alternarEstado.isPending}
+              onClick={() => alternarEstado.mutate(modal.badge, { onSuccess: () => setModal(null) })}
+            >
+              {alternarEstado.isPending ? 'A confirmar...' : 'Confirmar'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {modal?.tipo === 'eliminar' && (
+        <Modal titulo="Eliminar Badge" icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
+          <div className="space-y-4 px-7 py-6">
+            <p className="text-base leading-7 text-slate-600">
+              Tem a certeza que pretende eliminar o badge “{modal.badge.titulo}”?
+            </p>
+            <p className="font-medium text-red-500">Esta ação não pode ser revertida!</p>
+          </div>
+          <div className="flex justify-end gap-3 px-7 pb-6">
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn bg-red-600 px-7 text-white hover:bg-red-700" disabled={eliminar.isPending} onClick={() => eliminar.mutate()}>
+              {eliminar.isPending ? 'A eliminar...' : 'Eliminar'}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}

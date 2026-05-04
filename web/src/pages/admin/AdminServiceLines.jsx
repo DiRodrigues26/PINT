@@ -352,7 +352,16 @@ export default function AdminServiceLines() {
   }
 
   function abrirCriacao() {
-    setForm(ESTADO_INICIAL);
+    if (learningPaths.isLoading) {
+      toast('A carregar Learning Paths. Tenta novamente dentro de instantes.');
+      return;
+    }
+    if (lps.length === 0) {
+      toast.error('Antes de criar uma Service Line, cria primeiro um Learning Path.');
+      return;
+    }
+
+    setForm({ ...ESTADO_INICIAL });
     setModal({ tipo: 'criar' });
   }
 

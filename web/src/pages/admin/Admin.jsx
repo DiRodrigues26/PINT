@@ -7,8 +7,11 @@ import Carregando from '../../components/Carregando';
 import { useAuth } from '../../context/AuthContext';
 import { estadoCandidatura, formatarData } from '../../lib/formatar';
 import AdminAreas from './AdminAreas';
+import AdminBadges from './AdminBadges';
+import AdminEventosEspeciais from './AdminEventosEspeciais';
 import AdminLearningPaths from './AdminLearningPaths';
 import AdminNiveis from './AdminNiveis';
+import AdminRequisitos from './AdminRequisitos';
 import AdminServiceLines from './AdminServiceLines';
 import AdminUtilizadores from './AdminUtilizadores';
 
@@ -19,9 +22,9 @@ const MENU = [
   { chave: 'service-lines', label: 'Gestão de Service Lines', icon: 'pulse' },
   { chave: 'areas', label: 'Gestão de Áreas', icon: 'doc' },
   { chave: 'niveis', label: 'Gestão de Níveis', icon: 'trend' },
-  { chave: 'eventos', label: 'Gestão de Eventos Especiais', icon: 'calendar' },
-  { chave: 'requisitos', label: 'Gestão de Requisitos', icon: 'doc' },
   { chave: 'badges', label: 'Gestão de Badges', icon: 'badge' },
+  { chave: 'requisitos', label: 'Gestão de Requisitos', icon: 'doc' },
+  { chave: 'eventos', label: 'Gestão de Eventos Especiais', icon: 'calendar' },
   { chave: 'pontos', label: 'Gestão de Pontos', icon: 'trophy' },
   { chave: 'sla', label: 'Gestão de SLA', icon: 'clock' },
   { chave: 'notificacoes', label: 'Notificações', icon: 'bell' },
@@ -313,8 +316,13 @@ export default function Admin() {
         onLogout={() => setMostrarLogout(true)}
       />
       <div className="lg:pl-[260px]">
-        <AppTopbar titulo={`${saudacao()}, Admin!`} subtitulo={subtitulo} utilizador={utilizador} />
-        <main className={`mx-auto pb-28 pt-8 lg:pb-8 ${vistaAtiva === 'utilizadores' ? 'max-w-[1720px] px-5 lg:px-8 xl:px-10' : ['learning-paths', 'service-lines', 'areas', 'niveis'].includes(vistaAtiva) ? 'max-w-[1560px] px-5 lg:px-10 xl:px-16' : 'max-w-[1480px] px-5 lg:px-10 xl:px-[120px]'}`}>
+        <AppTopbar
+          titulo={`${saudacao()}, Admin!`}
+          subtitulo={subtitulo}
+          utilizador={utilizador}
+          onLogout={() => setMostrarLogout(true)}
+        />
+        <main className={`mx-auto pb-28 pt-8 lg:pb-8 ${vistaAtiva === 'utilizadores' ? 'max-w-[1720px] px-5 lg:px-8 xl:px-10' : ['learning-paths', 'service-lines', 'areas', 'niveis', 'badges', 'eventos', 'requisitos'].includes(vistaAtiva) ? 'max-w-[1560px] px-5 lg:px-10 xl:px-16' : 'max-w-[1480px] px-5 lg:px-10 xl:px-[120px]'}`}>
           {vistaAtiva === 'utilizadores' ? (
             <AdminUtilizadores />
           ) : vistaAtiva === 'learning-paths' ? (
@@ -325,6 +333,12 @@ export default function Admin() {
             <AdminAreas />
           ) : vistaAtiva === 'niveis' ? (
             <AdminNiveis />
+          ) : vistaAtiva === 'badges' ? (
+            <AdminBadges />
+          ) : vistaAtiva === 'eventos' ? (
+            <AdminEventosEspeciais />
+          ) : vistaAtiva === 'requisitos' ? (
+            <AdminRequisitos />
           ) : carregando ? (
             <div className="flex min-h-[60vh] items-center justify-center"><Carregando /></div>
           ) : (

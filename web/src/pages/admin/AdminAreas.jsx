@@ -418,7 +418,20 @@ export default function AdminAreas() {
   }
 
   function abrirCriacao() {
-    setForm(ESTADO_INICIAL);
+    if (learningPaths.isLoading || serviceLines.isLoading) {
+      toast('A carregar a hierarquia. Tenta novamente dentro de instantes.');
+      return;
+    }
+    if (lps.length === 0) {
+      toast.error('Antes de criar uma Área, cria primeiro um Learning Path.');
+      return;
+    }
+    if (sls.length === 0) {
+      toast.error('Antes de criar uma Área, cria primeiro uma Service Line.');
+      return;
+    }
+
+    setForm({ ...ESTADO_INICIAL });
     setModal({ tipo: 'criar' });
   }
 

@@ -567,6 +567,23 @@ export default function AdminNiveis() {
   }
 
   function abrirCriacao() {
+    if (learningPaths.isLoading || serviceLines.isLoading || areas.isLoading) {
+      toast('A carregar a hierarquia. Tenta novamente dentro de instantes.');
+      return;
+    }
+    if (lps.length === 0) {
+      toast.error('Antes de criar um Nível, cria primeiro um Learning Path.');
+      return;
+    }
+    if (sls.length === 0) {
+      toast.error('Antes de criar um Nível, cria primeiro uma Service Line.');
+      return;
+    }
+    if (listaAreas.length === 0) {
+      toast.error('Antes de criar um Nível, cria primeiro uma Área.');
+      return;
+    }
+
     setForm({ ...FORM_INICIAL });
     setModal({ tipo: 'criar' });
   }

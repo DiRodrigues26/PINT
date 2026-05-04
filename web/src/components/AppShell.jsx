@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Activity,
@@ -8,6 +9,7 @@ import {
   FileText,
   Info,
   LayoutDashboard,
+  LogOut,
   Menu,
   Shield,
   TrendingUp,
@@ -29,6 +31,7 @@ const ICONES = {
   bell: Bell,
   info: Info,
   shield: Shield,
+  logout: LogOut,
   x: X,
   menu: Menu,
 };
@@ -71,14 +74,12 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
           </div>
         </nav>
         <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 px-5 py-5">
-          <div className="truncate text-sm font-bold text-slate-900">{utilizador?.nome || 'Utilizador'}</div>
-          <div className="mt-1 truncate text-xs text-slate-500">{utilizador?.email || '-'}</div>
-          <div className="mt-2 truncate text-xs font-medium text-softinsa-600">{perfis}</div>
           <button
             type="button"
             onClick={onLogout}
-            className="mt-4 w-full text-center text-xs font-semibold text-slate-700 underline underline-offset-2 hover:text-softinsa-700"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:bg-[#eaf3ff] hover:text-softinsa-700"
           >
+            <ShellIcon nome="logout" className="h-4 w-4" />
             Terminar sessão
           </button>
         </div>
@@ -107,7 +108,10 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
   );
 }
 
-export function AppTopbar({ titulo, subtitulo, utilizador }) {
+export function AppTopbar({ titulo, subtitulo, utilizador, onLogout }) {
+  const [aberto, setAberto] = useState(false);
+  const perfis = utilizador?.perfis?.join(', ') || 'Utilizador';
+
   return (
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-[#dceefa]/95 backdrop-blur">
       <div className="flex h-[92px] items-center justify-between px-5 lg:px-10">
@@ -116,20 +120,51 @@ export function AppTopbar({ titulo, subtitulo, utilizador }) {
           <p className="mt-1 text-sm text-slate-600">{subtitulo}</p>
         </div>
         <div className="flex items-center gap-5">
-          <div className="hidden items-center gap-2 text-sm font-semibold sm:flex">
-            <span className="text-softinsa-600">PT</span>
-            <span className="h-5 w-px bg-slate-300" />
-            <span className="text-slate-500">EN</span>
-            <span className="h-5 w-px bg-slate-300" />
-            <span className="text-slate-500">ES</span>
+          <div className="hidden items-center gap-3 text-lg sm:flex">
+            <span title="Português" aria-label="Português" className="leading-none">🇵🇹</span>
+            <span title="English" aria-label="English" className="leading-none opacity-70">🇬🇧</span>
+            <span title="Español" aria-label="Español" className="leading-none opacity-70">🇪🇸</span>
           </div>
           <Link to="/notificacoes" className="relative text-slate-700 hover:text-softinsa-700" aria-label="Notificações">
             <ShellIcon nome="bell" />
             <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
           </Link>
-          <div className="hidden text-sm font-semibold text-slate-900 sm:block">{utilizador?.nome || 'Admin'}</div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-            {(utilizador?.nome || 'Admin').slice(0, 2).toUpperCase()}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setAberto((valor) => !valor)}
+              className="flex items-center gap-3 rounded-full pr-1 transition hover:bg-white/40"
+              aria-haspopup="menu"
+              aria-expanded={aberto}
+            >
+              <span className="hidden text-sm font-semibold text-slate-900 sm:block">{utilizador?.nome || 'Admin'}</span>
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                {(utilizador?.nome || 'Admin').slice(0, 2).toUpperCase()}
+              </span>
+            </button>
+
+            {aberto && (
+              <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg" role="menu">
+                <div className="border-b border-slate-100 px-4 py-4">
+                  <div className="truncate text-sm font-bold text-slate-900">{utilizador?.nome || 'Utilizador'}</div>
+                  <div className="mt-1 truncate text-xs text-slate-500">{utilizador?.email || '-'}</div>
+                  <div className="mt-2 inline-flex rounded-full bg-[#eaf3ff] px-3 py-1 text-xs font-semibold text-softinsa-700">
+                    {perfis}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-softinsa-700"
+                  onClick={() => {
+                    setAberto(false);
+                    onLogout?.();
+                  }}
+                >
+                  <ShellIcon nome="logout" className="h-4 w-4" />
+                  Terminar sessão
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
