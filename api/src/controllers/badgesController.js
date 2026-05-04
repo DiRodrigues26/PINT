@@ -4,7 +4,7 @@ async function listar(req, res, next) {
   try {
     const {
       id_nivel, id_area, id_service_line, id_learning_path,
-      is_conquista_especial, ativo, pesquisa,
+      is_conquista_especial, ativo, estado, pesquisa,
       pagina = 1, por_pagina = 20,
     } = req.query;
 
@@ -13,6 +13,8 @@ async function listar(req, res, next) {
 
     const where = [];
     const params = [];
+    const expiradoSQL = `(b.ativo = 1 AND b.tem_expiracao = 1 AND b.validade_dias IS NOT NULL
+      AND DATE_ADD(b.created_at, INTERVAL b.validade_dias DAY) < CURRENT_TIMESTAMP)`;
 
     if (id_nivel)              { where.push('b.id_nivel = ?');                  params.push(id_nivel); }
     if (id_area)               { where.push('n.id_area = ?');                   params.push(id_area); }
@@ -25,6 +27,16 @@ async function listar(req, res, next) {
     if (ativo !== undefined) {
       where.push('b.ativo = ?');
       params.push(ativo === '1' || ativo === 'true' ? 1 : 0);
+    }
+    if (estado) {
+      const estadoNormalizado = String(estado).toLowerCase();
+      if (estadoNormalizado === 'inativo') {
+        where.push('b.ativo = 0');
+      } else if (estadoNormalizado === 'expirado') {
+        where.push(expiradoSQL);
+      } else if (estadoNormalizado === 'ativo') {
+        where.push(`b.ativo = 1 AND NOT ${expiradoSQL}`);
+      }
     }
     if (pesquisa) {
       where.push('(b.titulo LIKE ? OR b.descricao LIKE ?)');
@@ -39,7 +51,18 @@ async function listar(req, res, next) {
               a.id_area, a.nome AS nome_area,
               sl.id_service_line, sl.nome AS nome_service_line,
               lp.id_learning_path, lp.nome AS nome_learning_path,
-              (SELECT COUNT(*) FROM requisito r WHERE r.id_nivel = b.id_nivel) AS total_requisitos
+              CASE
+                WHEN b.tem_expiracao = 1 AND b.validade_dias IS NOT NULL
+                THEN DATE_ADD(b.created_at, INTERVAL b.validade_dias DAY)
+                ELSE NULL
+              END AS data_expiracao_badge,
+              CASE
+                WHEN b.ativo = 0 THEN 'Inativo'
+                WHEN b.tem_expiracao = 1 AND b.validade_dias IS NOT NULL
+                     AND DATE_ADD(b.created_at, INTERVAL b.validade_dias DAY) < CURRENT_TIMESTAMP THEN 'Expirado'
+                ELSE 'Ativo'
+              END AS estado_badge,
+              (SELECT COUNT(*) FROM badge_requisito br WHERE br.id_badge = b.id_badge) AS total_requisitos
          FROM badge b
          JOIN nivel n         ON n.id_nivel         = b.id_nivel
          JOIN area a          ON a.id_area          = n.id_area
@@ -84,8 +107,12 @@ async function obter(req, res, next) {
     if (linhas.length === 0) return res.status(404).json({ erro: 'Badge não encontrado.' });
 
     const [requisitos] = await pool.query(
-      'SELECT * FROM requisito WHERE id_nivel = ? ORDER BY ordem ASC, codigo_requisito ASC',
-      [linhas[0].id_nivel]
+      `SELECT r.*, br.ordem AS ordem_associacao, br.obrigatorio AS obrigatorio_badge
+         FROM badge_requisito br
+         JOIN requisito r ON r.id_requisito = br.id_requisito
+        WHERE br.id_badge = ?
+        ORDER BY br.ordem ASC, r.ordem ASC, r.codigo_requisito ASC`,
+      [req.params.id]
     );
 
     res.json({ badge: linhas[0], requisitos });
@@ -98,35 +125,54 @@ async function criar(req, res, next) {
       id_nivel, titulo, descricao, imagem_url, pontos = 0,
       tem_expiracao = 0, validade_dias, intervalo_temporal_obtencao,
       is_conquista_especial = 0, beneficios, competencias_certificadas,
-      sobre_certificacao, ativo = 1,
+      sobre_certificacao, ativo = 1, requisitos = [],
     } = req.body;
 
     if (!id_nivel || !titulo) {
       return res.status(400).json({ erro: 'id_nivel e titulo são obrigatórios.' });
     }
 
-    const [result] = await pool.query(
-      `INSERT INTO badge
-         (id_nivel, titulo, descricao, imagem_url, pontos, tem_expiracao, validade_dias,
-          intervalo_temporal_obtencao, is_conquista_especial, beneficios,
-          competencias_certificadas, sobre_certificacao, ativo)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id_nivel, titulo, descricao || null, imagem_url || null, pontos,
-        tem_expiracao ? 1 : 0, validade_dias || null, intervalo_temporal_obtencao || null,
-        is_conquista_especial ? 1 : 0, beneficios || null,
-        competencias_certificadas || null, sobre_certificacao || null, ativo ? 1 : 0,
-      ]
-    );
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [result] = await conn.query(
+        `INSERT INTO badge
+           (id_nivel, titulo, descricao, imagem_url, pontos, tem_expiracao, validade_dias,
+            intervalo_temporal_obtencao, is_conquista_especial, beneficios,
+            competencias_certificadas, sobre_certificacao, ativo)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id_nivel, titulo, descricao || null, imagem_url || null, Number(pontos) || 0,
+          tem_expiracao ? 1 : 0, tem_expiracao ? (validade_dias || null) : null,
+          intervalo_temporal_obtencao || null,
+          is_conquista_especial ? 1 : 0, beneficios || null,
+          competencias_certificadas || null, sobre_certificacao || null, ativo ? 1 : 0,
+        ]
+      );
 
-    res.status(201).json({ mensagem: 'Badge criado.', id_badge: result.insertId });
+      for (const [idx, idRequisito] of (Array.isArray(requisitos) ? requisitos : []).entries()) {
+        await conn.query(
+          `INSERT IGNORE INTO badge_requisito (id_badge, id_requisito, ordem, obrigatorio)
+           VALUES (?, ?, ?, 1)`,
+          [result.insertId, idRequisito, idx + 1]
+        );
+      }
+
+      await conn.commit();
+      res.status(201).json({ mensagem: 'Badge criado.', id_badge: result.insertId });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
   } catch (err) { next(err); }
 }
 
 async function atualizar(req, res, next) {
   try {
     const editaveis = [
-      'titulo', 'descricao', 'imagem_url', 'pontos', 'tem_expiracao',
+      'id_nivel', 'titulo', 'descricao', 'imagem_url', 'pontos', 'tem_expiracao',
       'validade_dias', 'intervalo_temporal_obtencao', 'is_conquista_especial',
       'beneficios', 'competencias_certificadas', 'sobre_certificacao', 'ativo',
     ];
@@ -142,14 +188,50 @@ async function atualizar(req, res, next) {
       }
     }
 
-    if (campos.length === 0) return res.status(400).json({ erro: 'Nada para atualizar.' });
+    if (campos.length === 0 && req.body.requisitos === undefined) {
+      return res.status(400).json({ erro: 'Nada para atualizar.' });
+    }
 
-    valores.push(req.params.id);
-    const [result] = await pool.query(
-      `UPDATE badge SET ${campos.join(', ')} WHERE id_badge = ?`,
-      valores
-    );
-    if (result.affectedRows === 0) return res.status(404).json({ erro: 'Badge não encontrado.' });
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      let result = { affectedRows: 1 };
+      if (campos.length > 0) {
+        valores.push(req.params.id);
+        [result] = await conn.query(
+          `UPDATE badge SET ${campos.join(', ')} WHERE id_badge = ?`,
+          valores
+        );
+      } else {
+        const [existe] = await conn.query('SELECT id_badge FROM badge WHERE id_badge = ?', [req.params.id]);
+        result.affectedRows = existe.length;
+      }
+
+      if (result.affectedRows === 0) {
+        await conn.rollback();
+        return res.status(404).json({ erro: 'Badge não encontrado.' });
+      }
+
+      if (req.body.requisitos !== undefined) {
+        const requisitos = Array.isArray(req.body.requisitos) ? req.body.requisitos : [];
+        await conn.query('DELETE FROM badge_requisito WHERE id_badge = ?', [req.params.id]);
+        for (const [idx, idRequisito] of requisitos.entries()) {
+          await conn.query(
+            `INSERT IGNORE INTO badge_requisito (id_badge, id_requisito, ordem, obrigatorio)
+             VALUES (?, ?, ?, 1)`,
+            [req.params.id, idRequisito, idx + 1]
+          );
+        }
+      }
+
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+
     res.json({ mensagem: 'Badge atualizado.' });
   } catch (err) { next(err); }
 }

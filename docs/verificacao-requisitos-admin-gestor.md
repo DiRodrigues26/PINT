@@ -1,6 +1,6 @@
 # Verificacao de Requisitos - Perfil Administrador/Gestor
 
-Data de referencia: 2026-04-30
+Data de referencia: 2026-05-04
 
 Legenda:
 
@@ -45,13 +45,14 @@ Notas:
 
 ### 3. Acrescentar e eliminar badges
 
-- [~] Backend implementado.
+- [x] Backend implementado.
   - `api/src/controllers/badgesController.js`
   - `api/src/routes/badgesRoutes.js`
 
-- [ ] Frontend admin ainda nao implementado.
-  - Existe item no menu `Gestao de Badges`.
-  - Falta ecran CRUD admin.
+- [~] Frontend admin implementado.
+  - `web/src/pages/admin/AdminBadges.jsx`
+  - Implementado: listagem, filtros, exportacao, detalhe, criar, editar, ativar/desativar e eliminar.
+  - Falta: upload real de imagem e refinamento do fluxo de criar requisito diretamente dentro do modal de Badge.
 
 Campos backend ja suportados:
 
@@ -88,10 +89,17 @@ Campos backend ja suportados:
   - Implementado: listagem, filtros, detalhe, criar, editar, ativar/desativar, eliminar e exportacao.
   - Nota: os botoes de criar/editar badge dentro do modal ficam preparados para o CRUD de Badges.
 
+- [~] Eventos Especiais.
+  - Backend: `eventosController.js`
+  - Frontend: `AdminEventosEspeciais.jsx`
+  - Implementado: listagem, filtros, exportacao, criar, editar, ativar/desativar e eliminar.
+  - Falta: ligar upload real de imagem e CRUD completo de requisitos/badges especiais.
+
 - [~] Requisitos.
   - Backend: `requisitosController.js`
-  - Frontend: falta ecran CRUD admin.
-  - Existe item no menu.
+  - Frontend: `AdminRequisitos.jsx`
+  - Implementado: listagem, filtros, detalhe, criar, editar, ativar/desativar, eliminar e exportacao.
+  - Nota: `badge_requisito` e a fonte funcional para associar requisitos a badges. `requisito.id_nivel` fica apenas como compatibilidade tecnica enquanto o CRUD de Badges nao esta fechado.
 
 ### 5. Exportacao de dados para Excel/PDF
 
@@ -101,9 +109,10 @@ Campos backend ja suportados:
   - Service Lines
   - Areas
   - Niveis
+  - Eventos Especiais
+  - Requisitos
 
 - [~] Falta aplicar aos proximos ecras:
-  - Requisitos
   - Badges
   - SLA
   - Avisos
@@ -117,11 +126,13 @@ Notas:
 
 ### 6. Gestao dos Badges: expiracao, pontos, etc.
 
-- [~] Backend implementado.
+- [x] Backend implementado.
   - `badgesController.js` suporta pontos, expiracao e validade.
   - `badgeAtribuidoController.js` suporta badges atribuidos e proximos de expiracao.
 
-- [ ] Frontend admin ainda nao implementado.
+- [~] Frontend admin implementado.
+  - `AdminBadges.jsx` suporta pontos, expiração, estado, requisitos associados e mudança de nível.
+  - Falta upload real de imagem.
 
 ### 7. Configuracao de notificacoes
 
@@ -217,12 +228,12 @@ Cumprido no frontend admin:
 - Gestao de Service Lines.
 - Gestao de Areas.
 - Gestao de Niveis.
+- Gestao de Badges.
+- Gestao de Requisitos.
 - Exportacao nos CRUDs ja criados.
 
 Backend ja preparado, mas falta frontend admin:
 
-- Badges.
-- Requisitos.
 - SLA completo.
 - Avisos completo.
 - RGPD configuravel.
@@ -231,10 +242,9 @@ Backend ja preparado, mas falta frontend admin:
 
 Prioridade recomendada para continuar:
 
-1. Gestao de Requisitos.
-2. Gestao de Badges.
-3. Gestao completa de Pedidos/Candidaturas.
-4. Gestao de SLA.
-5. Avisos.
-6. Notificacoes.
-7. RGPD.
+1. Gestao de Badges.
+2. Gestao completa de Pedidos/Candidaturas.
+3. Gestao de SLA.
+4. Avisos.
+5. Notificacoes.
+6. RGPD.

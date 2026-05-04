@@ -59,16 +59,17 @@ async function dashboardConsultor(req, res, next) {
 
       const [niveis] = await pool.query(
         `SELECT n.id_nivel, n.codigo_nivel, n.nome_nivel, n.ordem,
-                COUNT(DISTINCT r.id_requisito) AS total_requisitos,
+                COUNT(DISTINCT br.id_requisito) AS total_requisitos,
                 b.id_badge,
                 (ba.id_badge_atribuido IS NOT NULL) AS badge_obtido,
                 (SELECT COUNT(DISTINCT ev.id_requisito)
                    FROM candidatura_badge cb2
                    JOIN evidencia ev ON ev.id_candidatura = cb2.id_candidatura
+                   JOIN badge_requisito br2 ON br2.id_badge = cb2.id_badge AND br2.id_requisito = ev.id_requisito
                   WHERE cb2.id_badge = b.id_badge AND cb2.id_consultor = ?) AS requisitos_cumpridos
            FROM nivel n
-           LEFT JOIN requisito r ON r.id_nivel = n.id_nivel
            LEFT JOIN badge b ON b.id_nivel = n.id_nivel
+           LEFT JOIN badge_requisito br ON br.id_badge = b.id_badge
            LEFT JOIN badge_atribuido ba ON ba.id_badge = b.id_badge AND ba.id_consultor = ?
           WHERE n.id_area = ? AND n.ativo = 1
           GROUP BY n.id_nivel, n.codigo_nivel, n.nome_nivel, n.ordem, b.id_badge, ba.id_badge_atribuido

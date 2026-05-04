@@ -42,6 +42,8 @@ npm run dev
 ## Hierarquia de badges
 - Documento guia: `docs/hierarquia-badges-softinsa.md`.
 - Rotina obrigatoria: antes de implementar CRUDs, dashboards, filtros, dropdowns ou validacoes de Learning Paths, Service Lines, Areas, Niveis, Requisitos, Badges, Candidaturas ou Evidencias, consultar `docs/hierarquia-badges-softinsa.md` e depois confirmar colunas/relacoes em `api/database/schema.sql`.
+- Regra funcional: `Learning Path -> Service Line -> Area -> Nivel -> Badge -> Requisitos`.
+- O admin nao pode criar entidades filhas sem a entidade-pai existir: Service Line precisa de Learning Path; Area precisa de Service Line; Nivel precisa de Area; Badge so pode ser criado dentro de Nivel; Requisito so pode ser criado dentro de Badge.
 
 ## Perfis de utilizador
 - `Consultor` — submete candidaturas a badges e carrega evidencias.

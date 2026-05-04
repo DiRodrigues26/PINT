@@ -96,7 +96,7 @@ async function listar(req, res, next) {
               n.codigo_nivel, n.nome_nivel,
               a.id_area, a.nome AS nome_area,
               sl.id_service_line, sl.nome AS nome_service_line,
-              (SELECT COUNT(*) FROM requisito r WHERE r.id_nivel = b.id_nivel) AS total_requisitos,
+              (SELECT COUNT(*) FROM badge_requisito br WHERE br.id_badge = b.id_badge) AS total_requisitos,
               (SELECT COUNT(*) FROM evidencia e WHERE e.id_candidatura = cb.id_candidatura) AS evidencias_count
          FROM candidatura_badge cb
          JOIN utilizador u    ON u.id_utilizador = cb.id_consultor
@@ -179,8 +179,12 @@ async function obter(req, res, next) {
     );
 
     const [requisitos] = await pool.query(
-      'SELECT * FROM requisito WHERE id_nivel = ? ORDER BY ordem ASC, codigo_requisito ASC',
-      [candidatura.id_nivel]
+      `SELECT r.*, br.ordem AS ordem_associacao, br.obrigatorio AS obrigatorio_badge
+         FROM badge_requisito br
+         JOIN requisito r ON r.id_requisito = br.id_requisito
+        WHERE br.id_badge = ?
+        ORDER BY br.ordem ASC, r.ordem ASC, r.codigo_requisito ASC`,
+      [candidatura.id_badge]
     );
 
     res.json({
@@ -259,8 +263,11 @@ async function submeter(req, res, next) {
 
     // validar que há pelo menos uma evidência por requisito obrigatório
     const [requisitos] = await pool.query(
-      'SELECT id_requisito FROM requisito WHERE id_nivel = ? AND obrigatorio = 1',
-      [candidatura.id_nivel]
+      `SELECT br.id_requisito
+         FROM badge_requisito br
+         JOIN requisito r ON r.id_requisito = br.id_requisito
+        WHERE br.id_badge = ? AND br.obrigatorio = 1 AND r.ativo = 1`,
+      [candidatura.id_badge]
     );
     const [evidencias] = await pool.query(
       'SELECT DISTINCT id_requisito FROM evidencia WHERE id_candidatura = ?',

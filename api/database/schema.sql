@@ -329,9 +329,25 @@ CREATE TABLE `requisito` (
   `imagem_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `ordem` tinyint NOT NULL DEFAULT '1',
   `obrigatorio` tinyint(1) NOT NULL DEFAULT '1',
+  `ativo` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`id_requisito`),
   UNIQUE KEY `uq_requisito_nivel_codigo` (`id_nivel`,`codigo_requisito`),
   CONSTRAINT `fk_requisito_nivel` FOREIGN KEY (`id_nivel`) REFERENCES `nivel` (`id_nivel`) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `badge_requisito`;
+CREATE TABLE `badge_requisito` (
+  `id_badge_requisito` int unsigned NOT NULL AUTO_INCREMENT,
+  `id_badge` int unsigned NOT NULL,
+  `id_requisito` int unsigned NOT NULL,
+  `ordem` tinyint NOT NULL DEFAULT '1',
+  `obrigatorio` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_badge_requisito`),
+  UNIQUE KEY `uq_badge_requisito` (`id_badge`,`id_requisito`),
+  KEY `fk_br_requisito` (`id_requisito`),
+  CONSTRAINT `fk_br_badge` FOREIGN KEY (`id_badge`) REFERENCES `badge` (`id_badge`) ON DELETE CASCADE,
+  CONSTRAINT `fk_br_requisito` FOREIGN KEY (`id_requisito`) REFERENCES `requisito` (`id_requisito`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 DROP TABLE IF EXISTS `service_line`;

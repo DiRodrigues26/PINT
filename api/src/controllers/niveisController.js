@@ -29,7 +29,7 @@ async function listar(req, res, next) {
       `SELECT n.*, MIN(a.created_at) AS created_at, a.nome AS nome_area,
               sl.id_service_line, sl.nome AS nome_service_line,
               lp.id_learning_path, lp.nome AS nome_learning_path,
-              COUNT(DISTINCT r.id_requisito) AS total_requisitos,
+              COUNT(DISTINCT br.id_requisito) AS total_requisitos,
               b.id_badge, b.titulo AS titulo_badge, b.imagem_url AS imagem_badge,
               b.pontos AS pontos_badge, b.tem_expiracao AS tem_expiracao_badge,
               b.validade_dias AS validade_dias_badge, b.ativo AS ativo_badge
@@ -37,8 +37,8 @@ async function listar(req, res, next) {
          JOIN area a ON a.id_area = n.id_area
          JOIN service_line sl ON sl.id_service_line = a.id_service_line
          JOIN learning_path lp ON lp.id_learning_path = sl.id_learning_path
-         LEFT JOIN requisito r ON r.id_nivel = n.id_nivel
          LEFT JOIN badge b ON b.id_nivel = n.id_nivel
+         LEFT JOIN badge_requisito br ON br.id_badge = b.id_badge
          ${whereSQL}
         GROUP BY n.id_nivel, n.id_area, n.codigo_nivel, n.nome_nivel, n.ordem,
                  n.descricao, n.ativo, a.nome, sl.id_service_line, sl.nome,
@@ -83,15 +83,21 @@ async function obter(req, res, next) {
     );
     if (linhas.length === 0) return res.status(404).json({ erro: 'Nível não encontrado.' });
 
-    const [requisitos] = await pool.query(
-      'SELECT * FROM requisito WHERE id_nivel = ? ORDER BY ordem ASC, codigo_requisito ASC',
-      [req.params.id]
-    );
-
     const [badge] = await pool.query(
       'SELECT * FROM badge WHERE id_nivel = ?',
       [req.params.id]
     );
+
+    const [requisitos] = badge[0]
+      ? await pool.query(
+        `SELECT r.*, br.ordem AS ordem_associacao, br.obrigatorio AS obrigatorio_badge
+           FROM badge_requisito br
+           JOIN requisito r ON r.id_requisito = br.id_requisito
+          WHERE br.id_badge = ?
+          ORDER BY br.ordem ASC, r.ordem ASC, r.codigo_requisito ASC`,
+        [badge[0].id_badge]
+      )
+      : [[]];
 
     res.json({ nivel: linhas[0], requisitos, badge: badge[0] || null });
   } catch (err) { next(err); }

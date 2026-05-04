@@ -36,11 +36,12 @@ async function carregar(req, res, next) {
       return res.status(400).json({ erro: 'Não pode carregar evidências nesta fase.' });
     }
 
-    // validar que requisito pertence ao nível do badge
+    // validar que requisito pertence ao badge da candidatura
     const [req2] = await pool.query(
-      `SELECT r.id_requisito FROM requisito r
-         JOIN badge b ON b.id_nivel = r.id_nivel
-        WHERE r.id_requisito = ? AND b.id_badge = ?`,
+      `SELECT br.id_requisito
+         FROM badge_requisito br
+         JOIN requisito r ON r.id_requisito = br.id_requisito
+        WHERE br.id_requisito = ? AND br.id_badge = ? AND r.ativo = 1`,
       [id_requisito, cand[0].id_badge]
     );
     if (req2.length === 0) {
