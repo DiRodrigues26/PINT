@@ -7,7 +7,6 @@ import {
   Eye,
   FileText,
   Pencil,
-  Plus,
   Power,
   Search,
   Trash2,
@@ -45,7 +44,6 @@ const ICONES = {
   eye: Eye,
   file: FileText,
   left: ChevronLeft,
-  plus: Plus,
   power: Power,
   right: ChevronRight,
   search: Search,
@@ -113,21 +111,8 @@ function descricaoCurta(texto) {
   return texto.length > 28 ? `${texto.slice(0, 28)}...` : texto;
 }
 
-function encontrarNivel(form, niveis) {
-  return niveis.find((nivel) => String(nivel.id_nivel) === String(form.id_nivel))
-    || niveis.find((nivel) => nivel.codigo_nivel === form.codigo_nivel);
-}
-
-function prepararPayload(form, niveis) {
-  const nivel = encontrarNivel(form, niveis);
-  if (!nivel) {
-    throw new Error(form.codigo_nivel === 'Especial'
-      ? 'O nível Especial ainda não existe na hierarquia.'
-      : 'Seleciona um nível existente para associar o requisito.');
-  }
-
+function prepararPayloadEdicao(form) {
   return {
-    id_nivel: Number(nivel.id_nivel),
     titulo: form.titulo.trim(),
     descricao: form.descricao.trim(),
     tipo_evidencia: form.tipo_evidencia,
@@ -219,16 +204,7 @@ function imprimirTabelaRequisitos(items) {
   janela.print();
 }
 
-function FormRequisito({ form, setForm, niveis, modo, onSubmit, onCancelar, loading }) {
-  function atualizarNivel(codigo) {
-    const nivel = niveis.find((item) => item.codigo_nivel === codigo);
-    setForm((atual) => ({
-      ...atual,
-      codigo_nivel: codigo,
-      id_nivel: nivel ? String(nivel.id_nivel) : '',
-    }));
-  }
-
+function FormRequisito({ form, setForm, requisito, onSubmit, onCancelar, loading }) {
   return (
     <form onSubmit={onSubmit}>
       <div className="max-h-[72vh] space-y-6 overflow-y-auto px-7 py-4">
@@ -283,20 +259,10 @@ function FormRequisito({ form, setForm, niveis, modo, onSubmit, onCancelar, load
           </select>
         </div>
 
-        <div>
-          <div className="mb-3 text-sm font-medium text-slate-900">Nível</div>
-          <div className="flex flex-wrap gap-5 text-base text-slate-700">
-            {Object.keys(NIVEIS).map((codigo) => (
-              <label key={codigo} className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  className="h-4 w-4 text-softinsa-600"
-                  checked={form.codigo_nivel === codigo}
-                  onChange={() => atualizarNivel(codigo)}
-                />
-                {codigo}
-              </label>
-            ))}
+        <div className="rounded-lg bg-slate-50 px-4 py-3">
+          <div className="text-sm font-medium text-slate-900">Contexto</div>
+          <div className="mt-1 text-sm text-slate-500">
+            {dificuldade(requisito)} · associado a {requisito?.total_badges || 0} badge(s)
           </div>
         </div>
 
@@ -328,7 +294,7 @@ function FormRequisito({ form, setForm, niveis, modo, onSubmit, onCancelar, load
       <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">
         <button type="button" className="btn-secondary px-6" onClick={onCancelar}>Cancelar</button>
         <button type="submit" className="btn-primary min-w-36" disabled={loading}>
-          {loading ? 'A guardar...' : modo === 'criar' ? 'Criar Requisito' : 'Editar Requisito'}
+          {loading ? 'A guardar...' : 'Editar Requisito'}
         </button>
       </div>
     </form>
@@ -361,24 +327,9 @@ export default function AdminRequisitos() {
     queryFn: async () => obterTodasDaRota('/api/niveis'),
   });
 
-  const criar = useMutation({
-    mutationFn: async () => {
-      const payload = prepararPayload(form, niveis.data?.dados || []);
-      return (await api.post('/api/requisitos', payload)).data;
-    },
-    onSuccess: () => {
-      toast.success('Requisito criado.');
-      setModal(null);
-      qc.invalidateQueries({ queryKey: ['admin', 'requisitos'] });
-      qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
-      qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
-    },
-    onError: (err) => toast.error(extrairErro(err)),
-  });
-
   const atualizar = useMutation({
     mutationFn: async () => {
-      const payload = prepararPayload(form, niveis.data?.dados || []);
+      const payload = prepararPayloadEdicao(form);
       return (await api.put(`/api/requisitos/${modal.requisito.id_requisito}`, payload)).data;
     },
     onSuccess: () => {
@@ -437,25 +388,6 @@ export default function AdminRequisitos() {
     setPagina(1);
   }
 
-  function abrirCriacao() {
-    if (niveis.isLoading) {
-      toast('A carregar níveis. Tenta novamente dentro de instantes.');
-      return;
-    }
-    if (listaNiveis.length === 0) {
-      toast.error('Antes de criar um Requisito, cria primeiro um Nível.');
-      return;
-    }
-
-    const nivelInicial = listaNiveis.find((nivel) => nivel.codigo_nivel === 'A') || listaNiveis[0];
-    setForm({
-      ...FORM_INICIAL,
-      codigo_nivel: nivelInicial.codigo_nivel || 'A',
-      id_nivel: String(nivelInicial.id_nivel),
-    });
-    setModal({ tipo: 'criar' });
-  }
-
   function abrirEdicao(requisito) {
     setForm({
       titulo: requisito.titulo || '',
@@ -507,11 +439,12 @@ export default function AdminRequisitos() {
           <button type="button" className="btn-secondary" onClick={exportarPdf}>
             <Icon nome="download" className="h-4 w-4" /> Exportar PDF
           </button>
-          <button type="button" className="btn-primary" onClick={abrirCriacao}>
-            <Icon nome="plus" className="h-4 w-4" /> Criar Requisito
-          </button>
         </div>
       </header>
+
+      <section className="rounded-lg border border-blue-100 bg-blue-50 px-5 py-4 text-sm text-blue-900">
+        Os requisitos são criados dentro de um badge. Esta página serve para consultar, editar, ativar/desativar e auditar requisitos já associados.
+      </section>
 
       <section className="rounded-lg bg-white p-5 shadow-sm">
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_220px_240px_200px_200px]">
@@ -607,16 +540,15 @@ export default function AdminRequisitos() {
         </footer>
       </section>
 
-      {['criar', 'editar'].includes(modal?.tipo) && (
-        <Modal titulo={modal.tipo === 'criar' ? 'Criar Requisito' : 'Editar Requisito'} onFechar={() => setModal(null)} size="lg">
+      {modal?.tipo === 'editar' && (
+        <Modal titulo="Editar Requisito" onFechar={() => setModal(null)} size="lg">
           <FormRequisito
             form={form}
             setForm={setForm}
-            niveis={listaNiveis}
-            modo={modal.tipo}
-            onSubmit={(e) => { e.preventDefault(); modal.tipo === 'criar' ? criar.mutate() : atualizar.mutate(); }}
+            requisito={modal.requisito}
+            onSubmit={(e) => { e.preventDefault(); atualizar.mutate(); }}
             onCancelar={() => setModal(null)}
-            loading={modal.tipo === 'criar' ? criar.isPending : atualizar.isPending}
+            loading={atualizar.isPending}
           />
         </Modal>
       )}

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
   ChevronRight,
+  CalendarDays,
   Download,
   Eye,
   FileText,
@@ -20,6 +21,7 @@ import { formatarData } from '../../lib/formatar';
 import UploadImagemAdmin from '../../components/UploadImagemAdmin';
 
 const ICONES = {
+  calendar: CalendarDays,
   download: Download,
   edit: Pencil,
   eye: Eye,
@@ -43,15 +45,32 @@ const NIVEIS = {
   Especial: 'Especial',
 };
 
+const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Badge', 'Outro'];
+
 const FORM_INICIAL = {
   titulo: '',
+  id_learning_path: '',
+  id_service_line: '',
+  id_area: '',
   codigo_nivel: 'A',
   id_nivel: '',
   pontos: 0,
   imagem_url: '',
   tem_expiracao: true,
+  tipo_expiracao: 'dias',
+  valor_expiracao: 30,
+  data_expiracao: '',
   validade_dias: 30,
   requisitos: [],
+  requisitosNovos: [],
+  paginaRequisitos: 1,
+  novoRequisito: {
+    aberto: false,
+    titulo: '',
+    descricao: '',
+    tipo_evidencia: 'Certificado',
+    imagem_url: '',
+  },
   pesquisaRequisito: '',
   filtroNivelRequisito: '',
   filtroTipoRequisito: '',
@@ -141,6 +160,43 @@ function expiracaoTexto(badge) {
   return expira ? formatarData(expira) : 'Não tem';
 }
 
+function formatarDataInput(valor) {
+  if (!valor) return '';
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return '';
+  const ano = data.getFullYear();
+  const mes = String(data.getMonth() + 1).padStart(2, '0');
+  const dia = String(data.getDate()).padStart(2, '0');
+  return `${ano}-${mes}-${dia}`;
+}
+
+function adicionarDias(dataBase, dias) {
+  const data = new Date(dataBase);
+  if (Number.isNaN(data.getTime())) return '';
+  data.setDate(data.getDate() + Number(dias || 0));
+  return formatarDataInput(data);
+}
+
+function calcularValidadeDias(form, badgeAtual = null) {
+  if (!form.tem_expiracao) return null;
+
+  if (form.tipo_expiracao === 'data') {
+    if (!form.data_expiracao) throw new Error('Seleciona a data específica de expiração.');
+    const base = badgeAtual?.created_at ? new Date(badgeAtual.created_at) : new Date();
+    const alvo = new Date(`${form.data_expiracao}T23:59:59`);
+    if (Number.isNaN(alvo.getTime())) throw new Error('Seleciona uma data de expiração válida.');
+    const dias = Math.ceil((alvo.getTime() - base.getTime()) / 86400000);
+    if (dias < 1) throw new Error('A data de expiração tem de ser posterior à data de criação do badge.');
+    return dias;
+  }
+
+  const valor = Number(form.valor_expiracao);
+  if (!Number.isFinite(valor) || valor < 1) throw new Error('A duração da expiração deve ser superior a zero.');
+  if (form.tipo_expiracao === 'meses') return valor * 30;
+  if (form.tipo_expiracao === 'anos') return valor * 365;
+  return valor;
+}
+
 function descricaoCurta(texto) {
   if (!texto) return '—';
   return texto.length > 28 ? `${texto.slice(0, 28)}...` : texto;
@@ -182,7 +238,11 @@ function prepararPayload(form, niveis, filtros, badgeAtual = null) {
   if (!nivel) {
     throw new Error(form.codigo_nivel === 'Especial'
       ? 'O nível Especial ainda não existe na hierarquia.'
-      : 'Seleciona uma Área ou Nível nos filtros para criar o badge no contexto certo.');
+      : 'Seleciona o Learning Path, Service Line, Área e Nível onde este badge vai ficar.');
+  }
+
+  if ((form.requisitos.length + form.requisitosNovos.length) === 0) {
+    throw new Error('O badge deve ter pelo menos um requisito.');
   }
 
   return {
@@ -191,10 +251,16 @@ function prepararPayload(form, niveis, filtros, badgeAtual = null) {
     pontos: Number(form.pontos) || 0,
     imagem_url: form.imagem_url || null,
     tem_expiracao: form.tem_expiracao,
-    validade_dias: form.tem_expiracao ? Number(form.validade_dias) || null : null,
+    validade_dias: calcularValidadeDias(form, badgeAtual),
     ativo: form.ativo,
     requisitos: form.requisitos,
+    requisitosNovos: form.requisitosNovos,
   };
+}
+
+function separarPayloadBadge(payload) {
+  const { requisitosNovos, ...dadosBadge } = payload;
+  return { dadosBadge, requisitosNovos };
 }
 
 function gerarCsvBadges(items) {
@@ -290,6 +356,9 @@ function imprimirTabelaBadges(items) {
 function FormBadge({
   form,
   setForm,
+  learningPaths,
+  serviceLines,
+  areas,
   requisitos,
   niveis,
   filtros,
@@ -299,6 +368,24 @@ function FormBadge({
   onCancelar,
   loading,
 }) {
+  const serviceLinesDoForm = useMemo(() => {
+    if (!form.id_learning_path) return serviceLines;
+    return serviceLines.filter((sl) => String(sl.id_learning_path) === String(form.id_learning_path));
+  }, [form.id_learning_path, serviceLines]);
+
+  const areasDoForm = useMemo(() => {
+    if (form.id_service_line) return areas.filter((area) => String(area.id_service_line) === String(form.id_service_line));
+    if (form.id_learning_path) return areas.filter((area) => String(area.id_learning_path) === String(form.id_learning_path));
+    return areas;
+  }, [areas, form.id_learning_path, form.id_service_line]);
+
+  const niveisDoForm = useMemo(() => {
+    if (form.id_area) return niveis.filter((nivel) => String(nivel.id_area) === String(form.id_area));
+    if (form.id_service_line) return niveis.filter((nivel) => String(nivel.id_service_line) === String(form.id_service_line));
+    if (form.id_learning_path) return niveis.filter((nivel) => String(nivel.id_learning_path) === String(form.id_learning_path));
+    return niveis;
+  }, [form.id_area, form.id_learning_path, form.id_service_line, niveis]);
+
   const requisitosFiltrados = useMemo(() => {
     const pesquisa = form.pesquisaRequisito.trim().toLowerCase();
     return requisitos.filter((req) => {
@@ -311,18 +398,101 @@ function FormBadge({
     });
   }, [form.filtroNivelRequisito, form.filtroTipoRequisito, form.pesquisaRequisito, requisitos]);
 
+  const requisitosPorPagina = 5;
+  const totalPaginasRequisitos = Math.max(1, Math.ceil(requisitosFiltrados.length / requisitosPorPagina));
+  const paginaRequisitosAtual = Math.min(form.paginaRequisitos || 1, totalPaginasRequisitos);
+  const inicioRequisitos = (paginaRequisitosAtual - 1) * requisitosPorPagina;
+  const requisitosVisiveis = requisitosFiltrados.slice(inicioRequisitos, inicioRequisitos + requisitosPorPagina);
+
+  function atualizarFiltroRequisitos(campo, valor) {
+    setForm((atual) => ({
+      ...atual,
+      [campo]: valor,
+      paginaRequisitos: 1,
+    }));
+  }
+
+  function mudarPaginaRequisitos(delta) {
+    setForm((atual) => {
+      const total = Math.max(1, Math.ceil(requisitosFiltrados.length / requisitosPorPagina));
+      const proxima = Math.min(Math.max((atual.paginaRequisitos || 1) + delta, 1), total);
+      return { ...atual, paginaRequisitos: proxima };
+    });
+  }
+
   function atualizarNivel(codigo) {
-    const nivelAtual = badgeAtual ? {
-      id_area: badgeAtual.id_area,
-      id_service_line: badgeAtual.id_service_line,
-      id_learning_path: badgeAtual.id_learning_path,
-    } : null;
-    const nivel = encontrarNivelNoContexto({ codigo, nivelAtual, filtros, niveis });
+    const contexto = {
+      id_area: form.id_area,
+      id_service_line: form.id_service_line,
+      id_learning_path: form.id_learning_path,
+    };
+    const nivel = encontrarNivelNoContexto({ codigo, nivelAtual: contexto, filtros: contexto, niveis });
     setForm((atual) => ({
       ...atual,
       codigo_nivel: codigo,
       id_nivel: nivel ? String(nivel.id_nivel) : '',
+      id_learning_path: nivel?.id_learning_path ? String(nivel.id_learning_path) : atual.id_learning_path,
+      id_service_line: nivel?.id_service_line ? String(nivel.id_service_line) : atual.id_service_line,
+      id_area: nivel?.id_area ? String(nivel.id_area) : atual.id_area,
     }));
+  }
+
+  function escolherNivelDoContexto({ codigo = form.codigo_nivel, idArea, idServiceLine, idLearningPath }) {
+    if (codigo === 'Especial') return null;
+    const candidatos = niveis.filter((nivel) => {
+      if (idArea) return String(nivel.id_area) === String(idArea);
+      if (idServiceLine) return String(nivel.id_service_line) === String(idServiceLine);
+      if (idLearningPath) return String(nivel.id_learning_path) === String(idLearningPath);
+      return true;
+    });
+    return candidatos.find((nivel) => nivel.codigo_nivel === codigo) || candidatos[0] || null;
+  }
+
+  function atualizarHierarquia(campo, valor) {
+    setForm((atual) => {
+      const proximo = { ...atual, [campo]: valor };
+
+      if (campo === 'id_learning_path') {
+        proximo.id_service_line = '';
+        proximo.id_area = '';
+        proximo.id_nivel = '';
+      }
+
+      if (campo === 'id_service_line') {
+        proximo.id_area = '';
+        proximo.id_nivel = '';
+        const serviceLine = serviceLines.find((sl) => String(sl.id_service_line) === String(valor));
+        proximo.id_learning_path = serviceLine?.id_learning_path ? String(serviceLine.id_learning_path) : proximo.id_learning_path;
+      }
+
+      if (campo === 'id_area') {
+        const area = areas.find((item) => String(item.id_area) === String(valor));
+        if (area) {
+          proximo.id_learning_path = String(area.id_learning_path);
+          proximo.id_service_line = String(area.id_service_line);
+        }
+        const nivel = escolherNivelDoContexto({
+          codigo: atual.codigo_nivel,
+          idArea: valor,
+          idServiceLine: proximo.id_service_line,
+          idLearningPath: proximo.id_learning_path,
+        });
+        proximo.id_nivel = nivel ? String(nivel.id_nivel) : '';
+        proximo.codigo_nivel = nivel?.codigo_nivel || atual.codigo_nivel;
+      }
+
+      if (campo === 'id_nivel') {
+        const nivel = niveis.find((item) => String(item.id_nivel) === String(valor));
+        if (nivel) {
+          proximo.id_learning_path = String(nivel.id_learning_path);
+          proximo.id_service_line = String(nivel.id_service_line);
+          proximo.id_area = String(nivel.id_area);
+          proximo.codigo_nivel = nivel.codigo_nivel;
+        }
+      }
+
+      return proximo;
+    });
   }
 
   function alternarRequisito(id) {
@@ -335,6 +505,62 @@ function FormBadge({
           : [...atual.requisitos, id],
       };
     });
+  }
+
+  function atualizarNovoRequisito(campo, valor) {
+    setForm((atual) => ({
+      ...atual,
+      novoRequisito: { ...atual.novoRequisito, [campo]: valor },
+    }));
+  }
+
+  function limparNovoRequisito() {
+    setForm((atual) => ({
+      ...atual,
+      novoRequisito: {
+        aberto: false,
+        titulo: '',
+        descricao: '',
+        tipo_evidencia: 'Certificado',
+        imagem_url: '',
+      },
+    }));
+  }
+
+  function adicionarNovoRequisito() {
+    const novo = form.novoRequisito;
+    if (!novo.titulo.trim()) {
+      toast.error('Título do requisito é obrigatório.');
+      return;
+    }
+
+    setForm((atual) => ({
+      ...atual,
+      requisitosNovos: [
+        ...atual.requisitosNovos,
+        {
+          id_temporario: `novo-${Date.now()}`,
+          titulo: novo.titulo.trim(),
+          descricao: novo.descricao.trim(),
+          tipo_evidencia: novo.tipo_evidencia,
+          imagem_url: novo.imagem_url || null,
+        },
+      ],
+      novoRequisito: {
+        aberto: false,
+        titulo: '',
+        descricao: '',
+        tipo_evidencia: 'Certificado',
+        imagem_url: '',
+      },
+    }));
+  }
+
+  function removerNovoRequisito(idTemporario) {
+    setForm((atual) => ({
+      ...atual,
+      requisitosNovos: atual.requisitosNovos.filter((req) => req.id_temporario !== idTemporario),
+    }));
   }
 
   return (
@@ -354,6 +580,53 @@ function FormBadge({
         </div>
 
         <div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-900">
+                Learning Path<span className="text-red-600">*</span>
+              </label>
+              <select
+                className="input"
+                required
+                value={form.id_learning_path}
+                onChange={(e) => atualizarHierarquia('id_learning_path', e.target.value)}
+              >
+                <option value="">Selecione um Learning Path</option>
+                {learningPaths.map((lp) => <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-900">
+                Service Line<span className="text-red-600">*</span>
+              </label>
+              <select
+                className="input"
+                required
+                value={form.id_service_line}
+                onChange={(e) => atualizarHierarquia('id_service_line', e.target.value)}
+              >
+                <option value="">Selecione uma Service Line</option>
+                {serviceLinesDoForm.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-900">
+                Área<span className="text-red-600">*</span>
+              </label>
+              <select
+                className="input"
+                required
+                value={form.id_area}
+                onChange={(e) => atualizarHierarquia('id_area', e.target.value)}
+              >
+                <option value="">Selecione uma Área</option>
+                {areasDoForm.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div>
           <div className="mb-3 text-sm font-medium text-slate-900">Nível</div>
           <div className="flex flex-wrap gap-5 text-base text-slate-700">
             {Object.keys(NIVEIS).map((codigo) => (
@@ -368,6 +641,19 @@ function FormBadge({
               </label>
             ))}
           </div>
+          <select
+            className="input mt-3"
+            required
+            value={form.id_nivel}
+            onChange={(e) => atualizarHierarquia('id_nivel', e.target.value)}
+          >
+            <option value="">Selecione um nível da área escolhida</option>
+            {niveisDoForm.map((nivel) => (
+              <option key={nivel.id_nivel} value={nivel.id_nivel}>
+                {nivel.codigo_nivel} - {nivel.nome_nivel}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -404,17 +690,47 @@ function FormBadge({
             Data expiração
           </label>
           <div className="grid grid-cols-[140px_1fr] gap-5">
-            <select className="input" disabled={!form.tem_expiracao} value="dias" onChange={() => {}}>
-              <option value="dias">Dias</option>
-            </select>
-            <input
-              type="number"
-              min="1"
+            <select
               className="input"
               disabled={!form.tem_expiracao}
-              value={form.validade_dias}
-              onChange={(e) => setForm((atual) => ({ ...atual, validade_dias: e.target.value }))}
-            />
+              value={form.tipo_expiracao}
+              onChange={(e) => setForm((atual) => ({
+                ...atual,
+                tipo_expiracao: e.target.value,
+                valor_expiracao: atual.valor_expiracao || 30,
+                data_expiracao: atual.data_expiracao || adicionarDias(new Date(), atual.valor_expiracao || 30),
+              }))}
+            >
+              <option value="dias">Dias</option>
+              <option value="meses">Meses</option>
+              <option value="anos">Anos</option>
+              <option value="data">Data específica</option>
+            </select>
+            {form.tipo_expiracao === 'data' ? (
+              <label className="relative block">
+                <Icon nome="calendar" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="date"
+                  className="input pl-12"
+                  disabled={!form.tem_expiracao}
+                  value={form.data_expiracao}
+                  onChange={(e) => setForm((atual) => ({ ...atual, data_expiracao: e.target.value }))}
+                />
+              </label>
+            ) : (
+              <input
+                type="number"
+                min="1"
+                className="input"
+                disabled={!form.tem_expiracao}
+                value={form.valor_expiracao}
+                onChange={(e) => setForm((atual) => ({
+                  ...atual,
+                  valor_expiracao: e.target.value,
+                  validade_dias: e.target.value,
+                }))}
+              />
+            )}
           </div>
         </div>
 
@@ -429,14 +745,14 @@ function FormBadge({
                 className="input pl-11"
                 placeholder="Pesquisar requisitos..."
                 value={form.pesquisaRequisito}
-                onChange={(e) => setForm((atual) => ({ ...atual, pesquisaRequisito: e.target.value }))}
+                onChange={(e) => atualizarFiltroRequisitos('pesquisaRequisito', e.target.value)}
               />
             </label>
-            <select className="input" value={form.filtroNivelRequisito} onChange={(e) => setForm((atual) => ({ ...atual, filtroNivelRequisito: e.target.value }))}>
+            <select className="input" value={form.filtroNivelRequisito} onChange={(e) => atualizarFiltroRequisitos('filtroNivelRequisito', e.target.value)}>
               <option value="">Nível (Todos)</option>
               {Object.keys(NIVEIS).filter((codigo) => codigo !== 'Especial').map((codigo) => <option key={codigo} value={codigo}>{codigo}</option>)}
             </select>
-            <select className="input" value={form.filtroTipoRequisito} onChange={(e) => setForm((atual) => ({ ...atual, filtroTipoRequisito: e.target.value }))}>
+            <select className="input" value={form.filtroTipoRequisito} onChange={(e) => atualizarFiltroRequisitos('filtroTipoRequisito', e.target.value)}>
               <option value="">Tipo evidência (Todos)</option>
               <option value="Certificado">Certificado</option>
               <option value="Curso">Curso</option>
@@ -458,7 +774,7 @@ function FormBadge({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {requisitosFiltrados.slice(0, 5).map((req) => (
+                {requisitosVisiveis.map((req) => (
                   <tr key={req.id_requisito}>
                     <td className="px-4 py-4 text-center">
                       <input
@@ -474,23 +790,112 @@ function FormBadge({
                     <td className="px-4 py-4 text-center text-slate-600">{req.tipo_evidencia || '—'}</td>
                   </tr>
                 ))}
-                {requisitosFiltrados.length === 0 && (
+                {form.requisitosNovos.map((req) => (
+                  <tr key={req.id_temporario} className="bg-blue-50/60">
+                    <td className="px-4 py-4 text-center">
+                      <input type="checkbox" className="h-4 w-4 rounded text-softinsa-600" checked readOnly />
+                    </td>
+                    <td className="px-4 py-4 text-center font-medium text-slate-800">{req.titulo}</td>
+                    <td className="px-4 py-4 text-center text-slate-600" title={req.descricao || ''}>{descricaoCurta(req.descricao)}</td>
+                    <td className="px-4 py-4 text-center text-slate-600">{form.codigo_nivel}</td>
+                    <td className="px-4 py-4 text-center text-slate-600">
+                      <button type="button" className="font-semibold text-red-600 hover:underline" onClick={() => removerNovoRequisito(req.id_temporario)}>
+                        Remover
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {requisitosFiltrados.length === 0 && form.requisitosNovos.length === 0 && (
                   <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Sem requisitos disponíveis.</td></tr>
                 )}
               </tbody>
             </table>
             <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 px-6 py-3 text-sm text-slate-500 md:flex-row">
-              <span>A mostrar {Math.min(requisitosFiltrados.length, 5)} de {requisitosFiltrados.length} resultados</span>
+              <span>
+                A mostrar {requisitosFiltrados.length === 0 ? 0 : inicioRequisitos + 1}
+                {' '}a {Math.min(inicioRequisitos + requisitosVisiveis.length, requisitosFiltrados.length)}
+                {' '}de {requisitosFiltrados.length} resultados
+              </span>
               <div className="flex items-center gap-3">
-                <button type="button" className="btn-secondary h-10 w-10 px-0 opacity-40" disabled><Icon nome="left" className="h-5 w-5" /></button>
-                <span className="font-semibold text-slate-700">Página 1 de 1</span>
-                <button type="button" className="btn-secondary h-10 w-10 px-0 opacity-40" disabled><Icon nome="right" className="h-5 w-5" /></button>
+                <button
+                  type="button"
+                  className="btn-secondary h-10 w-10 px-0 disabled:opacity-40"
+                  disabled={paginaRequisitosAtual <= 1}
+                  onClick={() => mudarPaginaRequisitos(-1)}
+                  aria-label="Página anterior de requisitos"
+                >
+                  <Icon nome="left" className="h-5 w-5" />
+                </button>
+                <span className="font-semibold text-slate-700">
+                  Página {paginaRequisitosAtual} de {totalPaginasRequisitos}
+                </span>
+                <button
+                  type="button"
+                  className="btn-secondary h-10 w-10 px-0 disabled:opacity-40"
+                  disabled={paginaRequisitosAtual >= totalPaginasRequisitos}
+                  onClick={() => mudarPaginaRequisitos(1)}
+                  aria-label="Página seguinte de requisitos"
+                >
+                  <Icon nome="right" className="h-5 w-5" />
+                </button>
               </div>
-              <button type="button" className="btn-primary" onClick={() => toast('Criação de requisitos será ligada ao CRUD de Requisitos.')}>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setForm((atual) => ({ ...atual, novoRequisito: { ...atual.novoRequisito, aberto: true } }))}
+              >
                 <Icon nome="plus" className="h-4 w-4" /> Criar Requisito
               </button>
             </div>
           </div>
+
+          {form.novoRequisito.aberto && (
+            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-4 text-sm font-bold text-slate-900">Novo requisito deste badge</div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-900">Título<span className="text-red-600">*</span></label>
+                  <input
+                    className="input bg-white"
+                    value={form.novoRequisito.titulo}
+                    onChange={(e) => atualizarNovoRequisito('titulo', e.target.value)}
+                    placeholder="Título do requisito"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-slate-900">Tipo de evidência</label>
+                  <select
+                    className="input bg-white"
+                    value={form.novoRequisito.tipo_evidencia}
+                    onChange={(e) => atualizarNovoRequisito('tipo_evidencia', e.target.value)}
+                  >
+                    {TIPOS_EVIDENCIA.map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+                  </select>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-sm font-medium text-slate-900">Descrição</label>
+                  <textarea
+                    className="input min-h-[84px] bg-white py-3"
+                    value={form.novoRequisito.descricao}
+                    onChange={(e) => atualizarNovoRequisito('descricao', e.target.value)}
+                    placeholder="Descreve a evidência necessária."
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-sm font-medium text-slate-900">Imagem</label>
+                  <UploadImagemAdmin
+                    contexto="requisitos"
+                    valor={form.novoRequisito.imagem_url}
+                    onUpload={(url) => atualizarNovoRequisito('imagem_url', url)}
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end gap-3">
+                <button type="button" className="btn-secondary" onClick={limparNovoRequisito}>Cancelar</button>
+                <button type="button" className="btn-primary" onClick={adicionarNovoRequisito}>Adicionar ao Badge</button>
+              </div>
+            </div>
+          )}
         </div>
 
         <div>
@@ -574,11 +979,26 @@ export default function AdminBadges() {
   });
 
   const criar = useMutation({
-    mutationFn: async () => (await api.post('/api/badges', prepararPayload(form, listaNiveis, filtros))).data,
+    mutationFn: async () => {
+      const { dadosBadge, requisitosNovos } = separarPayloadBadge(prepararPayload(form, listaNiveis, filtros));
+      const criado = (await api.post('/api/badges', dadosBadge)).data;
+      await Promise.all((requisitosNovos || []).map((req, idx) => api.post('/api/requisitos', {
+        id_badge: criado.id_badge,
+        titulo: req.titulo,
+        descricao: req.descricao,
+        tipo_evidencia: req.tipo_evidencia,
+        imagem_url: req.imagem_url || null,
+        ordem: dadosBadge.requisitos.length + idx + 1,
+        obrigatorio: 1,
+        ativo: 1,
+      })));
+      return criado;
+    },
     onSuccess: () => {
       toast.success('Badge criado.');
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'badges'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'requisitos'] });
       qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
@@ -586,11 +1006,26 @@ export default function AdminBadges() {
   });
 
   const atualizar = useMutation({
-    mutationFn: async () => (await api.put(`/api/badges/${modal.badge.id_badge}`, prepararPayload(form, listaNiveis, filtros, modal.badge))).data,
+    mutationFn: async () => {
+      const { dadosBadge, requisitosNovos } = separarPayloadBadge(prepararPayload(form, listaNiveis, filtros, modal.badge));
+      const atualizado = (await api.put(`/api/badges/${modal.badge.id_badge}`, dadosBadge)).data;
+      await Promise.all((requisitosNovos || []).map((req, idx) => api.post('/api/requisitos', {
+        id_badge: modal.badge.id_badge,
+        titulo: req.titulo,
+        descricao: req.descricao,
+        tipo_evidencia: req.tipo_evidencia,
+        imagem_url: req.imagem_url || null,
+        ordem: dadosBadge.requisitos.length + idx + 1,
+        obrigatorio: 1,
+        ativo: 1,
+      })));
+      return atualizado;
+    },
     onSuccess: () => {
       toast.success('Badge atualizado.');
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'badges'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'requisitos'] });
       qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
@@ -697,9 +1132,6 @@ export default function AdminBadges() {
     if (sls.length === 0) return toast.error('Antes de criar um Badge, cria primeiro uma Service Line.');
     if (listaAreas.length === 0) return toast.error('Antes de criar um Badge, cria primeiro uma Área.');
     if (listaNiveis.length === 0) return toast.error('Antes de criar um Badge, cria primeiro um Nível.');
-    if (!filtros.id_area && !filtros.id_nivel && listaAreas.length > 1) {
-      return toast.error('Seleciona primeiro uma Área ou Nível nos filtros para criar o badge no contexto certo.');
-    }
 
     const nivelBase = filtros.id_nivel
       ? listaNiveis.find((nivel) => String(nivel.id_nivel) === String(filtros.id_nivel))
@@ -707,6 +1139,9 @@ export default function AdminBadges() {
 
     setForm({
       ...FORM_INICIAL,
+      id_learning_path: nivelBase?.id_learning_path ? String(nivelBase.id_learning_path) : filtros.id_learning_path,
+      id_service_line: nivelBase?.id_service_line ? String(nivelBase.id_service_line) : filtros.id_service_line,
+      id_area: nivelBase?.id_area ? String(nivelBase.id_area) : filtros.id_area,
       codigo_nivel: nivelBase?.codigo_nivel || 'A',
       id_nivel: nivelBase ? String(nivelBase.id_nivel) : '',
     });
@@ -721,11 +1156,17 @@ export default function AdminBadges() {
       setForm({
         ...FORM_INICIAL,
         titulo: item.titulo || '',
+        id_learning_path: item.id_learning_path ? String(item.id_learning_path) : '',
+        id_service_line: item.id_service_line ? String(item.id_service_line) : '',
+        id_area: item.id_area ? String(item.id_area) : '',
         codigo_nivel: item.codigo_nivel || 'A',
         id_nivel: item.id_nivel ? String(item.id_nivel) : '',
         pontos: item.pontos ?? 0,
         imagem_url: item.imagem_url || '',
         tem_expiracao: Boolean(item.tem_expiracao),
+        tipo_expiracao: 'dias',
+        valor_expiracao: item.validade_dias || 30,
+        data_expiracao: formatarDataInput(item.data_expiracao_badge) || adicionarDias(item.created_at || new Date(), item.validade_dias || 30),
         validade_dias: item.validade_dias || 30,
         ativo: item.ativo !== 0,
         requisitos: (detalhe.requisitos || []).map((req) => req.id_requisito),
@@ -900,6 +1341,9 @@ export default function AdminBadges() {
             <FormBadge
               form={form}
               setForm={setForm}
+              learningPaths={lps}
+              serviceLines={sls}
+              areas={listaAreas}
               requisitos={listaRequisitos}
               niveis={listaNiveis}
               filtros={filtros}

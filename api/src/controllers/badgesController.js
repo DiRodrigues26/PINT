@@ -132,6 +132,17 @@ async function criar(req, res, next) {
       return res.status(400).json({ erro: 'id_nivel e titulo são obrigatórios.' });
     }
 
+    const [[nivel]] = await pool.query('SELECT id_nivel FROM nivel WHERE id_nivel = ?', [id_nivel]);
+    if (!nivel) return res.status(404).json({ erro: 'Nível não encontrado.' });
+
+    const [[badgeExistente]] = await pool.query('SELECT id_badge, titulo FROM badge WHERE id_nivel = ?', [id_nivel]);
+    if (badgeExistente) {
+      return res.status(409).json({
+        erro: `Este nível já tem o badge "${badgeExistente.titulo}". Edita o badge existente em vez de criar outro.`,
+        id_badge: badgeExistente.id_badge,
+      });
+    }
+
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();

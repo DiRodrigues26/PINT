@@ -85,15 +85,14 @@ async function criar(req, res, next) {
       tipo_evidencia, imagem_url, ordem = 1, obrigatorio = 1, ativo = 1,
     } = req.body;
 
-    let idNivelFinal = id_nivel;
-    if (!idNivelFinal && id_badge) {
-      const [[badge]] = await pool.query('SELECT id_nivel FROM badge WHERE id_badge = ?', [id_badge]);
-      idNivelFinal = badge?.id_nivel;
+    if (!id_badge || !titulo) {
+      return res.status(400).json({ erro: 'id_badge e titulo são obrigatórios. Requisitos só podem ser criados dentro de um badge.' });
     }
 
-    if (!idNivelFinal || !titulo) {
-      return res.status(400).json({ erro: 'id_nivel/id_badge e titulo são obrigatórios.' });
-    }
+    const [[badge]] = await pool.query('SELECT id_badge, id_nivel FROM badge WHERE id_badge = ?', [id_badge]);
+    if (!badge) return res.status(404).json({ erro: 'Badge não encontrado.' });
+
+    const idNivelFinal = badge.id_nivel;
 
     let codigo = codigo_requisito;
     if (!codigo) {
@@ -114,17 +113,11 @@ async function criar(req, res, next) {
          imagem_url || null, ordem, obrigatorio ? 1 : 0, ativo ? 1 : 0]
       );
 
-      const [badges] = id_badge
-        ? await conn.query('SELECT id_badge FROM badge WHERE id_badge = ?', [id_badge])
-        : await conn.query('SELECT id_badge FROM badge WHERE id_nivel = ?', [idNivelFinal]);
-
-      for (const badge of badges) {
-        await conn.query(
-          `INSERT IGNORE INTO badge_requisito (id_badge, id_requisito, ordem, obrigatorio)
-           VALUES (?, ?, ?, ?)`,
-          [badge.id_badge, result.insertId, ordem, obrigatorio ? 1 : 0]
-        );
-      }
+      await conn.query(
+        `INSERT IGNORE INTO badge_requisito (id_badge, id_requisito, ordem, obrigatorio)
+         VALUES (?, ?, ?, ?)`,
+        [id_badge, result.insertId, ordem, obrigatorio ? 1 : 0]
+      );
 
       await conn.commit();
       res.status(201).json({ mensagem: 'Requisito criado.', id_requisito: result.insertId });
