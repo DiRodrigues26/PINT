@@ -12,11 +12,11 @@ import {
   Search,
   Trash2,
   TriangleAlert,
-  Upload,
   X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
+import UploadImagemAdmin from '../../components/UploadImagemAdmin';
 
 const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Badge', 'Outro'];
 
@@ -50,7 +50,6 @@ const ICONES = {
   right: ChevronRight,
   search: Search,
   trash: Trash2,
-  upload: Upload,
   warning: TriangleAlert,
   x: X,
 };
@@ -220,20 +219,6 @@ function imprimirTabelaRequisitos(items) {
   janela.print();
 }
 
-function UploadImagem({ onClick }) {
-  return (
-    <button
-      type="button"
-      className="mx-auto flex h-36 w-[84%] flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-center hover:bg-slate-50"
-      onClick={onClick}
-    >
-      <Icon nome="upload" className="h-9 w-9 text-slate-900" />
-      <span className="mt-3 text-sm font-medium text-slate-900">Clique para fazer upload</span>
-      <span className="mt-2 text-sm text-slate-400">PNG, JPEG, JPG ou WEBM (máx. 5MB)</span>
-    </button>
-  );
-}
-
 function FormRequisito({ form, setForm, niveis, modo, onSubmit, onCancelar, loading }) {
   function atualizarNivel(codigo) {
     const nivel = niveis.find((item) => item.codigo_nivel === codigo);
@@ -277,7 +262,11 @@ function FormRequisito({ form, setForm, niveis, modo, onSubmit, onCancelar, load
           <label className="mb-3 block text-sm font-medium text-slate-900">
             Imagem<span className="text-red-600">*</span>
           </label>
-          <UploadImagem onClick={() => toast('Upload de imagem do requisito será ligado ao módulo de ficheiros.')} />
+          <UploadImagemAdmin
+            contexto="requisitos"
+            valor={form.imagem_url}
+            onUpload={(url) => setForm((atual) => ({ ...atual, imagem_url: url }))}
+          />
         </div>
 
         <div>

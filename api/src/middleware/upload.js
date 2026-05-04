@@ -15,6 +15,8 @@ const storage = multer.diskStorage({
   },
 });
 
+const memoryStorage = multer.memoryStorage();
+
 const tiposPermitidos = [
   'application/pdf',
   'image/png',
@@ -24,6 +26,8 @@ const tiposPermitidos = [
   'application/x-zip-compressed',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/webp',
+  'video/webm',
 ];
 
 function filtroFicheiro(req, file, cb) {
@@ -32,6 +36,7 @@ function filtroFicheiro(req, file, cb) {
 }
 
 const limiteMB = parseInt(process.env.MAX_FILE_SIZE_MB || '10', 10);
+const limiteImagemMB = parseInt(process.env.MAX_IMAGE_SIZE_MB || '5', 10);
 
 const upload = multer({
   storage,
@@ -39,4 +44,10 @@ const upload = multer({
   limits: { fileSize: limiteMB * 1024 * 1024 },
 });
 
-module.exports = { upload, pastaUploads };
+const uploadMemoria = multer({
+  storage: memoryStorage,
+  fileFilter: filtroFicheiro,
+  limits: { fileSize: limiteImagemMB * 1024 * 1024 },
+});
+
+module.exports = { upload, uploadMemoria, pastaUploads };

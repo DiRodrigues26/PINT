@@ -13,12 +13,12 @@ import {
   Search,
   Trash2,
   TriangleAlert,
-  Upload,
   X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { formatarData } from '../../lib/formatar';
+import UploadImagemAdmin from '../../components/UploadImagemAdmin';
 
 const NIVEIS = {
   A: 'Júnior',
@@ -30,6 +30,7 @@ const NIVEIS = {
 
 const FORM_INICIAL = {
   titulo: '',
+  imagem_url: '',
   codigo_nivel: 'A',
   id_nivel: '',
   id_badge: '',
@@ -55,7 +56,6 @@ const ICONES = {
   right: ChevronRight,
   search: Search,
   trash: Trash2,
-  upload: Upload,
   warning: TriangleAlert,
   x: X,
 };
@@ -232,6 +232,7 @@ function prepararPayload(form, niveis) {
     titulo: form.titulo.trim(),
     id_nivel: Number(nivel?.id_nivel || form.id_nivel),
     id_badge: form.id_badge ? Number(form.id_badge) : null,
+    imagem_url: form.imagem_url || null,
     data_limite: form.data_limite_ativa && form.data_limite ? form.data_limite : null,
     ativo: form.ativo,
   };
@@ -375,15 +376,11 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
           <label className="mb-3 block text-sm font-medium text-slate-900">
             Imagem do evento<span className="text-red-600">*</span>
           </label>
-          <button
-            type="button"
-            className="mx-auto flex h-36 w-[84%] flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-center hover:bg-slate-50"
-            onClick={() => toast('Upload de imagem do evento será ligado ao módulo de ficheiros.')}
-          >
-            <Icon nome="upload" className="h-9 w-9 text-slate-900" />
-            <span className="mt-3 text-sm text-slate-400">PNG, JPEG, JPG ou WEBM (máx. 5MB)</span>
-            <span className="mt-2 text-sm font-medium text-slate-900">Clique para fazer upload</span>
-          </button>
+          <UploadImagemAdmin
+            contexto="eventos"
+            valor={form.imagem_url}
+            onUpload={(url) => setForm((atual) => ({ ...atual, imagem_url: url }))}
+          />
         </div>
 
         <div>
@@ -697,6 +694,7 @@ export default function AdminEventosEspeciais() {
         codigo_nivel: detalhe.evento.codigo_nivel || 'A',
         id_nivel: detalhe.evento.id_nivel ? String(detalhe.evento.id_nivel) : '',
         id_badge: detalhe.evento.id_badge ? String(detalhe.evento.id_badge) : '',
+        imagem_url: detalhe.evento.imagem_url || detalhe.evento.imagem_badge || '',
         data_limite_ativa: Boolean(detalhe.evento.data_limite),
         data_limite: dataParaInput(detalhe.evento.data_limite),
         ativo: detalhe.evento.ativo !== 0,

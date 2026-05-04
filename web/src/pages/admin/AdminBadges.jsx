@@ -12,12 +12,12 @@ import {
   Search,
   Trash2,
   TriangleAlert,
-  Upload,
   X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { formatarData } from '../../lib/formatar';
+import UploadImagemAdmin from '../../components/UploadImagemAdmin';
 
 const ICONES = {
   download: Download,
@@ -30,7 +30,6 @@ const ICONES = {
   right: ChevronRight,
   search: Search,
   trash: Trash2,
-  upload: Upload,
   warning: TriangleAlert,
   x: X,
 };
@@ -386,15 +385,12 @@ function FormBadge({
           <label className="mb-3 block text-sm font-medium text-slate-900">
             Imagem do badge<span className="text-red-600">*</span>
           </label>
-          <button
-            type="button"
-            className="mx-auto flex h-36 w-[90%] flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 text-center hover:bg-slate-50"
-            onClick={() => toast('Upload de imagem do badge será ligado ao módulo de ficheiros.')}
-          >
-            <Icon nome="upload" className="h-9 w-9 text-slate-900" />
-            <span className="mt-3 text-sm text-slate-400">PNG, JPEG, JPG ou WEBM (máx. 5MB)</span>
-            <span className="mt-2 text-sm font-medium text-slate-900">Clique para fazer upload</span>
-          </button>
+          <UploadImagemAdmin
+            contexto="badges"
+            valor={form.imagem_url}
+            className="mx-auto h-36 w-[90%]"
+            onUpload={(url) => setForm((atual) => ({ ...atual, imagem_url: url }))}
+          />
         </div>
 
         <div>

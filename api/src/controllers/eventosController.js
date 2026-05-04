@@ -32,7 +32,7 @@ async function listar(req, res, next) {
               a.id_area, a.nome AS nome_area,
               sl.id_service_line, sl.nome AS nome_service_line,
               lp.id_learning_path, lp.nome AS nome_learning_path,
-              b.titulo AS titulo_badge, b.imagem_url AS imagem_badge,
+              b.titulo AS titulo_badge, COALESCE(ee.imagem_url, b.imagem_url) AS imagem_badge,
               b.pontos AS pontos_badge, b.tem_expiracao AS tem_expiracao_badge,
               b.validade_dias AS validade_dias_badge, b.ativo AS ativo_badge,
               (SELECT COUNT(*) FROM evento_especial_requisito WHERE id_evento = ee.id_evento) AS n_requisitos
@@ -76,7 +76,7 @@ async function obter(req, res, next) {
               a.id_area, a.nome AS nome_area,
               sl.id_service_line, sl.nome AS nome_service_line,
               lp.id_learning_path, lp.nome AS nome_learning_path,
-              b.titulo AS titulo_badge, b.imagem_url AS imagem_badge,
+              b.titulo AS titulo_badge, COALESCE(ee.imagem_url, b.imagem_url) AS imagem_badge,
               b.pontos AS pontos_badge, b.tem_expiracao AS tem_expiracao_badge,
               b.validade_dias AS validade_dias_badge, b.ativo AS ativo_badge
          FROM evento_especial ee
@@ -101,15 +101,15 @@ async function obter(req, res, next) {
 
 async function criar(req, res, next) {
   try {
-    const { id_nivel, id_badge, titulo, descricao, data_limite, ativo = 1 } = req.body;
+    const { id_nivel, id_badge, titulo, descricao, imagem_url, data_limite, ativo = 1 } = req.body;
     if (!id_nivel || !titulo) {
       return res.status(400).json({ erro: 'id_nivel e titulo são obrigatórios.' });
     }
 
     const [result] = await pool.query(
-      `INSERT INTO evento_especial (id_nivel, id_badge, titulo, descricao, data_limite, ativo)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [id_nivel, id_badge || null, titulo, descricao || null, data_limite || null, ativo ? 1 : 0]
+      `INSERT INTO evento_especial (id_nivel, id_badge, titulo, descricao, imagem_url, data_limite, ativo)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id_nivel, id_badge || null, titulo, descricao || null, imagem_url || null, data_limite || null, ativo ? 1 : 0]
     );
     res.status(201).json({ mensagem: 'Evento criado.', id_evento: result.insertId });
   } catch (err) { next(err); }
@@ -117,7 +117,7 @@ async function criar(req, res, next) {
 
 async function atualizar(req, res, next) {
   try {
-    const editaveis = ['id_nivel', 'id_badge', 'titulo', 'descricao', 'data_limite', 'ativo'];
+    const editaveis = ['id_nivel', 'id_badge', 'titulo', 'descricao', 'imagem_url', 'data_limite', 'ativo'];
     const campos = [];
     const valores = [];
     for (const c of editaveis) {

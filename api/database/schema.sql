@@ -179,6 +179,7 @@ CREATE TABLE `evento_especial` (
   `id_badge` int unsigned DEFAULT NULL,
   `titulo` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
   `descricao` text COLLATE utf8mb4_unicode_ci,
+  `imagem_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `data_criacao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `data_limite` datetime DEFAULT NULL,
   `ativo` tinyint(1) NOT NULL DEFAULT '1',
