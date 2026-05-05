@@ -84,6 +84,7 @@ export default function Candidaturas() {
       return data;
     },
     staleTime: 30_000,
+    refetchInterval: 15000,
   });
 
   const candidaturas = useMemo(() => {

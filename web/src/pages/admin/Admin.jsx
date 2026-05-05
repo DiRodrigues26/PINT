@@ -8,15 +8,18 @@ import { useAuth } from '../../context/AuthContext';
 import { estadoCandidatura, formatarData } from '../../lib/formatar';
 import AdminAreas from './AdminAreas';
 import AdminBadges from './AdminBadges';
+import AdminCandidaturas from './AdminCandidaturas';
 import AdminEventosEspeciais from './AdminEventosEspeciais';
 import AdminLearningPaths from './AdminLearningPaths';
 import AdminNiveis from './AdminNiveis';
 import AdminRequisitos from './AdminRequisitos';
 import AdminServiceLines from './AdminServiceLines';
+import AdminSLA from './AdminSLA';
 import AdminUtilizadores from './AdminUtilizadores';
 
 const MENU = [
   { chave: 'dashboard', label: 'Dashboard', icon: 'grid' },
+  { chave: 'candidaturas', label: 'Pedidos de Badges', icon: 'doc' },
   { chave: 'utilizadores', label: 'Gestão de Utilizadores', icon: 'users' },
   { chave: 'learning-paths', label: 'Gestão de Learning Paths', icon: 'doc' },
   { chave: 'service-lines', label: 'Gestão de Service Lines', icon: 'pulse' },
@@ -332,6 +335,7 @@ export default function Admin() {
   const estatisticas = useQuery({
     queryKey: ['admin-dashboard', 'estatisticas'],
     queryFn: async () => (await api.get('/api/estatisticas/gestor')).data,
+    refetchInterval: 15000,
   });
 
   const ranking = useQuery({
@@ -342,6 +346,7 @@ export default function Admin() {
   const candidaturas = useQuery({
     queryKey: ['admin-dashboard', 'candidaturas-recentes'],
     queryFn: async () => (await api.get('/api/candidaturas', { params: { por_pagina: 5 } })).data,
+    refetchInterval: 15000,
   });
 
   const slas = useQuery({
@@ -352,6 +357,7 @@ export default function Admin() {
   const foraSla = useQuery({
     queryKey: ['admin-dashboard', 'sla-fora-prazo'],
     queryFn: async () => (await api.get('/api/sla/fora-prazo')).data,
+    refetchInterval: 15000,
   });
 
   const avisos = useQuery({
@@ -416,9 +422,11 @@ export default function Admin() {
           utilizador={utilizador}
           onLogout={() => setMostrarLogout(true)}
         />
-        <main className={`mx-auto pb-28 pt-8 lg:pb-8 ${vistaAtiva === 'utilizadores' ? 'max-w-[1720px] px-5 lg:px-8 xl:px-10' : ['learning-paths', 'service-lines', 'areas', 'niveis', 'badges', 'eventos', 'requisitos'].includes(vistaAtiva) ? 'max-w-[1560px] px-5 lg:px-10 xl:px-16' : 'max-w-[1760px] px-5 lg:px-8 xl:px-10 2xl:px-12'}`}>
+        <main className={`mx-auto pb-28 pt-8 lg:pb-8 ${vistaAtiva === 'utilizadores' ? 'max-w-[1720px] px-5 lg:px-8 xl:px-10' : ['candidaturas', 'learning-paths', 'service-lines', 'areas', 'niveis', 'badges', 'eventos', 'requisitos', 'sla'].includes(vistaAtiva) ? 'max-w-[1560px] px-5 lg:px-10 xl:px-16' : 'max-w-[1760px] px-5 lg:px-8 xl:px-10 2xl:px-12'}`}>
           {vistaAtiva === 'utilizadores' ? (
             <AdminUtilizadores />
+          ) : vistaAtiva === 'candidaturas' ? (
+            <AdminCandidaturas />
           ) : vistaAtiva === 'learning-paths' ? (
             <AdminLearningPaths />
           ) : vistaAtiva === 'service-lines' ? (
@@ -433,6 +441,8 @@ export default function Admin() {
             <AdminEventosEspeciais />
           ) : vistaAtiva === 'requisitos' ? (
             <AdminRequisitos />
+          ) : vistaAtiva === 'sla' ? (
+            <AdminSLA />
           ) : carregando ? (
             <div className="flex min-h-[60vh] items-center justify-center"><Carregando /></div>
           ) : (

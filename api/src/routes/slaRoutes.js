@@ -8,6 +8,7 @@ router.use(autenticar, autorizarPerfis('Administrador'));
 
 router.get('/',             ctrl.listar);
 router.put('/:fase',        ctrl.atualizar);
+router.post('/:idCandidatura/notificar', ctrl.notificar);
 router.get('/fora-prazo',   ctrl.candidaturasForaSLA);
 
 module.exports = router;

@@ -241,6 +241,7 @@ export default function CandidaturaDetalhe() {
       return data;
     },
     staleTime: 30_000,
+    refetchInterval: 15000,
   });
 
   const candidatura = data?.candidatura;
