@@ -406,24 +406,41 @@ async function definirPerfis(req, res, next) {
 
 async function atualizarMeuPerfil(req, res, next) {
   try {
-    const { nome, idioma } = req.body;
+    const { nome, idioma, id_area } = req.body;
+    const id = req.utilizador.id_utilizador;
     const campos = [];
     const valores = [];
 
-    if (nome !== undefined)    { campos.push('nome = ?');    valores.push(nome); }
-    if (idioma !== undefined)  { campos.push('idioma = ?');  valores.push(idioma); }
+    if (nome !== undefined)   { campos.push('nome = ?');   valores.push(nome); }
+    if (idioma !== undefined) { campos.push('idioma = ?'); valores.push(idioma); }
     if (nome !== undefined) {
-      const novoSlug = await gerarSlugUnico(nome, req.utilizador.id_utilizador);
+      const novoSlug = await gerarSlugUnico(nome, id);
       campos.push('url_slug = ?');
       valores.push(novoSlug);
     }
-    if (campos.length === 0) return res.status(400).json({ erro: 'Nada para atualizar.' });
 
-    valores.push(req.utilizador.id_utilizador);
-    await pool.query(
-      `UPDATE utilizador SET ${campos.join(', ')} WHERE id_utilizador = ?`,
-      valores
-    );
+    if (campos.length > 0) {
+      valores.push(id);
+      await pool.query(`UPDATE utilizador SET ${campos.join(', ')} WHERE id_utilizador = ?`, valores);
+    }
+
+    if (id_area !== undefined) {
+      const [areaExiste] = await pool.query('SELECT id_area FROM area WHERE id_area = ? AND ativo = 1', [id_area]);
+      if (areaExiste.length === 0) return res.status(404).json({ erro: 'Área não encontrada.' });
+
+      await pool.query(
+        'UPDATE consultor_area SET ativo = 0, data_fim = NOW() WHERE id_utilizador = ? AND ativo = 1',
+        [id]
+      );
+      await pool.query(
+        'INSERT INTO consultor_area (id_utilizador, id_area, ativo) VALUES (?, ?, 1)',
+        [id, id_area]
+      );
+    }
+
+    if (campos.length === 0 && id_area === undefined) {
+      return res.status(400).json({ erro: 'Nada para atualizar.' });
+    }
 
     res.json({ mensagem: 'Perfil atualizado.' });
   } catch (err) {

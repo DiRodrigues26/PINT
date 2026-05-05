@@ -10,6 +10,7 @@ import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShe
 import Carregando from '../../components/Carregando';
 import BadgeModal from '../../components/BadgeModal';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../context/LanguageContext';
 
 function formatarData(d) {
   if (!d) return null;
@@ -26,6 +27,7 @@ const NIVEL_TEXT = { A: 'text-softinsa-600', B: 'text-blue-600', C: 'text-indigo
 
 /* ─── Card de badge obtido ──────────────────────────────────────────────── */
 function CardObtido({ item, onAbrirModal }) {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const expirado = item.data_expiracao && new Date(item.data_expiracao) < new Date();
   const dias = diasParaExpirar(item.data_expiracao);
@@ -67,7 +69,7 @@ function CardObtido({ item, onAbrirModal }) {
       {expiraEmBreve && (
         <div className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
           <TriangleAlert className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-          Expira em {dias} dia{dias !== 1 ? 's' : ''}
+          {dias !== 1 ? t('expira_em_dias_pl').replace('{n}', dias) : t('expira_em_dias').replace('{n}', dias)}
         </div>
       )}
 
@@ -75,13 +77,13 @@ function CardObtido({ item, onAbrirModal }) {
       <div className="absolute right-4 top-4">
         {item.is_conquista_especial ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
-            <Sparkles className="h-3 w-3" /> Conquista Especial
+            <Sparkles className="h-3 w-3" /> {t('conquista_especial')}
           </span>
         ) : expirado ? (
-          <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-600">Expirado</span>
+          <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-600">{t('expirado_tag')}</span>
         ) : (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600">
-            <CheckCircle className="h-3 w-3" /> Ativo
+            <CheckCircle className="h-3 w-3" /> {t('ativo_tag')}
           </span>
         )}
       </div>
@@ -119,13 +121,13 @@ function CardObtido({ item, onAbrirModal }) {
         {item.data_atribuicao && (
           <div className="flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-            Obtido em: {formatarData(item.data_atribuicao)}
+            {`${t('obtido_em')}:`} {formatarData(item.data_atribuicao)}
           </div>
         )}
         {item.data_expiracao && (
           <div className={`flex items-center gap-1.5 ${expirado ? 'text-red-500 font-semibold' : expiraEmBreve ? 'text-amber-600 font-semibold' : ''}`}>
             <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-            Expira em: {formatarData(item.data_expiracao)}
+            {`${t('expira_em')}:`} {formatarData(item.data_expiracao)}
           </div>
         )}
       </div>
@@ -137,7 +139,7 @@ function CardObtido({ item, onAbrirModal }) {
           onClick={() => onAbrirModal(item.id_badge)}
           className="w-full rounded-lg bg-softinsa-600 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700"
         >
-          Ver Detalhes
+          {t('ver_detalhes')}
         </button>
 
         {/* Linha: LinkedIn + PDF */}
@@ -155,7 +157,7 @@ function CardObtido({ item, onAbrirModal }) {
             }`}
           >
             <Share2 className="h-3.5 w-3.5" strokeWidth={1.8} />
-            {item.linkedin_shared ? 'Partilhado' : 'LinkedIn'}
+            {item.linkedin_shared ? t('partilhado') : 'LinkedIn'}
           </button>
 
           {/* Download PDF (req 18) */}
@@ -166,7 +168,7 @@ function CardObtido({ item, onAbrirModal }) {
             className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-600 transition hover:border-softinsa-300 hover:text-softinsa-700"
           >
             <Download className="h-3.5 w-3.5" strokeWidth={1.8} />
-            Certificado
+            {t('certificado')}
           </button>
         </div>
 
@@ -177,7 +179,7 @@ function CardObtido({ item, onAbrirModal }) {
             onClick={() => window.open(item.url_publica, '_blank')}
             className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700"
           >
-            <ExternalLink className="h-3.5 w-3.5" /> Ver Página Pública
+            <ExternalLink className="h-3.5 w-3.5" /> {t('ver_pagina_pub')}
           </button>
         )}
       </div>
@@ -187,6 +189,7 @@ function CardObtido({ item, onAbrirModal }) {
 
 /* ─── Card de candidatura em progresso ─────────────────────────────────── */
 function CardEmProgresso({ item, onAbrirModal }) {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const total = Number(item.total_requisitos) || 0;
   const evCount = Number(item.evidencias_count) || 0;
@@ -196,7 +199,7 @@ function CardEmProgresso({ item, onAbrirModal }) {
     <div className="relative flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="absolute right-4 top-4">
         <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
-          Em Progresso
+          {t('em_progresso')}
         </span>
       </div>
 
@@ -232,7 +235,7 @@ function CardEmProgresso({ item, onAbrirModal }) {
         {item.data_abertura && (
           <div className="flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
-            Iniciado em: {formatarData(item.data_abertura)}
+            {`${t('iniciado_em')}:`} {formatarData(item.data_abertura)}
           </div>
         )}
       </div>
@@ -255,14 +258,14 @@ function CardEmProgresso({ item, onAbrirModal }) {
           onClick={() => navigate(`/candidaturas/${item.id_candidatura}`)}
           className="w-full rounded-lg bg-softinsa-600 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700"
         >
-          Continuar Candidatura
+          {t('continuar_cand')}
         </button>
         <button
           type="button"
           onClick={() => onAbrirModal(item.id_badge)}
           className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700"
         >
-          <ExternalLink className="h-3.5 w-3.5" /> Ver Detalhes
+          <ExternalLink className="h-3.5 w-3.5" /> {t('ver_detalhes')}
         </button>
       </div>
     </div>
@@ -271,6 +274,7 @@ function CardEmProgresso({ item, onAbrirModal }) {
 
 /* ─── Página principal ──────────────────────────────────────────────────── */
 export default function MeusBadges() {
+  const { t } = useLanguage();
   const [modalBadgeId, setModalBadgeId] = useState(null);
   const [pesquisa, setPesquisa] = useState('');
   const [filtroArea, setFiltroArea] = useState('');
@@ -340,19 +344,19 @@ export default function MeusBadges() {
         <ConsultorTopbar subtitulo="Os Meus Badges" />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
-          <h2 className="text-2xl font-bold text-slate-900">Os Meus Badges</h2>
+          <h2 className="text-2xl font-bold text-slate-900">{t('titulo_meus')}</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Visualize os badges obtidos, o progresso das certificações e partilhe as suas conquistas profissionais.
+            {t('desc_meus')}
           </p>
 
           {/* KPIs */}
           {!isLoading && (
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
               {[
-                { label: 'Total Badges Obtidos', valor: kpis.total,                                       cor: 'text-softinsa-700' },
-                { label: 'Total Pontos',          valor: kpis.pontos.toLocaleString('pt-PT'),              cor: 'text-amber-500' },
-                { label: 'Badges em Progresso',   valor: kpis.emProgresso,                                cor: 'text-emerald-600' },
-                { label: 'Badges Expirados',      valor: kpis.expirados,                                  cor: 'text-red-500' },
+                { label: t('total_badges'),      valor: kpis.total,                                       cor: 'text-softinsa-700' },
+                { label: t('total_pontos'),       valor: kpis.pontos.toLocaleString('pt-PT'),              cor: 'text-amber-500' },
+                { label: t('badges_progresso'),   valor: kpis.emProgresso,                                cor: 'text-emerald-600' },
+                { label: t('badges_expirados'),   valor: kpis.expirados,                                  cor: 'text-red-500' },
               ].map(({ label, valor, cor }) => (
                 <div key={label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
                   <p className="text-xs font-medium text-slate-500">{label}</p>
@@ -371,11 +375,11 @@ export default function MeusBadges() {
                   className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-softinsa-400" />
               </div>
               <select value={filtroArea} onChange={e => setFiltroArea(e.target.value)} className="rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-softinsa-400">
-                <option value="">Todas as áreas</option>
+                <option value="">{t('todas_areas')}</option>
                 {[...new Set(obtidos.map(b => b.nome_area))].map(a => <option key={a} value={a}>{a}</option>)}
               </select>
               <select value={filtroSL} onChange={e => setFiltroSL(e.target.value)} className="rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-softinsa-400">
-                <option value="">Todas as service lines</option>
+                <option value="">{t('todas_sl')}</option>
                 {[...new Set(obtidos.map(b => b.nome_service_line))].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
               <select value={filtroNivel} onChange={e => setFiltroNivel(e.target.value)} className="rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-softinsa-400">
@@ -383,14 +387,14 @@ export default function MeusBadges() {
                 {['A','B','C','D','E'].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
               <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-softinsa-400">
-                <option value="">Todos os estados</option>
-                <option value="ativo">Ativo</option>
-                <option value="expirado">Expirado</option>
-                <option value="em_progresso">Em Progresso</option>
+                <option value="">{t('todos_estados')}</option>
+                <option value="ativo">{t('estado_ativo')}</option>
+                <option value="expirado">{t('estado_expirado')}</option>
+                <option value="em_progresso">{t('estado_progresso')}</option>
               </select>
               {temFiltros && (
                 <button type="button" onClick={limparFiltros} className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
-                  <X className="h-4 w-4" /> Limpar Filtros
+                  <X className="h-4 w-4" /> {t('limpar_filtros')}
                 </button>
               )}
             </div>
@@ -413,10 +417,10 @@ export default function MeusBadges() {
               {candidaturasFiltradas.length === 0 && badgesObtidosFiltrados.length === 0 && (
                 <div className="mt-16 flex flex-col items-center text-center">
                   <Award className="h-14 w-14 text-slate-300" strokeWidth={1} />
-                  <p className="mt-4 text-base font-semibold text-slate-600">Ainda não tens badges</p>
-                  <p className="mt-1 text-sm text-slate-400">Explora o catálogo e submete a tua primeira candidatura.</p>
+                  <p className="mt-4 text-base font-semibold text-slate-600">{t('sem_badges')}</p>
+                  <p className="mt-1 text-sm text-slate-400">{t('sem_badges_desc')}</p>
                   <button type="button" onClick={() => window.location.href = '/badges'} className="mt-5 rounded-lg bg-softinsa-600 px-5 py-2 text-sm font-semibold text-white hover:bg-softinsa-700">
-                    Ver Catálogo
+                    {t('ver_catalogo')}
                   </button>
                 </div>
               )}

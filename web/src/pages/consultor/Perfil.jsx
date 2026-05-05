@@ -1,24 +1,337 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Award, Copy, ExternalLink, FileText, KeyRound, Lock, Pencil, Shield, Trophy, TrendingUp } from 'lucide-react';
-import { api } from '../../lib/api';
+import {
+  Award, Copy, ExternalLink, Eye, EyeOff, FileText,
+  KeyRound, Pencil, QrCode, Shield, TrendingUp, Trophy, X,
+} from 'lucide-react';
+import { api, extrairErro } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import toast from 'react-hot-toast';
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Modal: Editar Perfil
+═══════════════════════════════════════════════════════════════════════════ */
+function ModalEditarPerfil({ utilizador, onFechar, onSucesso }) {
+  const { t } = useLanguage();
+  const [nome, setNome]       = useState(utilizador?.nome || '');
+  const [idArea, setIdArea]   = useState('');
+
+  const { data: areasData } = useQuery({
+    queryKey: ['areas-todas'],
+    queryFn: async () => { const { data } = await api.get('/api/areas?por_pagina=100'); return data; },
+    staleTime: 300_000,
+  });
+
+  const guardar = useMutation({
+    mutationFn: () => api.put('/api/utilizadores/eu/perfil', {
+      nome: nome.trim(),
+      ...(idArea ? { id_area: Number(idArea) } : {}),
+    }),
+    onSuccess: () => { toast.success('Perfil atualizado.'); onSucesso(); onFechar(); },
+    onError: (err) => toast.error(extrairErro(err, 'Erro ao atualizar perfil.')),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onFechar}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">{t('editar_perfil')}</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Atualize as suas informações pessoais e profissionais.</p>
+          </div>
+          <button type="button" onClick={onFechar} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 transition">
+            <X className="h-5 w-5" strokeWidth={2} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="space-y-4 px-6 py-5">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Nome Completo</label>
+            <input
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400 focus:ring-2 focus:ring-softinsa-100"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+            <input
+              value={utilizador?.email || ''}
+              disabled
+              className="w-full rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm text-slate-400"
+            />
+            <p className="mt-1 text-[11px] text-slate-400">O email não pode ser alterado aqui.</p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Área Principal</label>
+            <select
+              value={idArea}
+              onChange={e => setIdArea(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400"
+            >
+              <option value="">Manter área atual</option>
+              {(areasData?.dados ?? []).map(a => (
+                <option key={a.id_area} value={a.id_area}>{a.nome}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Ano de Entrada</label>
+            <input
+              value={utilizador?.created_at ? new Date(utilizador.created_at).getFullYear() : '—'}
+              disabled
+              className="w-full rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm text-slate-400"
+            />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+          <button type="button" onClick={onFechar} className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+            {t('cancelar')}
+          </button>
+          <button
+            type="button"
+            onClick={() => guardar.mutate()}
+            disabled={guardar.isPending || !nome.trim()}
+            className="flex-1 rounded-lg bg-softinsa-700 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-800 disabled:opacity-60"
+          >
+            {guardar.isPending ? 'A guardar...' : t('guardar_alteracoes')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Modal: Alterar Password
+═══════════════════════════════════════════════════════════════════════════ */
+function CampoPassword({ label, value, onChange, mostrar, toggleMostrar }) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-sm font-medium text-slate-700">{label}</label>
+      <div className="relative">
+        <input
+          type={mostrar ? 'text' : 'password'}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          className="w-full rounded-lg border border-slate-200 px-3 py-2.5 pr-10 text-sm outline-none focus:border-softinsa-400 focus:ring-2 focus:ring-softinsa-100"
+        />
+        <button type="button" onClick={toggleMostrar} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          {mostrar ? <EyeOff className="h-4 w-4" strokeWidth={1.8} /> : <Eye className="h-4 w-4" strokeWidth={1.8} />}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ModalAlterarPassword({ onFechar }) {
+  const { t } = useLanguage();
+  const [atual, setAtual]         = useState('');
+  const [nova, setNova]           = useState('');
+  const [confirmar, setConfirmar] = useState('');
+  const [verAtual, setVerAtual]   = useState(false);
+  const [verNova, setVerNova]     = useState(false);
+  const [verConf, setVerConf]     = useState(false);
+
+  const alterar = useMutation({
+    mutationFn: () => api.put('/api/utilizadores/eu/password', { password_atual: atual, nova_password: nova }),
+    onSuccess: () => { toast.success('Password alterada com sucesso.'); onFechar(); },
+    onError: (err) => toast.error(extrairErro(err, 'Erro ao alterar password.')),
+  });
+
+  function handleSubmit() {
+    if (!atual || !nova || !confirmar) { toast.error('Preenche todos os campos.'); return; }
+    if (nova.length < 8) { toast.error('Nova password deve ter pelo menos 8 caracteres.'); return; }
+    if (nova !== confirmar) { toast.error('As passwords não coincidem.'); return; }
+    alterar.mutate();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onFechar}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">{t('alterar_pass')}</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Crie uma nova password para proteger a sua conta.</p>
+          </div>
+          <button type="button" onClick={onFechar} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 transition">
+            <X className="h-5 w-5" strokeWidth={2} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          <CampoPassword label="Password Atual"         value={atual}     onChange={setAtual}     mostrar={verAtual} toggleMostrar={() => setVerAtual(v => !v)} />
+          <CampoPassword label="Nova Password"           value={nova}      onChange={setNova}      mostrar={verNova}  toggleMostrar={() => setVerNova(v => !v)} />
+          <CampoPassword label="Confirmar Nova Password" value={confirmar} onChange={setConfirmar} mostrar={verConf}  toggleMostrar={() => setVerConf(v => !v)} />
+        </div>
+
+        <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+          <button type="button" onClick={onFechar} className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+            {t('cancelar')}
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={alterar.isPending}
+            className="flex-1 rounded-lg bg-softinsa-700 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-800 disabled:opacity-60"
+          >
+            {alterar.isPending ? 'A alterar...' : t('alterar_pass')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Modal: Ativar 2FA
+═══════════════════════════════════════════════════════════════════════════ */
+function Modal2FA({ onFechar, onSucesso }) {
+  const [codigo, setCodigo]   = useState('');
+  const [qrCode, setQrCode]   = useState(null);
+  const [secret, setSecret]   = useState('');
+  const [loading, setLoading] = useState(true);
+  const [copiado, setCopiado] = useState(false);
+
+  useEffect(() => {
+    api.post('/api/totp/setup')
+      .then(({ data }) => { setQrCode(data.qr_code); setSecret(data.secret); })
+      .catch(() => toast.error('Erro ao gerar QR Code.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const ativar = useMutation({
+    mutationFn: () => api.post('/api/totp/ativar', { codigo }),
+    onSuccess: () => { toast.success('2FA ativado com sucesso!'); onSucesso(); onFechar(); },
+    onError: (err) => toast.error(extrairErro(err, 'Código inválido.')),
+  });
+
+  function copiarSecret() {
+    navigator.clipboard.writeText(secret);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  }
+
+  function handleInput(e) {
+    const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+    setCodigo(val);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onFechar}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Ativar Autenticação de Dois Fatores</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Adicione uma camada extra de segurança à sua conta.</p>
+          </div>
+          <button type="button" onClick={onFechar} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 transition">
+            <X className="h-5 w-5" strokeWidth={2} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5">
+          {loading ? (
+            <div className="flex justify-center py-10">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-softinsa-100 border-t-softinsa-600" />
+            </div>
+          ) : (
+            <>
+              {/* QR Code */}
+              <div className="flex flex-col items-center">
+                {qrCode ? (
+                  <img src={qrCode} alt="QR Code 2FA" className="h-44 w-44 rounded-xl border border-slate-200 p-2" />
+                ) : (
+                  <div className="flex h-44 w-44 items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50">
+                    <QrCode className="h-12 w-12 text-slate-300" strokeWidth={1} />
+                  </div>
+                )}
+                <p className="mt-3 text-center text-xs text-slate-500">
+                  Escaneie este código QR com a sua aplicação de autenticação<br />
+                  <span className="text-slate-400">(Google Authenticator, Authy, etc.)</span>
+                </p>
+              </div>
+
+              {/* Secret key */}
+              <div className="mt-4">
+                <p className="mb-1.5 text-xs font-semibold text-slate-500 text-center">Ou insira manualmente:</p>
+                <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                  <code className="flex-1 text-center text-xs font-mono font-bold tracking-widest text-slate-700 break-all">
+                    {secret}
+                  </code>
+                  <button type="button" onClick={copiarSecret} className="shrink-0 text-slate-400 hover:text-softinsa-600 transition" title="Copiar">
+                    <Copy className="h-4 w-4" strokeWidth={1.8} />
+                  </button>
+                </div>
+                {copiado && <p className="mt-1 text-center text-[11px] text-emerald-600 font-semibold">Copiado!</p>}
+              </div>
+
+              {/* Código de verificação */}
+              <div className="mt-5">
+                <label className="mb-1.5 block text-sm font-medium text-slate-700">Código de Verificação</label>
+                <input
+                  value={codigo}
+                  onChange={handleInput}
+                  placeholder="000000"
+                  maxLength={6}
+                  inputMode="numeric"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-3 text-center text-xl font-mono font-bold tracking-[0.5em] outline-none focus:border-softinsa-400 focus:ring-2 focus:ring-softinsa-100"
+                />
+                <p className="mt-1 text-center text-[11px] text-slate-400">
+                  Insira o código de 6 dígitos da sua aplicação de autenticação
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+          <button type="button" onClick={onFechar} className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => ativar.mutate()}
+            disabled={codigo.length !== 6 || ativar.isPending || loading}
+            className="flex-1 rounded-lg bg-softinsa-700 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-800 disabled:opacity-60"
+          >
+            {ativar.isPending ? 'A verificar...' : 'Ativar 2FA'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Página principal
+═══════════════════════════════════════════════════════════════════════════ */
 export default function Perfil() {
   const { utilizador, recarregar } = useAuth();
-  const navigate = useNavigate();
+  const { idioma, mudarIdioma, t } = useLanguage();
+  const navigate  = useNavigate();
   const queryClient = useQueryClient();
 
-  const nome = utilizador?.nome || '';
-  const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
-  const slug = utilizador?.url_slug || nome.toLowerCase().replace(/\s+/g, '-');
-  const urlPublica = `softinsa.pt/badges/${slug}`;
+  const [modalEditar,   setModalEditar]   = useState(false);
+  const [modalPassword, setModalPassword] = useState(false);
+  const [modal2FA,      setModal2FA]      = useState(false);
 
-  /* ── Dados complementares ─────────────────────────────────────────────── */
+  const nome     = utilizador?.nome || '';
+  const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
+  const slug     = utilizador?.url_slug || nome.toLowerCase().replace(/\s+/g, '-');
+  const urlPublica = `softinsa.pt/badges/${slug}`;
+  const ano      = utilizador?.created_at ? new Date(utilizador.created_at).getFullYear() : '—';
+
+  /* Dados */
   const { data: statsData } = useQuery({
     queryKey: ['dashboard-consultor'],
     queryFn: async () => { const { data } = await api.get('/api/estatisticas/consultor'); return data; },
@@ -37,28 +350,22 @@ export default function Perfil() {
     staleTime: 60_000,
   });
 
-  /* ── Estado local das preferências ────────────────────────────────────── */
-  const [idioma, setIdioma] = useState('pt');
-  const [prefs, setPrefs] = useState({
-    email_aprovacao_badge: true,
-    notif_expiracao: true,
-    notif_recomendacoes: false,
+  const { data: totpData, refetch: refetchTotp } = useQuery({
+    queryKey: ['totp-estado'],
+    queryFn: async () => { const { data } = await api.get('/api/totp/estado'); return data; },
+    staleTime: 30_000,
   });
-  const [rgpd, setRgpd] = useState({
-    publicacao_badge: false,
-    partilha_linkedin: false,
-    partilha_auto_linkedin: false,
-    tratamento_dados: false,
-  });
+
+  const totpAtivo = totpData?.ativo ?? !!utilizador?.totp_ativo;
+
+  /* Estado local preferências */
+  const [prefs, setPrefs]   = useState({ email_aprovacao_badge: true, notif_expiracao: true, notif_recomendacoes: false });
+  const [rgpd, setRgpd]     = useState({ publicacao_badge: false, partilha_linkedin: false, partilha_auto_linkedin: false, tratamento_dados: false });
 
   useEffect(() => {
     if (prefData?.preferencias) {
       const p = prefData.preferencias;
-      setPrefs({
-        email_aprovacao_badge: !!p.email_aprovacao_badge,
-        notif_expiracao: !!p.notif_expiracao,
-        notif_recomendacoes: !!p.notif_recomendacoes,
-      });
+      setPrefs({ email_aprovacao_badge: !!p.email_aprovacao_badge, notif_expiracao: !!p.notif_expiracao, notif_recomendacoes: !!p.notif_recomendacoes });
     }
   }, [prefData]);
 
@@ -70,7 +377,6 @@ export default function Perfil() {
     }
   }, [rgpdData]);
 
-  /* ── Mutações ─────────────────────────────────────────────────────────── */
   const guardarPrefs = useMutation({
     mutationFn: () => api.put('/api/preferencias', prefs),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['preferencias'] }); toast.success('Preferências guardadas.'); },
@@ -79,8 +385,14 @@ export default function Perfil() {
 
   const guardarRgpd = useMutation({
     mutationFn: (payload) => api.post('/api/rgpd', payload),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['rgpd'] }); toast.success('Preferências RGPD guardadas.'); },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rgpd'] }),
     onError: () => toast.error('Erro ao guardar RGPD.'),
+  });
+
+  const desativar2FA = useMutation({
+    mutationFn: () => api.post('/api/totp/desativar'),
+    onSuccess: () => { toast.success('2FA desativado.'); refetchTotp(); recarregar(); },
+    onError: (err) => toast.error(extrairErro(err, 'Erro ao desativar 2FA.')),
   });
 
   function toggleRgpd(tipo, valor) {
@@ -88,60 +400,57 @@ export default function Perfil() {
     guardarRgpd.mutate({ tipo_consentimento: tipo, aceite: valor, versao_politica: '1.0' });
   }
 
-  function copiarLink() {
-    navigator.clipboard.writeText(`https://${urlPublica}`);
-    toast.success('Link copiado!');
-  }
-
-  const ano = utilizador?.created_at
-    ? new Date(utilizador.created_at).getFullYear()
-    : new Date().getFullYear();
+  function copiarLink() { navigator.clipboard.writeText(`https://${urlPublica}`); toast.success('Link copiado!'); }
 
   return (
     <div className="min-h-screen bg-[#f3f6fa]">
+      {modalEditar   && <ModalEditarPerfil   utilizador={utilizador} onFechar={() => setModalEditar(false)}   onSucesso={recarregar} />}
+      {modalPassword && <ModalAlterarPassword                        onFechar={() => setModalPassword(false)} />}
+      {modal2FA      && <Modal2FA                                    onFechar={() => setModal2FA(false)}      onSucesso={() => { refetchTotp(); recarregar(); }} />}
+
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
         <ConsultorTopbar subtitulo="Perfil e preferências" />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
-          <h2 className="text-2xl font-bold text-slate-900">Perfil</h2>
-          <p className="mt-1 text-sm text-slate-500">Gerencie as suas informações pessoais e preferências da plataforma.</p>
+          <h2 className="text-2xl font-bold text-slate-900">{t('titulo_perfil')}</h2>
+          <p className="mt-1 text-sm text-slate-500">{t('desc_perfil')}</p>
 
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* ── Coluna Esquerda ─────────────────────────────────────────── */}
+            {/* ── Coluna Esquerda ─────────────────────────────────── */}
             <div className="space-y-6">
-              {/* Informações do Consultor */}
+              {/* Informações */}
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-sm font-bold text-softinsa-700 uppercase tracking-wide">Informações do Consultor</h3>
+                <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">{t('info_consultor')}</p>
                 <div className="mt-4 flex items-start gap-4">
                   <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-softinsa-600 text-xl font-bold text-white">
                     {iniciais}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-2">
                       <div>
-                        <p className="text-base font-bold text-slate-900">{utilizador?.nome}</p>
+                        <p className="text-base font-bold text-softinsa-700">{utilizador?.nome}</p>
                         <p className="text-xs text-slate-500">{utilizador?.email}</p>
                       </div>
                       <button
                         type="button"
-                        onClick={() => {}}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                        onClick={() => setModalEditar(true)}
+                        className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
                       >
-                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} /> Editar Perfil
+                        <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} /> {t('editar_perfil')}
                       </button>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                       <div>
-                        <span className="text-slate-400">Área:</span>
+                        <span className="text-slate-400">{t('area_label')}</span>
                         <p className="font-semibold text-slate-700">{utilizador?.nome_area || '—'}</p>
                       </div>
                       <div>
-                        <span className="text-slate-400">Service Line:</span>
+                        <span className="text-slate-400">{t('sl_label')}</span>
                         <p className="font-semibold text-slate-700">{utilizador?.nome_service_line || '—'}</p>
                       </div>
                       <div>
-                        <span className="text-slate-400">Consultor desde:</span>
+                        <span className="text-slate-400">{t('desde_label')}</span>
                         <p className="font-semibold text-slate-700">{ano}</p>
                       </div>
                     </div>
@@ -149,24 +458,16 @@ export default function Perfil() {
                 </div>
 
                 {/* URL pública */}
-                <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Perfil Público de Certificações</p>
-                  <p className="text-xs font-medium text-slate-500 mb-2">Public profile URL:</p>
-                  <p className="text-xs font-semibold text-softinsa-600 mb-3 break-all">{urlPublica}</p>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => window.open(`https://${urlPublica}`, '_blank')}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" /> Ver Página Pública
+                <div className="mt-5 rounded-lg border border-slate-100 bg-slate-50 p-4">
+                  <p className="text-xs font-semibold text-slate-600">{t('perfil_pub_cert')}</p>
+                  <p className="mt-1 text-[11px] text-slate-400">{t('public_url')}</p>
+                  <p className="mt-0.5 text-xs font-semibold text-softinsa-600 break-all">{urlPublica}</p>
+                  <div className="mt-3 flex gap-2">
+                    <button type="button" onClick={() => window.open(`https://${urlPublica}`, '_blank')} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+                      <ExternalLink className="h-3.5 w-3.5" /> {t('ver_pagina_pub')}
                     </button>
-                    <button
-                      type="button"
-                      onClick={copiarLink}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      <Copy className="h-3.5 w-3.5" /> Copiar Link
+                    <button type="button" onClick={copiarLink} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+                      <Copy className="h-3.5 w-3.5" /> {t('copiar_link')}
                     </button>
                   </div>
                 </div>
@@ -174,13 +475,13 @@ export default function Perfil() {
 
               {/* Estatísticas */}
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-sm font-bold text-softinsa-700 uppercase tracking-wide">Estatísticas</h3>
+                <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">{t('estatisticas')}</p>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   {[
-                    { icon: Award,      label: 'Badges Obtidos',     valor: statsData?.badges_obtidos ?? 0,       cor: 'text-softinsa-600' },
-                    { icon: TrendingUp, label: 'Total Pontos',        valor: (statsData?.pontos_totais ?? 0).toLocaleString('pt-PT'), cor: 'text-amber-500' },
-                    { icon: FileText,   label: 'Candidaturas Ativas', valor: statsData?.badges_em_processo ?? 0,  cor: 'text-blue-600' },
-                    { icon: Trophy,     label: 'Conquistas',          valor: statsData?.conquistas ?? 0,           cor: 'text-violet-600' },
+                    { icon: Award,      label: t('badges_obtidos_s'), valor: statsData?.badges_obtidos ?? 0,                                cor: 'text-softinsa-600' },
+                    { icon: TrendingUp, label: t('total_pontos_s'),   valor: (statsData?.pontos_totais ?? 0).toLocaleString('pt-PT'),      cor: 'text-amber-500' },
+                    { icon: FileText,   label: t('cands_ativas'),     valor: statsData?.badges_em_processo ?? 0,                          cor: 'text-blue-600' },
+                    { icon: Trophy,     label: t('conquistas_s'),     valor: statsData?.conquistas ?? 0,                                   cor: 'text-violet-600' },
                   ].map(({ icon: Icon, label, valor, cor }) => (
                     <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-4">
                       <Icon className={`h-6 w-6 ${cor}`} strokeWidth={1.5} />
@@ -189,145 +490,115 @@ export default function Perfil() {
                     </div>
                   ))}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => navigate('/meus-badges')}
-                  className="mt-4 flex items-center gap-1 text-sm font-semibold text-softinsa-600 hover:underline"
-                >
-                  Ver os meus badges →
+                <button type="button" onClick={() => navigate('/meus-badges')} className="mt-4 flex items-center gap-1 text-sm font-semibold text-softinsa-600 hover:underline">
+                  {t('ver_meus_badges')}
                 </button>
               </div>
 
-              {/* Privacidade e RGPD */}
+              {/* RGPD */}
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-sm font-bold text-softinsa-700 uppercase tracking-wide">Privacidade e RGPD</h3>
+                <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">{t('privacidade_rgpd')}</p>
                 <div className="mt-4 space-y-3">
                   {[
-                    { tipo: 'publicacao_badge',       label: 'Permitir publicação de badges na galeria pública' },
-                    { tipo: 'partilha_linkedin',       label: 'Permitir partilha de badges no LinkedIn' },
-                    { tipo: 'partilha_auto_linkedin',  label: 'Permitir partilha automática de novas certificações no LinkedIn' },
+                    { tipo: 'publicacao_badge',      label: t('rgpd_pub') },
+                    { tipo: 'partilha_linkedin',      label: t('rgpd_linkedin') },
+                    { tipo: 'partilha_auto_linkedin', label: t('rgpd_auto') },
                   ].map(({ tipo, label }) => (
                     <label key={tipo} className="flex cursor-pointer items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={!!rgpd[tipo]}
-                        onChange={e => toggleRgpd(tipo, e.target.checked)}
-                        className="h-4 w-4 rounded border-slate-300 text-softinsa-600 focus:ring-softinsa-400"
-                      />
+                      <input type="checkbox" checked={!!rgpd[tipo]} onChange={e => toggleRgpd(tipo, e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-softinsa-600 focus:ring-softinsa-400" />
                       <span className="text-sm text-slate-700">{label}</span>
                     </label>
                   ))}
-                  <p className="text-xs text-slate-400 italic">
-                    Apenas badges aprovados serão visíveis publicamente na página pública do consultor.
-                  </p>
-                  <label className="flex cursor-pointer items-center gap-3 pt-2 border-t border-slate-100">
-                    <input
-                      type="checkbox"
-                      checked={!!rgpd.tratamento_dados}
-                      onChange={e => toggleRgpd('tratamento_dados', e.target.checked)}
-                      className="h-4 w-4 rounded border-slate-300 text-softinsa-600 focus:ring-softinsa-400"
-                    />
-                    <span className="text-sm font-medium text-slate-700">
-                      Consinto o tratamento dos meus dados pessoais de acordo com o RGPD
-                    </span>
+                  <p className="text-xs italic text-slate-400">{t('rgpd_nota')}</p>
+                  <label className="flex cursor-pointer items-center gap-3 border-t border-slate-100 pt-3">
+                    <input type="checkbox" checked={!!rgpd.tratamento_dados} onChange={e => toggleRgpd('tratamento_dados', e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-softinsa-600 focus:ring-softinsa-400" />
+                    <span className="text-sm font-medium text-slate-700">{t('rgpd_consentimento')}</span>
                   </label>
                 </div>
               </div>
             </div>
 
-            {/* ── Coluna Direita ──────────────────────────────────────────── */}
+            {/* ── Coluna Direita ───────────────────────────────────── */}
             <div className="space-y-6">
               {/* Preferências */}
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-sm font-bold text-softinsa-700 uppercase tracking-wide">Preferências</h3>
-
+                <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">{t('preferencias')}</p>
                 <div className="mt-4">
-                  <label className="mb-1.5 block text-sm font-medium text-slate-700">Idioma da Plataforma</label>
-                  <select
-                    value={idioma}
-                    onChange={e => setIdioma(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 py-2.5 px-3 text-sm outline-none focus:border-softinsa-400"
-                  >
+                  <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('idioma_plataforma')}</label>
+                  <select value={idioma} onChange={e => mudarIdioma(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
                     <option value="pt">Português</option>
                     <option value="en">English</option>
                     <option value="es">Español</option>
                   </select>
                 </div>
-
                 <div className="mt-5">
-                  <p className="text-sm font-semibold text-slate-700">Preferências de Notificações</p>
+                  <p className="text-sm font-semibold text-slate-700">{t('prefs_notif_titulo')}</p>
                   <div className="mt-3 space-y-3">
                     {[
-                      { key: 'email_aprovacao_badge',  label: 'Receber email de aprovação de badges' },
-                      { key: 'notif_expiracao',         label: 'Receber notificações de expiração de certificações' },
-                      { key: 'notif_recomendacoes',     label: 'Receber recomendações de novos badges' },
+                      { key: 'email_aprovacao_badge', label: t('pref_email_aprov') },
+                      { key: 'notif_expiracao',        label: t('pref_notif_exp') },
+                      { key: 'notif_recomendacoes',    label: t('pref_recomendacoes') },
                     ].map(({ key, label }) => (
                       <label key={key} className="flex cursor-pointer items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={!!prefs[key]}
-                          onChange={e => setPrefs(prev => ({ ...prev, [key]: e.target.checked }))}
-                          className="h-4 w-4 rounded border-slate-300 text-softinsa-600 focus:ring-softinsa-400"
-                        />
+                        <input type="checkbox" checked={!!prefs[key]} onChange={e => setPrefs(prev => ({ ...prev, [key]: e.target.checked }))} className="h-4 w-4 rounded border-slate-300 text-softinsa-600 focus:ring-softinsa-400" />
                         <span className="text-sm text-slate-700">{label}</span>
                       </label>
                     ))}
                   </div>
-                  <p className="mt-3 text-xs text-slate-400 italic">
-                    Estas preferências controlam como recebe notificações sobre o progresso das suas certificações.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => guardarPrefs.mutate()}
-                    disabled={guardarPrefs.isPending}
-                    className="mt-4 rounded-lg bg-softinsa-600 px-5 py-2 text-sm font-semibold text-white hover:bg-softinsa-700 transition disabled:opacity-60"
-                  >
-                    {guardarPrefs.isPending ? 'A guardar...' : 'Guardar Preferências'}
+                  <p className="mt-3 text-xs italic text-slate-400">{t('pref_nota')}</p>
+                  <button type="button" onClick={() => guardarPrefs.mutate()} disabled={guardarPrefs.isPending} className="mt-4 rounded-lg bg-softinsa-600 px-5 py-2 text-sm font-semibold text-white hover:bg-softinsa-700 transition disabled:opacity-60">
+                    {guardarPrefs.isPending ? 'A guardar...' : t('guardar_prefs')}
                   </button>
                 </div>
               </div>
 
               {/* Segurança */}
               <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="text-sm font-bold text-softinsa-700 uppercase tracking-wide">Segurança</h3>
+                <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">{t('seguranca')}</p>
                 <div className="mt-4 space-y-3">
-                  <div className="flex items-center justify-between rounded-lg border border-slate-200 p-4">
+                  {/* Alterar Password */}
+                  <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
                     <div className="flex items-center gap-3">
-                      <KeyRound className="h-5 w-5 text-slate-500" strokeWidth={1.8} />
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-slate-200">
+                        <KeyRound className="h-5 w-5 text-slate-500" strokeWidth={1.8} />
+                      </div>
                       <div>
-                        <p className="text-sm font-semibold text-slate-800">Alterar Password</p>
-                        <p className="text-xs text-slate-500">Atualize a sua palavra-passe</p>
+                        <p className="text-sm font-semibold text-slate-800">{t('alterar_pass')}</p>
+                        <p className="text-xs text-slate-500">{t('alterar_pass_desc')}</p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/alterar-password-inicial')}
-                      className="rounded-lg border border-slate-200 px-4 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
-                    >
-                      Alterar
+                    <button type="button" onClick={() => setModalPassword(true)} className="rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                      {t('alterar_btn')}
                     </button>
                   </div>
 
-                  <div className="flex items-center justify-between rounded-lg border border-slate-200 p-4">
+                  {/* 2FA */}
+                  <div className={`flex items-center justify-between rounded-xl border p-4 ${totpAtivo ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100 bg-slate-50'}`}>
                     <div className="flex items-center gap-3">
-                      <Shield className="h-5 w-5 text-slate-500" strokeWidth={1.8} />
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg border ${totpAtivo ? 'border-emerald-200 bg-emerald-100' : 'border-slate-200 bg-white'}`}>
+                        <Shield className={`h-5 w-5 ${totpAtivo ? 'text-emerald-600' : 'text-slate-500'}`} strokeWidth={1.8} />
+                      </div>
                       <div>
                         <p className="text-sm font-semibold text-slate-800">
-                          Autenticação de Dois Fatores{' '}
-                          <span className="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">
-                            {utilizador?.totp_ativo ? 'Ativo' : 'Desativado'}
+                          {t('autenticacao_2fa')}
+                          <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${totpAtivo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+                            {totpAtivo ? t('ativar') : 'Desativado'}
                           </span>
                         </p>
-                        <p className="text-xs text-slate-500">Adicione segurança extra à sua conta</p>
+                        <p className="text-xs text-slate-500">
+                          {totpAtivo ? t('conta_protegida') : t('adicionar_seg')}
+                        </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {}}
-                      className="rounded-lg bg-softinsa-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-softinsa-700 transition"
-                    >
-                      {utilizador?.totp_ativo ? 'Gerir' : 'Ativar'}
-                    </button>
+                    {totpAtivo ? (
+                      <button type="button" onClick={() => desativar2FA.mutate()} disabled={desativar2FA.isPending} className="rounded-lg border border-red-200 bg-white px-4 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition disabled:opacity-60">
+                        {desativar2FA.isPending ? '...' : t('desativar')}
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => setModal2FA(true)} className="rounded-lg bg-softinsa-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-softinsa-800 transition">
+                        {t('ativar')}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

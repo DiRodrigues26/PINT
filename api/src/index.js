@@ -24,6 +24,7 @@ const rgpdRoutes           = require('./routes/rgpdRoutes');
 const eventosRoutes        = require('./routes/eventosRoutes');
 const estatisticasRoutes   = require('./routes/estatisticasRoutes');
 const ficheirosRoutes      = require('./routes/ficheirosRoutes');
+const totpRoutes           = require('./routes/totpRoutes');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -79,6 +80,7 @@ app.use('/api/rgpd',             rgpdRoutes);
 app.use('/api/eventos',          eventosRoutes);
 app.use('/api/estatisticas',     estatisticasRoutes);
 app.use('/api/ficheiros',        ficheirosRoutes);
+app.use('/api/totp',            totpRoutes);
 
 // rotas públicas (sem auth)
 app.use('/publico', publicRoutes);

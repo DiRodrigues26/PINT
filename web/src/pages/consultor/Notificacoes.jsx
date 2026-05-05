@@ -6,6 +6,7 @@ import { api } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../context/LanguageContext';
 
 function tempoRelativo(dataStr) {
   const diff = Date.now() - new Date(dataStr).getTime();
@@ -119,13 +120,7 @@ function ItemNotificacao({ notif, onLer }) {
   );
 }
 
-const TABS = [
-  { key: '',            label: 'Todas' },
-  { key: 'CANDIDATURA', label: 'Candidaturas' },
-  { key: 'BADGE',       label: 'Badges' },
-  { key: 'SISTEMA',     label: 'Sistema' },
-  { key: 'LEMBRETES',   label: 'Lembretes' },
-];
+// TABS are built dynamically inside the component using t()
 
 /* ─── Item de lembrete ──────────────────────────────────────────────────── */
 function ItemLembrete({ lembrete }) {
@@ -162,8 +157,17 @@ function ItemLembrete({ lembrete }) {
 }
 
 export default function Notificacoes() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [tabAtiva, setTabAtiva] = useState('');
+
+  const TABS = [
+    { key: '',            label: t('tab_todas') },
+    { key: 'CANDIDATURA', label: t('tab_candidaturas') },
+    { key: 'BADGE',       label: t('tab_badges') },
+    { key: 'SISTEMA',     label: t('tab_sistema') },
+    { key: 'LEMBRETES',   label: t('tab_lembretes') },
+  ];
 
   const { data, isLoading } = useQuery({
     queryKey: ['notificacoes'],
@@ -211,9 +215,9 @@ export default function Notificacoes() {
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-bold text-slate-900">Notificações</h2>
+              <h2 className="text-2xl font-bold text-slate-900">{t('titulo_notifs')}</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Acompanhe atualizações sobre as suas candidaturas, badges e recomendações.
+                {t('desc_notifs')}
               </p>
             </div>
             {temNaoLidas && (
@@ -224,7 +228,7 @@ export default function Notificacoes() {
                 className="flex shrink-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
               >
                 <CheckCheck className="h-4 w-4" strokeWidth={1.8} />
-                Marcar todas como lidas
+                {t('marcar_lidas')}
               </button>
             )}
           </div>
@@ -255,8 +259,8 @@ export default function Notificacoes() {
             ) : (lembretesData?.dados ?? []).length === 0 ? (
               <div className="mt-16 flex flex-col items-center text-center">
                 <BookOpen className="h-14 w-14 text-slate-300" strokeWidth={1} />
-                <p className="mt-4 text-base font-semibold text-slate-600">Sem lembretes</p>
-                <p className="mt-1 text-sm text-slate-400">Não tens lembretes ativos de momento.</p>
+                <p className="mt-4 text-base font-semibold text-slate-600">{t('sem_lembretes')}</p>
+                <p className="mt-1 text-sm text-slate-400">{t('sem_lembretes_desc')}</p>
               </div>
             ) : (
               <div className="mt-4 space-y-3">
@@ -268,8 +272,8 @@ export default function Notificacoes() {
           ) : notificacoes.length === 0 ? (
             <div className="mt-16 flex flex-col items-center text-center">
               <Bell className="h-14 w-14 text-slate-300" strokeWidth={1} />
-              <p className="mt-4 text-base font-semibold text-slate-600">Sem notificações</p>
-              <p className="mt-1 text-sm text-slate-400">Ainda não tens notificações nesta categoria.</p>
+              <p className="mt-4 text-base font-semibold text-slate-600">{t('sem_notifs')}</p>
+              <p className="mt-1 text-sm text-slate-400">{t('sem_notifs_desc')}</p>
             </div>
           ) : (
             <div className="mt-4 space-y-3">

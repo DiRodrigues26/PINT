@@ -7,6 +7,7 @@ router.post('/registo', ctrl.registar);
 router.post('/confirmar-email', ctrl.confirmarEmail);
 router.post('/completar-perfil', ctrl.completarPerfil);
 router.post('/login', ctrl.login);
+router.post('/verificar-2fa', ctrl.verificarDoisFatores);
 router.post('/recuperar-password', ctrl.pedirRecuperacao);
 router.post('/redefinir-password', ctrl.redefinirPassword);
 

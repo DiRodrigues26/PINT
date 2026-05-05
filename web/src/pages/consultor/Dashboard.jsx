@@ -6,6 +6,7 @@ import { api } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
 import BadgeModal from '../../components/BadgeModal';
+import { useLanguage } from '../../context/LanguageContext';
 
 function useDashboard() {
   return useQuery({
@@ -37,6 +38,7 @@ function KpiCard({ icon: Icon, iconBg, label, valor }) {
 const NIVEL_BG = { A: 'bg-softinsa-600', B: 'bg-blue-500', C: 'bg-indigo-500', D: 'bg-violet-600', E: 'bg-purple-700' };
 
 function BarraProgresso({ nivel }) {
+  const { t } = useLanguage();
   const cor = NIVEL_BG[nivel.codigo_nivel] || 'bg-softinsa-600';
   const total = nivel.total_requisitos || 0;
   const cumpridos = nivel.requisitos_cumpridos || 0;
@@ -53,7 +55,7 @@ function BarraProgresso({ nivel }) {
             <p className="text-sm font-semibold text-slate-800">{nivel.nome_nivel}</p>
             {total > 0 && (
               <p className="text-xs text-slate-500">
-                {cumpridos} de {total} requisitos cumpridos
+                {cumpridos} de {total} {t('requisitos_cumpridos')}
               </p>
             )}
           </div>
@@ -73,6 +75,7 @@ function BarraProgresso({ nivel }) {
 /* ─── Badge Card ────────────────────────────────────────────────────────── */
 function BadgeCard({ badge, onCandidatar }) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   return (
     <div className="relative flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -81,7 +84,7 @@ function BadgeCard({ badge, onCandidatar }) {
         <div className="absolute right-4 top-4">
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
             <Sparkles className="h-3 w-3" />
-            Conquista Especial
+            {t('conquista_especial')}
           </span>
         </div>
       ) : null}
@@ -134,14 +137,14 @@ function BadgeCard({ badge, onCandidatar }) {
           onClick={() => onCandidatar(badge.id_badge)}
           className="w-full rounded-lg bg-softinsa-600 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700"
         >
-          Candidatar-me
+          {t('candidatar')}
         </button>
         <button
           type="button"
           onClick={() => onCandidatar(badge.id_badge)}
           className="w-full rounded-lg border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700"
         >
-          Ver Detalhes
+          {t('ver_detalhes')}
         </button>
       </div>
     </div>
@@ -190,6 +193,7 @@ function ItemAtividade({ item }) {
 export default function ConsultorDashboard() {
   const { data, isLoading } = useDashboard();
   const [modalBadgeId, setModalBadgeId] = useState(null);
+  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen bg-[#f3f6fa]">
@@ -199,7 +203,7 @@ export default function ConsultorDashboard() {
       <ConsultorSidebar />
 
       <div className="lg:pl-[260px]">
-        <ConsultorTopbar subtitulo="Dashboard – Progresso na Jornada Técnica" />
+        <ConsultorTopbar subtitulo={t('subtitulo_dashboard')} />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
           {isLoading ? (
@@ -210,19 +214,19 @@ export default function ConsultorDashboard() {
             <>
               {/* KPIs */}
               <section>
-                <h2 className="text-lg font-bold text-slate-900">Resumo de Progresso</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t('resumo_progresso')}</h2>
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                  <KpiCard icon={Award}    iconBg="bg-softinsa-700" label="Total de Badges Obtidos"    valor={data?.badges_obtidos ?? 0} />
-                  <KpiCard icon={Activity} iconBg="bg-azulciano-500" label="Badges em Processo"          valor={data?.badges_em_processo ?? 0} />
-                  <KpiCard icon={Star}     iconBg="bg-softinsa-700" label="Total de Pontos"              valor={(data?.pontos_totais ?? 0).toLocaleString('pt-PT')} />
-                  <KpiCard icon={Target}   iconBg="bg-azulciano-500" label="Próximo Nível em Progresso"  valor={`${data?.proximo_nivel_progresso ?? 0}%`} />
+                  <KpiCard icon={Award}    iconBg="bg-softinsa-700" label={t('total_obtidos')}    valor={data?.badges_obtidos ?? 0} />
+                  <KpiCard icon={Activity} iconBg="bg-azulciano-500" label={t('badges_processo')}  valor={data?.badges_em_processo ?? 0} />
+                  <KpiCard icon={Star}     iconBg="bg-softinsa-700" label={t('total_pontos')}      valor={(data?.pontos_totais ?? 0).toLocaleString('pt-PT')} />
+                  <KpiCard icon={Target}   iconBg="bg-azulciano-500" label={t('proximo_nivel')}    valor={`${data?.proximo_nivel_progresso ?? 0}%`} />
                 </div>
               </section>
 
               {/* Progresso por Nível */}
               {data?.progresso_niveis?.length > 0 && (
                 <section className="mt-10">
-                  <h2 className="text-lg font-bold text-slate-900">Progresso por Nível</h2>
+                  <h2 className="text-lg font-bold text-slate-900">{t('progresso_nivel')}</h2>
                   {data.nome_learning_path && (
                     <p className="mt-0.5 text-sm text-slate-500">Learning Path: {data.nome_learning_path}</p>
                   )}
@@ -237,7 +241,7 @@ export default function ConsultorDashboard() {
               {/* Badges Recomendados */}
               {data?.badges_recomendados?.length > 0 && (
                 <section className="mt-10">
-                  <h2 className="text-lg font-bold text-slate-900">Badges recomendados para si</h2>
+                  <h2 className="text-lg font-bold text-slate-900">{t('badges_recomendados')}</h2>
                   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {data.badges_recomendados.map((badge) => (
                       <BadgeCard key={badge.id_badge} badge={badge} onCandidatar={setModalBadgeId} />
@@ -260,7 +264,7 @@ export default function ConsultorDashboard() {
                 if (!marco) return null;
                 return (
                   <section className="mt-10">
-                    <h2 className="text-lg font-bold text-slate-900">Marco Alcançado</h2>
+                    <h2 className="text-lg font-bold text-slate-900">{t('marco_alcancado')}</h2>
                     <div className="mt-4 flex items-center gap-4 rounded-xl border border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50 p-5 shadow-sm">
                       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-amber-100 text-2xl">
                         {marco.emoji}
@@ -278,7 +282,7 @@ export default function ConsultorDashboard() {
               {/* Atividade Recente */}
               {data?.atividade_recente?.length > 0 && (
                 <section className="mt-10">
-                  <h2 className="text-lg font-bold text-slate-900">Atividade Recente</h2>
+                  <h2 className="text-lg font-bold text-slate-900">{t('atividade_recente')}</h2>
                   <div className="mt-4 space-y-3">
                     {data.atividade_recente.map((item, i) => (
                       <ItemAtividade key={i} item={item} />
@@ -291,16 +295,16 @@ export default function ConsultorDashboard() {
               {!isLoading && !data?.progresso_niveis?.length && !data?.atividade_recente?.length && (
                 <div className="mt-16 flex flex-col items-center text-center">
                   <Award className="h-14 w-14 text-slate-300" strokeWidth={1} />
-                  <p className="mt-4 text-base font-semibold text-slate-600">Ainda sem atividade</p>
+                  <p className="mt-4 text-base font-semibold text-slate-600">{t('sem_atividade')}</p>
                   <p className="mt-1 text-sm text-slate-400">
-                    Explora o catálogo de badges e submete a tua primeira candidatura.
+                    {t('sem_atividade_desc')}
                   </p>
                   <button
                     type="button"
                     onClick={() => {}}
                     className="mt-5 rounded-lg bg-softinsa-600 px-5 py-2 text-sm font-semibold text-white hover:bg-softinsa-700"
                   >
-                    Ver Catálogo
+                    {t('ver_catalogo')}
                   </button>
                 </div>
               )}

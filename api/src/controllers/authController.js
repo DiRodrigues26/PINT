@@ -1,6 +1,15 @@
-const bcrypt = require('bcryptjs');
+const bcrypt  = require('bcryptjs');
+const crypto  = require('crypto');
+const speakeasy = require('speakeasy');
 const { pool } = require('../db/connection');
 const { assinarToken } = require('../utils/jwt');
+
+/* Sessões temporárias de pre-auth para 2FA (em memória, TTL 5 min) */
+const preAuthSessions = new Map();
+setInterval(() => {
+  const agora = Date.now();
+  for (const [k, v] of preAuthSessions) if (v.expires_at < agora) preAuthSessions.delete(k);
+}, 60_000);
 const { gerarTokenAleatorio } = require('../utils/tokens');
 const { gerarSlug } = require('../utils/slug');
 const {
@@ -268,6 +277,20 @@ async function login(req, res, next) {
     const valido = await bcrypt.compare(password, u.password_hash);
     if (!valido) return res.status(401).json({ erro: 'Credenciais inválidas.' });
 
+    /* ── Verificar se 2FA está ativo ──────────────────────────────────── */
+    const [[dadosTotp]] = await pool.query(
+      'SELECT totp_ativo FROM utilizador WHERE id_utilizador = ?',
+      [u.id_utilizador]
+    );
+    if (dadosTotp?.totp_ativo) {
+      const tmpToken = crypto.randomBytes(32).toString('hex');
+      preAuthSessions.set(tmpToken, {
+        id_utilizador: u.id_utilizador,
+        expires_at: Date.now() + 5 * 60 * 1000,
+      });
+      return res.json({ requires_2fa: true, pre_auth_token: tmpToken });
+    }
+
     const [perfis] = await pool.query(
       `SELECT p.nome_perfil FROM utilizador_perfil up
          JOIN perfil p ON p.id_perfil = up.id_perfil
@@ -412,11 +435,86 @@ async function eu(req, res) {
   res.json({ utilizador: req.utilizador });
 }
 
+async function verificarDoisFatores(req, res, next) {
+  try {
+    const { pre_auth_token, codigo } = req.body;
+    if (!pre_auth_token || !codigo) {
+      return res.status(400).json({ erro: 'Token e código são obrigatórios.' });
+    }
+
+    const sessao = preAuthSessions.get(pre_auth_token);
+    if (!sessao || sessao.expires_at < Date.now()) {
+      preAuthSessions.delete(pre_auth_token);
+      return res.status(401).json({ erro: 'Sessão expirada. Inicia o login novamente.' });
+    }
+
+    const { id_utilizador } = sessao;
+    const [[u]] = await pool.query(
+      `SELECT u.id_utilizador, u.nome, u.email, u.idioma, u.url_slug,
+              u.primeiro_login_pendente, u.ultimo_login, u.totp_secret
+         FROM utilizador u
+        WHERE u.id_utilizador = ?`,
+      [id_utilizador]
+    );
+
+    if (!u?.totp_secret) {
+      return res.status(400).json({ erro: 'Autenticação 2FA não configurada.' });
+    }
+
+    const valido = speakeasy.totp.verify({
+      secret:   u.totp_secret,
+      encoding: 'base32',
+      token:    String(codigo),
+      window:   1,
+    });
+
+    if (!valido) return res.status(401).json({ erro: 'Código inválido. Tenta novamente.' });
+
+    preAuthSessions.delete(pre_auth_token);
+
+    const [perfis] = await pool.query(
+      `SELECT p.nome_perfil FROM utilizador_perfil up
+         JOIN perfil p ON p.id_perfil = up.id_perfil
+        WHERE up.id_utilizador = ?`,
+      [id_utilizador]
+    );
+
+    const saudacao = calcularSaudacao({
+      ultimoLogin: u.ultimo_login,
+      primeiroLoginPendente: !!u.primeiro_login_pendente,
+      idioma: u.idioma,
+    });
+
+    await pool.query(
+      'UPDATE utilizador SET ultimo_login = CURRENT_TIMESTAMP WHERE id_utilizador = ?',
+      [id_utilizador]
+    );
+
+    const token = assinarToken({ id_utilizador });
+
+    res.json({
+      mensagem: 'Login efetuado com sucesso.',
+      token,
+      saudacao,
+      utilizador: {
+        id_utilizador: u.id_utilizador,
+        nome: u.nome,
+        email: u.email,
+        idioma: u.idioma,
+        url_slug: u.url_slug,
+        primeiro_login_pendente: !!u.primeiro_login_pendente,
+        perfis: perfis.map(p => p.nome_perfil),
+      },
+    });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   registar,
   confirmarEmail,
   completarPerfil,
   login,
+  verificarDoisFatores,
   alterarPasswordPrimeiroLogin,
   pedirRecuperacao,
   redefinirPassword,

@@ -33,6 +33,10 @@ export function AuthProvider({ children }) {
   async function login(email, password, opcoes = {}) {
     try {
       const { data } = await api.post('/api/auth/login', { email, password });
+      if (data.requires_2fa) {
+        /* Não guardar token ainda — Login.jsx trata o step 2FA */
+        return { ok: true, dados: data };
+      }
       guardarToken(data.token, opcoes.guardarLogin !== false);
       setUtilizador(data.utilizador);
       setSaudacao(data.saudacao);

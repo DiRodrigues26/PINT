@@ -6,6 +6,7 @@ import { api } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import toast from 'react-hot-toast';
 
 function formatarData(d) {
@@ -27,6 +28,7 @@ function iconePorIndice(i) { return ICONES_CONQUISTA[i % ICONES_CONQUISTA.length
 
 /* ─── Card conquistada ─────────────────────────────────────────────────── */
 function CardDesbloqueada({ conquista, index }) {
+  const { t } = useLanguage();
   const cor = corPorIndice(index);
   const Icon = iconePorIndice(index);
   return (
@@ -38,7 +40,7 @@ function CardDesbloqueada({ conquista, index }) {
       <p className="mt-1 text-center text-xs text-slate-500">{conquista.descricao}</p>
       <div className={`mt-4 flex items-center justify-center gap-1 rounded-lg py-2 text-xs font-semibold ${cor.bg} ${cor.data}`}>
         <Star className="h-3.5 w-3.5 fill-current" />
-        Desbloqueada em {formatarData(conquista.data_conquista)}
+        {t('desbloqueada_em')} {formatarData(conquista.data_conquista)}
       </div>
     </div>
   );
@@ -83,6 +85,7 @@ function ItemProgresso({ conquista, index }) {
 }
 
 export default function Conquistas() {
+  const { t } = useLanguage();
   const { utilizador } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -118,9 +121,9 @@ export default function Conquistas() {
         <ConsultorTopbar subtitulo="Conquistas e reconhecimentos" />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
-          <h2 className="text-2xl font-bold text-slate-900">Conquistas</h2>
+          <h2 className="text-2xl font-bold text-slate-900">{t('titulo_conquistas')}</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Reconhecimentos especiais obtidos através do progresso no programa de badges.
+            {t('desc_conquistas')}
           </p>
 
           {isLoading ? (
@@ -130,7 +133,7 @@ export default function Conquistas() {
               {/* Conquistas Desbloqueadas */}
               {conquistadas.length > 0 && (
                 <section className="mt-8">
-                  <h3 className="text-base font-bold text-slate-800">Conquistas Desbloqueadas</h3>
+                  <h3 className="text-base font-bold text-slate-800">{t('desbloqueadas')}</h3>
                   <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                     {conquistadas.map((c, i) => <CardDesbloqueada key={c.id_conquista} conquista={c} index={i} />)}
                   </div>
@@ -140,7 +143,7 @@ export default function Conquistas() {
               {/* Conquistas em Progresso */}
               {emProgresso.length > 0 && (
                 <section className="mt-8">
-                  <h3 className="text-base font-bold text-slate-800">Conquistas em Progresso</h3>
+                  <h3 className="text-base font-bold text-slate-800">{t('em_progresso_s')}</h3>
                   <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {emProgresso.map((c, i) => <ItemProgresso key={c.id_conquista} conquista={c} index={i} />)}
                   </div>
@@ -151,14 +154,14 @@ export default function Conquistas() {
               {conquistadas.length === 0 && emProgresso.length === 0 && (
                 <div className="mt-16 flex flex-col items-center text-center">
                   <Trophy className="h-14 w-14 text-slate-300" strokeWidth={1} />
-                  <p className="mt-4 text-base font-semibold text-slate-600">Ainda sem conquistas</p>
-                  <p className="mt-1 text-sm text-slate-400">Continua a submeter candidaturas para desbloquear conquistas.</p>
+                  <p className="mt-4 text-base font-semibold text-slate-600">{t('sem_conquistas')}</p>
+                  <p className="mt-1 text-sm text-slate-400">{t('sem_conquistas_desc')}</p>
                 </div>
               )}
 
               {/* Galeria Pública */}
               <section className="mt-10">
-                <h3 className="text-base font-bold text-slate-800">Galeria Pública</h3>
+                <h3 className="text-base font-bold text-slate-800">{t('galeria_publica')}</h3>
                 <div className="mt-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                   <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                     <div className="flex items-start gap-4 flex-1">
@@ -183,8 +186,8 @@ export default function Conquistas() {
                       <div>
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-semibold text-slate-800">Perfil público de conquistas</p>
-                            <p className="text-xs text-slate-500">Tornar visível para todos</p>
+                            <p className="text-sm font-semibold text-slate-800">{t('perfil_pub_toggle')}</p>
+                            <p className="text-xs text-slate-500">{t('tornar_visivel')}</p>
                           </div>
                           <button
                             type="button"
@@ -196,7 +199,7 @@ export default function Conquistas() {
                         </div>
                       </div>
                       <div>
-                        <p className="mb-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">URL Pública</p>
+                        <p className="mb-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('url_publica')}</p>
                         <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                           <span className="flex-1 truncate text-xs text-slate-600">{urlPublica}</span>
                           <button type="button" onClick={copiarLink} className="text-slate-400 hover:text-softinsa-600">
@@ -210,7 +213,7 @@ export default function Conquistas() {
                         className="flex w-full items-center justify-center gap-2 rounded-lg bg-softinsa-700 py-2.5 text-sm font-semibold text-white hover:bg-softinsa-800 transition"
                       >
                         <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
-                        Ver Página Pública
+                        {t('ver_pagina_pub_btn')}
                       </button>
                     </div>
                   </div>

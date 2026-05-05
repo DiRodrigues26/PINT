@@ -7,6 +7,7 @@ import {
 import { api } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
+import { useLanguage } from '../../context/LanguageContext';
 
 function formatarData(d) {
   if (!d) return '—';
@@ -36,16 +37,17 @@ const NIVEL_COR = { A: 'text-softinsa-600', B: 'text-blue-500', C: 'text-indigo-
 
 function BotaoAcao({ estado, id }) {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const acoes = {
-    OPEN:                   { label: 'Editar Candidatura',  icon: Edit,         variante: 'primary' },
-    SENT_BACK:              { label: 'Editar Candidatura',  icon: Edit,         variante: 'primary' },
-    SUBMITTED:              { label: 'Ver Detalhes',         icon: Eye,          variante: 'secondary' },
-    IN_TALENT_REVIEW:       { label: 'Acompanhar Estado',   icon: Clock,        variante: 'secondary' },
-    IN_SERVICE_LINE_REVIEW: { label: 'Acompanhar Estado',   icon: Clock,        variante: 'secondary' },
-    APPROVED:               { label: 'Ver Resultado',        icon: CheckCircle,  variante: 'secondary' },
-    REJECTED:               { label: 'Motivo de Rejeição',  icon: Info,         variante: 'secondary' },
-    CLOSED:                 { label: 'Ver Detalhes',         icon: Eye,          variante: 'secondary' },
+    OPEN:                   { label: t('editar_cand'),      icon: Edit,         variante: 'primary' },
+    SENT_BACK:              { label: t('editar_cand'),      icon: Edit,         variante: 'primary' },
+    SUBMITTED:              { label: t('ver_detalhes'),     icon: Eye,          variante: 'secondary' },
+    IN_TALENT_REVIEW:       { label: t('acompanhar'),       icon: Clock,        variante: 'secondary' },
+    IN_SERVICE_LINE_REVIEW: { label: t('acompanhar'),       icon: Clock,        variante: 'secondary' },
+    APPROVED:               { label: t('ver_resultado'),    icon: CheckCircle,  variante: 'secondary' },
+    REJECTED:               { label: t('motivo_rejeicao'), icon: Info,         variante: 'secondary' },
+    CLOSED:                 { label: t('ver_detalhes'),     icon: Eye,          variante: 'secondary' },
   };
 
   const acao = acoes[estado] || acoes.CLOSED;
@@ -68,6 +70,7 @@ function BotaoAcao({ estado, id }) {
 }
 
 export default function Candidaturas() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [pesquisa, setPesquisa] = useState('');
   const [filtroArea, setFiltroArea] = useState('');
@@ -101,14 +104,14 @@ export default function Candidaturas() {
     <div className="min-h-screen bg-[#f3f6fa]">
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
-        <ConsultorTopbar subtitulo="Gestão das suas candidaturas" />
+        <ConsultorTopbar subtitulo={t('desc_cands')} />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
           {/* Info + botão nova candidatura */}
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-4 py-2.5 text-sm text-blue-700">
               <Info className="h-4 w-4 shrink-0" strokeWidth={1.8} />
-              Escolha um badge no catálogo para iniciar uma nova candidatura.
+              {t('info_cands')}
             </div>
             <button
               type="button"
@@ -116,7 +119,7 @@ export default function Candidaturas() {
               className="flex shrink-0 items-center gap-2 rounded-lg bg-softinsa-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-800"
             >
               <Plus className="h-4 w-4" strokeWidth={2} />
-              Nova Candidatura
+              {t('nova_candidatura')}
             </button>
           </div>
 
@@ -128,12 +131,12 @@ export default function Candidaturas() {
                 <input
                   value={pesquisa}
                   onChange={e => setPesquisa(e.target.value)}
-                  placeholder="Procurar badge..."
+                  placeholder={t('procurar_badge')}
                   className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-softinsa-400"
                 />
               </div>
               <select value={filtroArea} onChange={e => setFiltroArea(e.target.value)} className="rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-softinsa-400">
-                <option value="">Área</option>
+                <option value="">{t('area')}</option>
                 {areas.map(a => <option key={a} value={a}>{a}</option>)}
               </select>
               <select value={filtroNivel} onChange={e => setFiltroNivel(e.target.value)} className="rounded-lg border border-slate-200 py-2 px-3 text-sm outline-none focus:border-softinsa-400">
@@ -152,7 +155,7 @@ export default function Candidaturas() {
               </select>
               {temFiltros && (
                 <button type="button" onClick={limpar} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
-                  <X className="h-4 w-4" /> Limpar Filtros
+                  <X className="h-4 w-4" /> {t('limpar_filtros')}
                 </button>
               )}
             </div>
@@ -166,7 +169,7 @@ export default function Candidaturas() {
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
                 <Eye className="h-7 w-7 text-slate-400" strokeWidth={1.5} />
               </div>
-              <p className="mt-4 text-base font-semibold text-slate-600">Nenhuma candidatura encontrada</p>
+              <p className="mt-4 text-base font-semibold text-slate-600">{t('nenhuma_cand')}</p>
               <p className="mt-1 text-sm text-slate-400">Explora o catálogo de badges e submete a tua primeira candidatura.</p>
             </div>
           ) : (
@@ -175,14 +178,14 @@ export default function Candidaturas() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                      <th className="px-5 py-3.5 text-left">Badge</th>
+                      <th className="px-5 py-3.5 text-left">{t('badge_col')}</th>
                       <th className="px-4 py-3.5 text-left">Service Line</th>
-                      <th className="px-4 py-3.5 text-left">Área</th>
-                      <th className="px-4 py-3.5 text-center">Nível</th>
-                      <th className="px-4 py-3.5 text-left">Data de Submissão</th>
-                      <th className="px-4 py-3.5 text-left">Estado</th>
-                      <th className="px-4 py-3.5 text-left">Tempo Restante (SLA)</th>
-                      <th className="px-4 py-3.5 text-right">Ação</th>
+                      <th className="px-4 py-3.5 text-left">{t('area')}</th>
+                      <th className="px-4 py-3.5 text-center">{t('nivel')}</th>
+                      <th className="px-4 py-3.5 text-left">{t('data_submissao')}</th>
+                      <th className="px-4 py-3.5 text-left">{t('estado_col')}</th>
+                      <th className="px-4 py-3.5 text-left">{t('tempo_sla')}</th>
+                      <th className="px-4 py-3.5 text-right">{t('acao_col')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
