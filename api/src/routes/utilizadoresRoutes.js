@@ -7,6 +7,7 @@ const { autorizarPerfis } = require('../middleware/autorizar');
 router.use(autenticar);
 
 router.get('/eu/perfil', (req, res) => res.json({ utilizador: req.utilizador }));
+router.get('/eu/perfil-completo', ctrl.meuPerfilCompleto);
 router.put('/eu/perfil', ctrl.atualizarMeuPerfil);
 router.put('/eu/password', ctrl.alterarMinhaPassword);
 

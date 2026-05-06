@@ -12,5 +12,9 @@ router.get('/gestor',
   autorizarPerfis('Administrador', 'Talent Manager', 'Service Line'),
   ctrl.dashboardGestor
 );
+router.get('/service-line',
+  autorizarPerfis('Administrador', 'Service Line'),
+  ctrl.dashboardServiceLine
+);
 
 module.exports = router;

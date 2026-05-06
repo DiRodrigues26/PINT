@@ -10,6 +10,8 @@ import RecuperarPassword from './pages/auth/RecuperarPassword';
 import NovaPassword from './pages/auth/NovaPassword';
 import AlterarPasswordInicial from './pages/auth/AlterarPasswordInicial';
 import Admin from './pages/admin/Admin';
+import ServiceLineDashboard from './pages/serviceLine/Dashboard';
+import ServiceLinePerfil from './pages/serviceLine/Perfil';
 import ConsultorDashboard from './pages/consultor/Dashboard';
 import CatalogoBadges from './pages/consultor/CatalogoBadges';
 import MeusBadges from './pages/consultor/MeusBadges';
@@ -46,6 +48,9 @@ function Inicio() {
   if (utilizador?.perfis?.includes('Consultor')) {
     return <Navigate to="/dashboard" replace />;
   }
+  if (utilizador?.perfis?.includes('Service Line')) {
+    return <Navigate to="/sl/dashboard" replace />;
+  }
   return <PerfilEmDesenvolvimento />;
 }
 
@@ -81,6 +86,17 @@ export default function App() {
       <Route path="/notificacoes" element={<RotaProtegida><Notificacoes /></RotaProtegida>} />
       <Route path="/perfil" element={<RotaProtegida><Perfil /></RotaProtegida>} />
       <Route path="/gestao" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
+
+      {/* Rotas da Service Line */}
+      <Route path="/sl/dashboard" element={
+        <RotaProtegida perfis={['Service Line', 'Administrador']}><ServiceLineDashboard /></RotaProtegida>
+      } />
+      <Route path="/sl/perfil" element={
+        <RotaProtegida perfis={['Service Line', 'Administrador']}><ServiceLinePerfil /></RotaProtegida>
+      } />
+      <Route path="/sl/*" element={
+        <RotaProtegida perfis={['Service Line', 'Administrador']}><PerfilEmDesenvolvimento /></RotaProtegida>
+      } />
 
       <Route path="*" element={
         <div className="min-h-screen flex items-center justify-center text-slate-500">

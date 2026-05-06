@@ -518,4 +518,45 @@ module.exports = {
   atualizarMeuPerfil,
   alterarMinhaPassword,
   reporPassword,
+  meuPerfilCompleto,
 };
+
+async function meuPerfilCompleto(req, res, next) {
+  try {
+    const id = req.utilizador.id_utilizador;
+
+    const [linhas] = await pool.query(
+      `SELECT id_utilizador, nome, email, idioma, url_slug, created_at
+         FROM utilizador WHERE id_utilizador = ?`,
+      [id]
+    );
+    if (linhas.length === 0) return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+
+    const [slRows] = await pool.query(
+      `SELECT slr.id_service_line, sl.nome AS nome_service_line
+         FROM service_line_responsavel slr
+         JOIN service_line sl ON sl.id_service_line = slr.id_service_line
+        WHERE slr.id_utilizador = ?`,
+      [id]
+    );
+
+    const [areaRows] = await pool.query(
+      `SELECT a.id_area, a.nome AS nome_area
+         FROM area a
+         JOIN service_line sl ON sl.id_service_line = a.id_service_line
+         JOIN service_line_responsavel slr ON slr.id_service_line = sl.id_service_line
+        WHERE slr.id_utilizador = ? AND a.ativo = 1
+        LIMIT 1`,
+      [id]
+    );
+
+    res.json({
+      utilizador: {
+        ...linhas[0],
+        perfis: req.utilizador.perfis,
+        service_line: slRows[0] || null,
+        area: areaRows[0] || null,
+      },
+    });
+  } catch (err) { next(err); }
+}

@@ -296,4 +296,184 @@ async function rankingConsultores(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { dashboardConsultor, dashboardGestor, rankingConsultores };
+async function dashboardServiceLine(req, res, next) {
+  try {
+    const idUtilizador = req.utilizador.id_utilizador;
+
+    // Descobrir a service line do utilizador
+    const [slRows] = await pool.query(
+      `SELECT slr.id_service_line, sl.nome AS nome_service_line
+         FROM service_line_responsavel slr
+         JOIN service_line sl ON sl.id_service_line = slr.id_service_line
+        WHERE slr.id_utilizador = ?`,
+      [idUtilizador]
+    );
+
+    if (slRows.length === 0) {
+      return res.status(403).json({ erro: 'Sem service line associada.' });
+    }
+
+    const { id_service_line, nome_service_line } = slRows[0];
+
+    // KPI: total de consultores na service line
+    const [[{ total_consultores }]] = await pool.query(
+      `SELECT COUNT(DISTINCT ca.id_utilizador) AS total_consultores
+         FROM consultor_area ca
+         JOIN area a ON a.id_area = ca.id_area
+        WHERE a.id_service_line = ? AND ca.ativo = 1`,
+      [id_service_line]
+    );
+
+    // KPI: total badges atribuídos
+    const [[{ total_badges_emitidos }]] = await pool.query(
+      `SELECT COUNT(*) AS total_badges_emitidos
+         FROM badge_atribuido ba
+         JOIN badge b ON b.id_badge = ba.id_badge
+         JOIN nivel n ON n.id_nivel = b.id_nivel
+         JOIN area a ON a.id_area = n.id_area
+        WHERE a.id_service_line = ?`,
+      [id_service_line]
+    );
+
+    // KPI: badges emitidos este mês
+    const [[{ badges_este_mes }]] = await pool.query(
+      `SELECT COUNT(*) AS badges_este_mes
+         FROM badge_atribuido ba
+         JOIN badge b ON b.id_badge = ba.id_badge
+         JOIN nivel n ON n.id_nivel = b.id_nivel
+         JOIN area a ON a.id_area = n.id_area
+        WHERE a.id_service_line = ?
+          AND ba.data_atribuicao >= DATE_FORMAT(CURRENT_DATE, '%Y-%m-01')`,
+      [id_service_line]
+    );
+
+    // KPI: pedidos em validação (IN_SERVICE_LINE_REVIEW)
+    const [[{ pedidos_em_validacao }]] = await pool.query(
+      `SELECT COUNT(*) AS pedidos_em_validacao
+         FROM candidatura_badge cb
+         JOIN badge b ON b.id_badge = cb.id_badge
+         JOIN nivel n ON n.id_nivel = b.id_nivel
+         JOIN area a ON a.id_area = n.id_area
+        WHERE a.id_service_line = ? AND cb.estado_atual = 'IN_SERVICE_LINE_REVIEW'`,
+      [id_service_line]
+    );
+
+    // KPI: pontuação total
+    const [[{ pontuacao_total }]] = await pool.query(
+      `SELECT COALESCE(SUM(b.pontos), 0) AS pontuacao_total
+         FROM badge_atribuido ba
+         JOIN badge b ON b.id_badge = ba.id_badge
+         JOIN nivel n ON n.id_nivel = b.id_nivel
+         JOIN area a ON a.id_area = n.id_area
+        WHERE a.id_service_line = ?`,
+      [id_service_line]
+    );
+
+    // Gráfico: badges por nível
+    const [badgesPorNivel] = await pool.query(
+      `SELECT n.codigo_nivel, n.nome_nivel, n.ordem,
+              COUNT(DISTINCT ba.id_badge_atribuido) AS total
+         FROM nivel n
+         JOIN area a ON a.id_area = n.id_area
+         LEFT JOIN badge b ON b.id_nivel = n.id_nivel
+         LEFT JOIN badge_atribuido ba ON ba.id_badge = b.id_badge
+        WHERE a.id_service_line = ?
+        GROUP BY n.id_nivel, n.codigo_nivel, n.nome_nivel, n.ordem
+        ORDER BY n.ordem ASC`,
+      [id_service_line]
+    );
+
+    // Gráfico: distribuição dos estados das candidaturas
+    const [estadosCandidatura] = await pool.query(
+      `SELECT cb.estado_atual, COUNT(*) AS total
+         FROM candidatura_badge cb
+         JOIN badge b ON b.id_badge = cb.id_badge
+         JOIN nivel n ON n.id_nivel = b.id_nivel
+         JOIN area a ON a.id_area = n.id_area
+        WHERE a.id_service_line = ?
+        GROUP BY cb.estado_atual`,
+      [id_service_line]
+    );
+
+    // Gráfico: aprovação mensal (últimos 6 meses)
+    const [aprovacaoMensal] = await pool.query(
+      `SELECT DATE_FORMAT(ba.data_atribuicao, '%Y-%m') AS mes,
+              DATE_FORMAT(ba.data_atribuicao, '%b') AS mes_abrev,
+              COUNT(*) AS total
+         FROM badge_atribuido ba
+         JOIN badge b ON b.id_badge = ba.id_badge
+         JOIN nivel n ON n.id_nivel = b.id_nivel
+         JOIN area a ON a.id_area = n.id_area
+        WHERE a.id_service_line = ?
+          AND ba.data_atribuicao >= DATE_SUB(CURRENT_DATE, INTERVAL 6 MONTH)
+        GROUP BY mes, mes_abrev
+        ORDER BY mes ASC`,
+      [id_service_line]
+    );
+
+    // Tabela: performance de consultores
+    const [consultores] = await pool.query(
+      `SELECT u.id_utilizador, u.nome, u.url_slug,
+              a.id_area, a.nome AS nome_area,
+              COUNT(DISTINCT ba.id_badge_atribuido) AS total_badges,
+              MAX(n.ordem) AS nivel_mais_alto_ordem,
+              MAX(n.codigo_nivel) AS nivel_mais_alto,
+              SUM(CASE WHEN ba.data_expiracao IS NULL OR ba.data_expiracao > NOW() THEN 1 ELSE 0 END) AS badges_ativos,
+              SUM(CASE WHEN ba.data_expiracao IS NOT NULL AND ba.data_expiracao <= NOW() THEN 1 ELSE 0 END) AS badges_expirados,
+              COALESCE(SUM(b.pontos), 0) AS pontos_totais,
+              (SELECT COUNT(*) FROM utilizador_conquista uc WHERE uc.id_utilizador = u.id_utilizador) AS conquistas
+         FROM utilizador u
+         JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
+         JOIN area a ON a.id_area = ca.id_area
+         LEFT JOIN badge_atribuido ba ON ba.id_consultor = u.id_utilizador
+         LEFT JOIN badge b ON b.id_badge = ba.id_badge
+         LEFT JOIN nivel n ON n.id_nivel = b.id_nivel
+        WHERE a.id_service_line = ?
+        GROUP BY u.id_utilizador, u.nome, u.url_slug, a.id_area, a.nome
+        ORDER BY pontos_totais DESC`,
+      [id_service_line]
+    );
+
+    // Ranking Top 10
+    const [ranking] = await pool.query(
+      `SELECT u.id_utilizador, u.nome,
+              a.nome AS nome_area,
+              COUNT(DISTINCT ba.id_badge_atribuido) AS total_badges,
+              COALESCE(SUM(b.pontos), 0) AS pontos_totais
+         FROM utilizador u
+         JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
+         JOIN area a ON a.id_area = ca.id_area
+         LEFT JOIN badge_atribuido ba ON ba.id_consultor = u.id_utilizador
+         LEFT JOIN badge b ON b.id_badge = ba.id_badge
+        WHERE a.id_service_line = ?
+        GROUP BY u.id_utilizador, u.nome, a.nome
+        ORDER BY pontos_totais DESC, total_badges DESC
+        LIMIT 10`,
+      [id_service_line]
+    );
+
+    // Áreas da service line (para filtro)
+    const [areas] = await pool.query(
+      'SELECT id_area, nome FROM area WHERE id_service_line = ? AND ativo = 1 ORDER BY nome',
+      [id_service_line]
+    );
+
+    res.json({
+      nome_service_line,
+      id_service_line,
+      total_consultores,
+      total_badges_emitidos,
+      badges_este_mes,
+      pedidos_em_validacao,
+      pontuacao_total,
+      badges_por_nivel: badgesPorNivel,
+      estados_candidatura: estadosCandidatura,
+      aprovacao_mensal: aprovacaoMensal,
+      consultores,
+      ranking,
+      areas,
+    });
+  } catch (err) { next(err); }
+}
+
+module.exports = { dashboardConsultor, dashboardGestor, rankingConsultores, dashboardServiceLine };
