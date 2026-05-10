@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import {
   Activity,
   Award,
@@ -43,6 +43,16 @@ export function ShellIcon({ nome, className = 'h-5 w-5' }) {
 
 export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
   const perfis = utilizador?.perfis?.join(', ') || 'Utilizador';
+  const itemClass = (ativoItem) => `flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
+    ativoItem
+      ? 'bg-[#eaf3ff] text-softinsa-700 shadow-[inset_3px_0_0_#39639c]'
+      : 'text-slate-700 hover:bg-slate-50 hover:text-softinsa-700'
+  }`;
+  const mobileItemClass = (ativoItem) => `flex min-w-[76px] flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-medium transition ${
+    ativoItem
+      ? 'bg-[#eaf3ff] text-softinsa-700'
+      : 'text-slate-600 hover:bg-slate-50 hover:text-softinsa-700'
+  }`;
 
   return (
     <>
@@ -57,19 +67,27 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
         <nav className="h-[calc(100vh-224px)] overflow-y-auto px-4 py-6">
           <div className="space-y-1">
             {menu.map((item) => (
-              <button
-                key={item.label}
-                type="button"
-                onClick={() => onSelect(item.chave)}
-                className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
-                  ativo === item.chave
-                    ? 'bg-[#eaf3ff] text-softinsa-700 shadow-[inset_3px_0_0_#39639c]'
-                    : 'text-slate-700 hover:bg-slate-50 hover:text-softinsa-700'
-                }`}
-              >
-                <ShellIcon nome={item.icon} className="h-5 w-5 shrink-0" />
-                <span>{item.label}</span>
-              </button>
+              item.to ? (
+                <NavLink
+                  key={item.label}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) => itemClass(isActive)}
+                >
+                  <ShellIcon nome={item.icon} className="h-5 w-5 shrink-0" />
+                  <span>{item.label}</span>
+                </NavLink>
+              ) : (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => onSelect?.(item.chave)}
+                  className={itemClass(ativo === item.chave)}
+                >
+                  <ShellIcon nome={item.icon} className="h-5 w-5 shrink-0" />
+                  <span>{item.label}</span>
+                </button>
+              )
             ))}
           </div>
         </nav>
@@ -88,19 +106,27 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
         <div className="flex gap-2 overflow-x-auto pb-1">
           {menu.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => onSelect(item.chave)}
-              className={`flex min-w-[76px] flex-col items-center justify-center gap-1 rounded-lg px-2 py-2 text-[11px] font-medium transition ${
-                ativo === item.chave
-                  ? 'bg-[#eaf3ff] text-softinsa-700'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-softinsa-700'
-              }`}
-            >
-              <ShellIcon nome={item.icon} className="h-5 w-5 shrink-0" />
-              <span className="line-clamp-1 max-w-[68px]">{item.label.replace('Gestão de ', '')}</span>
-            </button>
+            item.to ? (
+              <NavLink
+                key={item.label}
+                to={item.to}
+                end={item.end}
+                className={({ isActive }) => mobileItemClass(isActive)}
+              >
+                <ShellIcon nome={item.icon} className="h-5 w-5 shrink-0" />
+                <span className="line-clamp-1 max-w-[68px]">{item.label.replace('Gestão de ', '')}</span>
+              </NavLink>
+            ) : (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => onSelect?.(item.chave)}
+                className={mobileItemClass(ativo === item.chave)}
+              >
+                <ShellIcon nome={item.icon} className="h-5 w-5 shrink-0" />
+                <span className="line-clamp-1 max-w-[68px]">{item.label.replace('Gestão de ', '')}</span>
+              </button>
+            )
           ))}
         </div>
       </nav>
@@ -108,7 +134,7 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
   );
 }
 
-export function AppTopbar({ titulo, subtitulo, utilizador, onLogout }) {
+export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoesTo = '/notificacoes' }) {
   const [aberto, setAberto] = useState(false);
   const perfis = utilizador?.perfis?.join(', ') || 'Utilizador';
 
@@ -125,7 +151,7 @@ export function AppTopbar({ titulo, subtitulo, utilizador, onLogout }) {
             <span title="English" aria-label="English" className="leading-none opacity-70">🇬🇧</span>
             <span title="Español" aria-label="Español" className="leading-none opacity-70">🇪🇸</span>
           </div>
-          <Link to="/notificacoes" className="relative text-slate-700 hover:text-softinsa-700" aria-label="Notificações">
+          <Link to={notificacoesTo} className="relative text-slate-700 hover:text-softinsa-700" aria-label="Notificações">
             <ShellIcon nome="bell" />
             <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
           </Link>

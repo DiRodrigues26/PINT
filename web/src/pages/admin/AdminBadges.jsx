@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
@@ -923,7 +924,8 @@ function FormBadge({
   );
 }
 
-export default function AdminBadges() {
+export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumido }) {
+  const location = useLocation();
   const qc = useQueryClient();
   const [filtros, setFiltros] = useState({
     pesquisa: '',
@@ -1062,6 +1064,14 @@ export default function AdminBadges() {
   const listaAreas = areas.data?.dados || [];
   const listaNiveis = niveis.data?.dados || [];
   const listaRequisitos = requisitos.data?.dados || [];
+
+  const idBadgeExterno = editarBadgeId || location.state?.editarBadgeId || null;
+
+  useEffect(() => {
+    if (!idBadgeExterno) return;
+    abrirEdicao({ id_badge: idBadgeExterno });
+    onEditarBadgeConsumido?.();
+  }, [idBadgeExterno]);
 
   const serviceLinesFiltro = useMemo(() => {
     if (!filtros.id_learning_path) return sls;

@@ -129,7 +129,7 @@ async function progresso(req, res, next) {
         atual = n;
       } else if (c.tipo_criterio === 'PONTOS') {
         const [[{ total }]] = await pool.query(
-          `SELECT COALESCE(SUM(b.pontos), 0) AS total
+          `SELECT COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS total
              FROM badge_atribuido ba
              JOIN badge b ON b.id_badge = ba.id_badge
             WHERE ba.id_consultor = ?`,

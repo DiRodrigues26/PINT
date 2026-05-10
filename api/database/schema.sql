@@ -81,6 +81,7 @@ CREATE TABLE `badge_atribuido` (
   `id_candidatura` int unsigned NOT NULL,
   `data_atribuicao` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `data_expiracao` datetime DEFAULT NULL,
+  `pontos_atribuidos` int unsigned NOT NULL DEFAULT '0',
   `publicado` tinyint(1) NOT NULL DEFAULT '0',
   `token_publico` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `codigo_publico` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,

@@ -529,7 +529,7 @@ async function avaliarServiceLine(req, res, next) {
       let idBadgeAtribuido = null;
       if (novoEstado === 'APPROVED') {
         const [badgeInfo] = await conn.query(
-          'SELECT tem_expiracao, validade_dias FROM badge WHERE id_badge = ?',
+          'SELECT pontos, tem_expiracao, validade_dias FROM badge WHERE id_badge = ?',
           [candidatura.id_badge]
         );
         const token = gerarTokenAleatorio();
@@ -542,9 +542,16 @@ async function avaliarServiceLine(req, res, next) {
 
         const [result] = await conn.query(
           `INSERT INTO badge_atribuido
-             (id_consultor, id_badge, id_candidatura, data_expiracao, token_publico)
-           VALUES (?, ?, ?, ?, ?)`,
-          [candidatura.id_consultor, candidatura.id_badge, req.params.id, dataExpiracao, token]
+             (id_consultor, id_badge, id_candidatura, data_expiracao, pontos_atribuidos, token_publico)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            candidatura.id_consultor,
+            candidatura.id_badge,
+            req.params.id,
+            dataExpiracao,
+            Number(badgeInfo[0]?.pontos) || 0,
+            token,
+          ]
         );
         idBadgeAtribuido = result.insertId;
 

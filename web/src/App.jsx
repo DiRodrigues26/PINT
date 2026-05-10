@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import RotaProtegida from './components/RotaProtegida';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/auth/Login';
@@ -9,7 +9,19 @@ import CompletarPerfil from './pages/auth/CompletarPerfil';
 import RecuperarPassword from './pages/auth/RecuperarPassword';
 import NovaPassword from './pages/auth/NovaPassword';
 import AlterarPasswordInicial from './pages/auth/AlterarPasswordInicial';
-import Admin from './pages/admin/Admin';
+import AdminAreas from './pages/admin/AdminAreas';
+import AdminBadges from './pages/admin/AdminBadges';
+import AdminCandidaturas from './pages/admin/AdminCandidaturas';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminEventosEspeciais from './pages/admin/AdminEventosEspeciais';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminLearningPaths from './pages/admin/AdminLearningPaths';
+import AdminNiveis from './pages/admin/AdminNiveis';
+import AdminPontos from './pages/admin/AdminPontos';
+import AdminRequisitos from './pages/admin/AdminRequisitos';
+import AdminServiceLines from './pages/admin/AdminServiceLines';
+import AdminSLA from './pages/admin/AdminSLA';
+import AdminUtilizadores from './pages/admin/AdminUtilizadores';
 import ServiceLineDashboard from './pages/serviceLine/Dashboard';
 import ServiceLinePerfil from './pages/serviceLine/Perfil';
 import ConsultorDashboard from './pages/consultor/Dashboard';
@@ -54,6 +66,16 @@ function Inicio() {
   return <PerfilEmDesenvolvimento />;
 }
 
+function AdminPontosRoute() {
+  const navigate = useNavigate();
+
+  return (
+    <AdminPontos
+      onEditarBadge={(idBadge) => navigate('/admin/badges', { state: { editarBadgeId: idBadge } })}
+    />
+  );
+}
+
 export default function App() {
   return (
     <Routes>
@@ -70,32 +92,51 @@ export default function App() {
 
       <Route path="/" element={<RotaProtegida><Inicio /></RotaProtegida>} />
       <Route path="/admin" element={
-        <RotaProtegida perfis={['Administrador']}><Admin /></RotaProtegida>
-      } />
+        <RotaProtegida perfis={['Administrador']}><AdminLayout /></RotaProtegida>
+      }>
+        <Route index element={<AdminDashboard />} />
+        <Route path="candidaturas" element={<AdminCandidaturas />} />
+        <Route path="utilizadores" element={<AdminUtilizadores />} />
+        <Route path="learning-paths" element={<AdminLearningPaths />} />
+        <Route path="service-lines" element={<AdminServiceLines />} />
+        <Route path="areas" element={<AdminAreas />} />
+        <Route path="niveis" element={<AdminNiveis />} />
+        <Route path="badges" element={<AdminBadges />} />
+        <Route path="requisitos" element={<AdminRequisitos />} />
+        <Route path="eventos" element={<AdminEventosEspeciais />} />
+        <Route path="pontos" element={<AdminPontosRoute />} />
+        <Route path="sla" element={<AdminSLA />} />
+        <Route path="notificacoes" element={<PerfilEmDesenvolvimento />} />
+        <Route path="relatorios" element={<PerfilEmDesenvolvimento />} />
+        <Route path="avisos" element={<PerfilEmDesenvolvimento />} />
+        <Route path="rgpd" element={<PerfilEmDesenvolvimento />} />
+        <Route path="perfil" element={<PerfilEmDesenvolvimento />} />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
+      </Route>
       {/* Rotas do Consultor */}
       <Route path="/dashboard" element={
-        <RotaProtegida perfis={['Consultor', 'Administrador']}><ConsultorDashboard /></RotaProtegida>
+        <RotaProtegida perfis={['Consultor']}><ConsultorDashboard /></RotaProtegida>
       } />
-      <Route path="/badges" element={<RotaProtegida><CatalogoBadges /></RotaProtegida>} />
-      <Route path="/badges/:id" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
-      <Route path="/candidaturas" element={<RotaProtegida><Candidaturas /></RotaProtegida>} />
-      <Route path="/candidaturas/:id" element={<RotaProtegida><CandidaturaDetalhe /></RotaProtegida>} />
-      <Route path="/candidaturas/nova" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
-      <Route path="/meus-badges" element={<RotaProtegida><MeusBadges /></RotaProtegida>} />
-      <Route path="/conquistas" element={<RotaProtegida><Conquistas /></RotaProtegida>} />
-      <Route path="/notificacoes" element={<RotaProtegida><Notificacoes /></RotaProtegida>} />
-      <Route path="/perfil" element={<RotaProtegida><Perfil /></RotaProtegida>} />
-      <Route path="/gestao" element={<RotaProtegida><PerfilEmDesenvolvimento /></RotaProtegida>} />
+      <Route path="/badges" element={<RotaProtegida perfis={['Consultor']}><CatalogoBadges /></RotaProtegida>} />
+      <Route path="/badges/:id" element={<RotaProtegida perfis={['Consultor']}><PerfilEmDesenvolvimento /></RotaProtegida>} />
+      <Route path="/candidaturas" element={<RotaProtegida perfis={['Consultor']}><Candidaturas /></RotaProtegida>} />
+      <Route path="/candidaturas/:id" element={<RotaProtegida perfis={['Consultor']}><CandidaturaDetalhe /></RotaProtegida>} />
+      <Route path="/candidaturas/nova" element={<RotaProtegida perfis={['Consultor']}><PerfilEmDesenvolvimento /></RotaProtegida>} />
+      <Route path="/meus-badges" element={<RotaProtegida perfis={['Consultor']}><MeusBadges /></RotaProtegida>} />
+      <Route path="/conquistas" element={<RotaProtegida perfis={['Consultor']}><Conquistas /></RotaProtegida>} />
+      <Route path="/notificacoes" element={<RotaProtegida perfis={['Consultor']}><Notificacoes /></RotaProtegida>} />
+      <Route path="/perfil" element={<RotaProtegida perfis={['Consultor']}><Perfil /></RotaProtegida>} />
+      <Route path="/gestao" element={<RotaProtegida perfis={['Administrador']}><PerfilEmDesenvolvimento /></RotaProtegida>} />
 
       {/* Rotas da Service Line */}
       <Route path="/sl/dashboard" element={
-        <RotaProtegida perfis={['Service Line', 'Administrador']}><ServiceLineDashboard /></RotaProtegida>
+        <RotaProtegida perfis={['Service Line']}><ServiceLineDashboard /></RotaProtegida>
       } />
       <Route path="/sl/perfil" element={
-        <RotaProtegida perfis={['Service Line', 'Administrador']}><ServiceLinePerfil /></RotaProtegida>
+        <RotaProtegida perfis={['Service Line']}><ServiceLinePerfil /></RotaProtegida>
       } />
       <Route path="/sl/*" element={
-        <RotaProtegida perfis={['Service Line', 'Administrador']}><PerfilEmDesenvolvimento /></RotaProtegida>
+        <RotaProtegida perfis={['Service Line']}><PerfilEmDesenvolvimento /></RotaProtegida>
       } />
 
       <Route path="*" element={

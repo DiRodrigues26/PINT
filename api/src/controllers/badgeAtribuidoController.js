@@ -3,7 +3,9 @@ const { pool } = require('../db/connection');
 async function listarMeus(req, res, next) {
   try {
     const [linhas] = await pool.query(
-      `SELECT ba.*, b.titulo, b.imagem_url, b.descricao, b.pontos,
+      `SELECT ba.*, b.titulo, b.imagem_url, b.descricao,
+              COALESCE(ba.pontos_atribuidos, b.pontos, 0) AS pontos,
+              b.pontos AS pontos_badge_atual,
               n.codigo_nivel, n.nome_nivel,
               a.nome AS nome_area,
               sl.nome AS nome_service_line
@@ -38,7 +40,9 @@ async function listarDeConsultor(req, res, next) {
     const [linhas] = await pool.query(
       `SELECT ba.id_badge_atribuido, ba.data_atribuicao, ba.data_expiracao, ba.publicado,
               ba.codigo_publico, ba.url_publica, ba.linkedin_shared,
-              b.id_badge, b.titulo, b.imagem_url, b.pontos,
+              b.id_badge, b.titulo, b.imagem_url,
+              COALESCE(ba.pontos_atribuidos, b.pontos, 0) AS pontos,
+              b.pontos AS pontos_badge_atual,
               n.codigo_nivel, n.nome_nivel,
               a.nome AS nome_area, sl.nome AS nome_service_line
          FROM badge_atribuido ba
@@ -143,7 +147,9 @@ async function verificarPublico(req, res, next) {
     const [linhas] = await pool.query(
       `SELECT ba.id_badge_atribuido, ba.data_atribuicao, ba.data_expiracao,
               ba.codigo_publico, ba.url_publica, ba.publicado,
-              b.id_badge, b.titulo, b.descricao, b.imagem_url, b.pontos,
+              b.id_badge, b.titulo, b.descricao, b.imagem_url,
+              COALESCE(ba.pontos_atribuidos, b.pontos, 0) AS pontos,
+              b.pontos AS pontos_badge_atual,
               b.competencias_certificadas, b.sobre_certificacao,
               n.codigo_nivel, n.nome_nivel,
               a.nome AS nome_area, sl.nome AS nome_service_line,
@@ -185,6 +191,8 @@ async function perfilPublico(req, res, next) {
       `SELECT ba.id_badge_atribuido, ba.data_atribuicao, ba.data_expiracao,
               ba.codigo_publico, ba.token_publico, ba.url_publica,
               b.titulo, b.imagem_url,
+              COALESCE(ba.pontos_atribuidos, b.pontos, 0) AS pontos,
+              b.pontos AS pontos_badge_atual,
               n.codigo_nivel, n.nome_nivel,
               a.nome AS nome_area
          FROM badge_atribuido ba

@@ -16,7 +16,7 @@ async function dashboardConsultor(req, res, next) {
     );
 
     const [[{ pontos_totais }]] = await pool.query(
-      `SELECT COALESCE(SUM(b.pontos), 0) AS pontos_totais
+      `SELECT COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais
          FROM badge_atribuido ba
          JOIN badge b ON b.id_badge = ba.id_badge
         WHERE ba.id_consultor = ?`,
@@ -281,7 +281,7 @@ async function rankingConsultores(req, res, next) {
     const [linhas] = await pool.query(
       `SELECT u.id_utilizador, u.nome, u.url_slug,
               COUNT(DISTINCT ba.id_badge_atribuido) AS total_badges,
-              COALESCE(SUM(b.pontos), 0) AS pontos_totais
+              COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais
          FROM utilizador u
          LEFT JOIN badge_atribuido ba ON ba.id_consultor = u.id_utilizador
          LEFT JOIN badge b ON b.id_badge = ba.id_badge
@@ -293,6 +293,50 @@ async function rankingConsultores(req, res, next) {
     );
 
     res.json({ dados: linhas });
+  } catch (err) { next(err); }
+}
+
+async function estatisticasPontos(req, res, next) {
+  try {
+    const [ranking] = await pool.query(
+      `SELECT u.id_utilizador, u.nome, u.url_slug,
+              COUNT(DISTINCT ba.id_badge_atribuido) AS total_badges,
+              COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais
+         FROM badge_atribuido ba
+         JOIN utilizador u ON u.id_utilizador = ba.id_consultor
+         JOIN badge b ON b.id_badge = ba.id_badge
+        GROUP BY u.id_utilizador, u.nome, u.url_slug
+        ORDER BY pontos_totais DESC, total_badges DESC, u.nome ASC
+        LIMIT 5`
+    );
+
+    const [[{ total_pontos }]] = await pool.query(
+      `SELECT COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS total_pontos
+         FROM badge_atribuido ba
+         JOIN badge b ON b.id_badge = ba.id_badge`
+    );
+
+    const [badgeMaisValioso] = await pool.query(
+      `SELECT b.id_badge, b.titulo, b.pontos,
+              n.codigo_nivel, n.nome_nivel,
+              a.nome AS nome_area,
+              sl.nome AS nome_service_line,
+              lp.nome AS nome_learning_path
+         FROM badge b
+         JOIN nivel n ON n.id_nivel = b.id_nivel
+         JOIN area a ON a.id_area = n.id_area
+         JOIN service_line sl ON sl.id_service_line = a.id_service_line
+         JOIN learning_path lp ON lp.id_learning_path = sl.id_learning_path
+        WHERE b.ativo = 1
+        ORDER BY b.pontos DESC, b.titulo ASC
+        LIMIT 1`
+    );
+
+    res.json({
+      ranking,
+      total_pontos,
+      badge_mais_valioso: badgeMaisValioso[0] || null,
+    });
   } catch (err) { next(err); }
 }
 
@@ -360,7 +404,7 @@ async function dashboardServiceLine(req, res, next) {
 
     // KPI: pontuação total
     const [[{ pontuacao_total }]] = await pool.query(
-      `SELECT COALESCE(SUM(b.pontos), 0) AS pontuacao_total
+      `SELECT COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontuacao_total
          FROM badge_atribuido ba
          JOIN badge b ON b.id_badge = ba.id_badge
          JOIN nivel n ON n.id_nivel = b.id_nivel
@@ -420,7 +464,7 @@ async function dashboardServiceLine(req, res, next) {
               MAX(n.codigo_nivel) AS nivel_mais_alto,
               SUM(CASE WHEN ba.data_expiracao IS NULL OR ba.data_expiracao > NOW() THEN 1 ELSE 0 END) AS badges_ativos,
               SUM(CASE WHEN ba.data_expiracao IS NOT NULL AND ba.data_expiracao <= NOW() THEN 1 ELSE 0 END) AS badges_expirados,
-              COALESCE(SUM(b.pontos), 0) AS pontos_totais,
+              COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais,
               (SELECT COUNT(*) FROM utilizador_conquista uc WHERE uc.id_utilizador = u.id_utilizador) AS conquistas
          FROM utilizador u
          JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
@@ -439,7 +483,7 @@ async function dashboardServiceLine(req, res, next) {
       `SELECT u.id_utilizador, u.nome,
               a.nome AS nome_area,
               COUNT(DISTINCT ba.id_badge_atribuido) AS total_badges,
-              COALESCE(SUM(b.pontos), 0) AS pontos_totais
+              COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais
          FROM utilizador u
          JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
          JOIN area a ON a.id_area = ca.id_area
@@ -476,4 +520,10 @@ async function dashboardServiceLine(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { dashboardConsultor, dashboardGestor, rankingConsultores, dashboardServiceLine };
+module.exports = {
+  dashboardConsultor,
+  dashboardGestor,
+  rankingConsultores,
+  estatisticasPontos,
+  dashboardServiceLine,
+};

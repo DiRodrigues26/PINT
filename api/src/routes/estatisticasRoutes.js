@@ -8,6 +8,10 @@ router.use(autenticar);
 
 router.get('/consultor', ctrl.dashboardConsultor);
 router.get('/ranking',   ctrl.rankingConsultores);
+router.get('/pontos',
+  autorizarPerfis('Administrador'),
+  ctrl.estatisticasPontos
+);
 router.get('/gestor',
   autorizarPerfis('Administrador', 'Talent Manager', 'Service Line'),
   ctrl.dashboardGestor
