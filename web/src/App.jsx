@@ -24,6 +24,9 @@ import AdminSLA from './pages/admin/AdminSLA';
 import AdminUtilizadores from './pages/admin/AdminUtilizadores';
 import ServiceLineDashboard from './pages/serviceLine/Dashboard';
 import ServiceLinePerfil from './pages/serviceLine/Perfil';
+import ServiceLineNotificacoes from './pages/serviceLine/Notificacoes';
+import ServiceLinePedidos from './pages/serviceLine/Pedidos';
+import ServiceLinePedidoDetalhe from './pages/serviceLine/PedidoDetalhe';
 import ConsultorDashboard from './pages/consultor/Dashboard';
 import CatalogoBadges from './pages/consultor/CatalogoBadges';
 import MeusBadges from './pages/consultor/MeusBadges';
@@ -134,6 +137,15 @@ export default function App() {
       } />
       <Route path="/sl/perfil" element={
         <RotaProtegida perfis={['Service Line']}><ServiceLinePerfil /></RotaProtegida>
+      } />
+      <Route path="/sl/notificacoes" element={
+        <RotaProtegida perfis={['Service Line']}><ServiceLineNotificacoes /></RotaProtegida>
+      } />
+      <Route path="/sl/pedidos" element={
+        <RotaProtegida perfis={['Service Line']}><ServiceLinePedidos /></RotaProtegida>
+      } />
+      <Route path="/sl/pedidos/:id" element={
+        <RotaProtegida perfis={['Service Line']}><ServiceLinePedidoDetalhe /></RotaProtegida>
       } />
       <Route path="/sl/*" element={
         <RotaProtegida perfis={['Service Line']}><PerfilEmDesenvolvimento /></RotaProtegida>

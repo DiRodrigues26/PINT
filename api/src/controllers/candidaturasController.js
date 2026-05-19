@@ -97,7 +97,11 @@ async function listar(req, res, next) {
               a.id_area, a.nome AS nome_area,
               sl.id_service_line, sl.nome AS nome_service_line,
               (SELECT COUNT(*) FROM badge_requisito br WHERE br.id_badge = b.id_badge) AS total_requisitos,
-              (SELECT COUNT(*) FROM evidencia e WHERE e.id_candidatura = cb.id_candidatura) AS evidencias_count
+              (SELECT COUNT(*) FROM evidencia e WHERE e.id_candidatura = cb.id_candidatura) AS evidencias_count,
+              (SELECT u2.nome FROM avaliacao_candidatura av2
+                 JOIN utilizador u2 ON u2.id_utilizador = av2.id_avaliador
+                WHERE av2.id_candidatura = cb.id_candidatura
+                ORDER BY av2.data_avaliacao DESC LIMIT 1) AS validado_por
          FROM candidatura_badge cb
          JOIN utilizador u    ON u.id_utilizador = cb.id_consultor
          JOIN badge b         ON b.id_badge      = cb.id_badge
