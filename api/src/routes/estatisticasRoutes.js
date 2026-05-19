@@ -20,5 +20,13 @@ router.get('/service-line',
   autorizarPerfis('Administrador', 'Service Line'),
   ctrl.dashboardServiceLine
 );
+router.get('/service-line/relatorio',
+  autorizarPerfis('Administrador', 'Service Line'),
+  ctrl.relatorioServiceLine
+);
+router.get('/service-line/consultor/:id',
+  autorizarPerfis('Administrador', 'Service Line'),
+  ctrl.perfilConsultorSL
+);
 
 module.exports = router;

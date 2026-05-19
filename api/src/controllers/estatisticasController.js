@@ -465,7 +465,17 @@ async function dashboardServiceLine(req, res, next) {
               SUM(CASE WHEN ba.data_expiracao IS NULL OR ba.data_expiracao > NOW() THEN 1 ELSE 0 END) AS badges_ativos,
               SUM(CASE WHEN ba.data_expiracao IS NOT NULL AND ba.data_expiracao <= NOW() THEN 1 ELSE 0 END) AS badges_expirados,
               COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais,
-              (SELECT COUNT(*) FROM utilizador_conquista uc WHERE uc.id_utilizador = u.id_utilizador) AS conquistas
+              (SELECT COUNT(*) FROM utilizador_conquista uc WHERE uc.id_utilizador = u.id_utilizador) AS conquistas,
+              (SELECT COUNT(*) FROM candidatura_badge cb
+                WHERE cb.id_consultor = u.id_utilizador
+                  AND cb.estado_atual NOT IN ('APPROVED','REJECTED','CLOSED')) AS badges_em_processo,
+              (SELECT cb2.estado_atual FROM candidatura_badge cb2
+                WHERE cb2.id_consultor = u.id_utilizador
+                ORDER BY cb2.data_abertura DESC LIMIT 1) AS ultimo_estado,
+              (SELECT ce.nome FROM utilizador_conquista uc2
+                JOIN conquista_especial ce ON ce.id_conquista = uc2.id_conquista
+               WHERE uc2.id_utilizador = u.id_utilizador
+               ORDER BY uc2.data_atribuicao DESC LIMIT 1) AS conquista_especial
          FROM utilizador u
          JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
          JOIN area a ON a.id_area = ca.id_area
@@ -520,10 +530,171 @@ async function dashboardServiceLine(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function relatorioServiceLine(req, res, next) {
+  try {
+    const idUtilizador = req.utilizador.id_utilizador;
+    const { id_area, codigo_nivel, data_inicio, data_fim, estados } = req.query;
+
+    const [slRows] = await pool.query(
+      'SELECT id_service_line FROM service_line_responsavel WHERE id_utilizador = ?',
+      [idUtilizador]
+    );
+    if (slRows.length === 0) return res.status(403).json({ erro: 'Sem service line associada.' });
+    const id_service_line = slRows[0].id_service_line;
+
+    const where = ['a.id_service_line = ?'];
+    const params = [id_service_line];
+
+    if (id_area)       { where.push('a.id_area = ?');          params.push(id_area); }
+    if (codigo_nivel)  { where.push('n.codigo_nivel = ?');     params.push(codigo_nivel); }
+    if (data_inicio)   { where.push('cb.data_submissao >= ?'); params.push(data_inicio); }
+    if (data_fim)      { where.push('cb.data_submissao <= ?'); params.push(data_fim + ' 23:59:59'); }
+    if (estados) {
+      const lista = estados.split(',').filter(Boolean);
+      if (lista.length) {
+        where.push(`cb.estado_atual IN (${lista.map(() => '?').join(',')})`);
+        params.push(...lista);
+      }
+    }
+
+    const whereSQL = `WHERE ${where.join(' AND ')}`;
+
+    const [linhas] = await pool.query(
+      `SELECT cb.id_candidatura, cb.estado_atual, cb.data_submissao, cb.data_fecho,
+              u.nome AS nome_consultor,
+              b.titulo AS titulo_badge,
+              COALESCE(ba.pontos_atribuidos, b.pontos, 0) AS pontos,
+              n.codigo_nivel, n.nome_nivel,
+              a.id_area, a.nome AS nome_area,
+              (SELECT MAX(av.data_avaliacao) FROM avaliacao_candidatura av
+                WHERE av.id_candidatura = cb.id_candidatura) AS data_decisao
+         FROM candidatura_badge cb
+         JOIN utilizador u    ON u.id_utilizador   = cb.id_consultor
+         JOIN badge b         ON b.id_badge        = cb.id_badge
+         JOIN nivel n         ON n.id_nivel        = b.id_nivel
+         JOIN area a          ON a.id_area         = n.id_area
+         JOIN service_line sl ON sl.id_service_line = a.id_service_line
+         LEFT JOIN badge_atribuido ba ON ba.id_candidatura = cb.id_candidatura
+         ${whereSQL}
+         ORDER BY cb.data_submissao DESC
+         LIMIT 500`,
+      params
+    );
+
+    // KPIs calculados do resultado filtrado
+    const total = linhas.length;
+    const aprovacoes = linhas.filter(r => r.estado_atual === 'APPROVED').length;
+    const rejeicoes  = linhas.filter(r => r.estado_atual === 'REJECTED').length;
+    const pctAprovacao = (aprovacoes + rejeicoes) > 0
+      ? Math.round((aprovacoes / (aprovacoes + rejeicoes)) * 1000) / 10
+      : null;
+
+    const temposMed = linhas
+      .filter(r => r.data_submissao && r.data_decisao)
+      .map(r => (new Date(r.data_decisao) - new Date(r.data_submissao)) / 86400000);
+    const tempoMedio = temposMed.length > 0
+      ? Math.round((temposMed.reduce((a, b) => a + b, 0) / temposMed.length) * 10) / 10
+      : null;
+
+    res.json({
+      kpis: { total, aprovacoes, rejeicoes, pct_aprovacao: pctAprovacao, tempo_medio_dias: tempoMedio },
+      dados: linhas,
+    });
+  } catch (err) { next(err); }
+}
+
+async function perfilConsultorSL(req, res, next) {
+  try {
+    const idConsultor = parseInt(req.params.id, 10);
+    const idUtilizador = req.utilizador.id_utilizador;
+
+    // Descobrir a service line do utilizador autenticado
+    const [slRows] = await pool.query(
+      `SELECT slr.id_service_line FROM service_line_responsavel slr WHERE slr.id_utilizador = ?`,
+      [idUtilizador]
+    );
+    if (slRows.length === 0) return res.status(403).json({ erro: 'Sem service line associada.' });
+    const id_service_line = slRows[0].id_service_line;
+
+    // Info básica do consultor
+    const [[info]] = await pool.query(
+      `SELECT u.id_utilizador, u.nome, u.email,
+              a.id_area, a.nome AS nome_area,
+              sl.id_service_line, sl.nome AS nome_service_line,
+              COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais,
+              COUNT(DISTINCT ba.id_badge_atribuido) AS total_badges,
+              (SELECT COUNT(*) FROM candidatura_badge cb WHERE cb.id_consultor = u.id_utilizador AND cb.estado_atual NOT IN ('APPROVED','REJECTED','CLOSED')) AS em_processo
+         FROM utilizador u
+         JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
+         JOIN area a ON a.id_area = ca.id_area
+         JOIN service_line sl ON sl.id_service_line = a.id_service_line
+         LEFT JOIN badge_atribuido ba ON ba.id_consultor = u.id_utilizador
+         LEFT JOIN badge b ON b.id_badge = ba.id_badge
+        WHERE u.id_utilizador = ? AND a.id_service_line = ?
+        GROUP BY u.id_utilizador, u.nome, u.email, a.id_area, a.nome, sl.id_service_line, sl.nome`,
+      [idConsultor, id_service_line]
+    );
+    if (!info) return res.status(404).json({ erro: 'Consultor não encontrado nesta Service Line.' });
+
+    // Ranking interno
+    const [ranking] = await pool.query(
+      `SELECT u.id_utilizador,
+              COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais
+         FROM utilizador u
+         JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
+         JOIN area a ON a.id_area = ca.id_area
+         LEFT JOIN badge_atribuido ba ON ba.id_consultor = u.id_utilizador
+         LEFT JOIN badge b ON b.id_badge = ba.id_badge
+        WHERE a.id_service_line = ?
+        GROUP BY u.id_utilizador
+        ORDER BY pontos_totais DESC`,
+      [id_service_line]
+    );
+    const posicao = ranking.findIndex(r => r.id_utilizador === idConsultor) + 1;
+
+    // Progresso por nível (badges totais vs obtidos pelo consultor)
+    const [progressoNivel] = await pool.query(
+      `SELECT n.id_nivel, n.codigo_nivel, n.nome_nivel, n.ordem,
+              COUNT(DISTINCT b.id_badge) AS total_badges_nivel,
+              COUNT(DISTINCT ba.id_badge) AS obtidos
+         FROM nivel n
+         JOIN area a ON a.id_area = n.id_area
+         LEFT JOIN badge b ON b.id_nivel = n.id_nivel AND b.ativo = 1
+         LEFT JOIN badge_atribuido ba ON ba.id_badge = b.id_badge AND ba.id_consultor = ?
+        WHERE a.id_service_line = ?
+        GROUP BY n.id_nivel, n.codigo_nivel, n.nome_nivel, n.ordem
+        ORDER BY n.ordem ASC`,
+      [idConsultor, id_service_line]
+    );
+
+    // Candidaturas activas
+    const [candidaturas] = await pool.query(
+      `SELECT cb.id_candidatura, cb.estado_atual, cb.data_submissao,
+              b.titulo AS titulo_badge, b.imagem_url,
+              n.codigo_nivel, n.nome_nivel
+         FROM candidatura_badge cb
+         JOIN badge b ON b.id_badge = cb.id_badge
+         JOIN nivel n ON n.id_nivel = b.id_nivel
+        WHERE cb.id_consultor = ? AND cb.estado_atual NOT IN ('APPROVED','REJECTED','CLOSED')
+        ORDER BY cb.data_submissao DESC`,
+      [idConsultor]
+    );
+
+    res.json({
+      info,
+      ranking: { posicao, total: ranking.length },
+      progresso_nivel: progressoNivel,
+      candidaturas_ativas: candidaturas,
+    });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   dashboardConsultor,
   dashboardGestor,
   rankingConsultores,
   estatisticasPontos,
   dashboardServiceLine,
+  relatorioServiceLine,
+  perfilConsultorSL,
 };
