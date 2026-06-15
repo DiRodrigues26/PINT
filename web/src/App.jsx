@@ -10,6 +10,7 @@ import RecuperarPassword from './pages/auth/RecuperarPassword';
 import NovaPassword from './pages/auth/NovaPassword';
 import AlterarPasswordInicial from './pages/auth/AlterarPasswordInicial';
 import AdminAreas from './pages/admin/AdminAreas';
+import AdminAvisos from './pages/admin/AdminAvisos';
 import AdminBadges from './pages/admin/AdminBadges';
 import AdminCandidaturas from './pages/admin/AdminCandidaturas';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -117,7 +118,7 @@ export default function App() {
         <Route path="sla" element={<AdminSLA />} />
         <Route path="notificacoes" element={<PerfilEmDesenvolvimento />} />
         <Route path="relatorios" element={<PerfilEmDesenvolvimento />} />
-        <Route path="avisos" element={<PerfilEmDesenvolvimento />} />
+        <Route path="avisos" element={<AdminAvisos />} />
         <Route path="rgpd" element={<PerfilEmDesenvolvimento />} />
         <Route path="perfil" element={<PerfilEmDesenvolvimento />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />

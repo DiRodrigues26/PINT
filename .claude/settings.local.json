@@ -4,7 +4,13 @@
       "Bash(mysql -h nozomi.proxy.rlwy.net -P 15913 -u root -pjWNhrZqkBzMhmxFTwcjldSnQdiWWwZtc softinsa_badges -e \"SELECT id_utilizador, nome, email, email_confirmado, ativo FROM utilizador WHERE email = 'jaime12ribeiro34@gmail.com';\")",
       "Bash(node -e ' *)",
       "Bash(where node *)",
-      "Bash(command -v node)"
+      "Bash(command -v node)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\USER\\\\Desktop\\\\PINT\" -Recurse -Depth 2)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\USER\\\\Desktop\\\\PINT\" -Recurse -Depth 2 | Where-Object {$_.PSIsContainer} | Select-Object FullName | Sort-Object FullName)",
+      "mcp__Claude_Preview__preview_start",
+      "PowerShell(node api/scripts/token-teste-tmp.js)"
     ]
   }
 }

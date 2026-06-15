@@ -42,7 +42,7 @@ function secaoPorPath(pathname) {
 function mainClass(vistaAtiva) {
   if (vistaAtiva === 'utilizadores') return 'max-w-[1720px] px-5 lg:px-8 xl:px-10';
   if (vistaAtiva === 'pontos') return 'max-w-[1660px] px-5 lg:px-8 xl:px-10';
-  if (['candidaturas', 'learning-paths', 'service-lines', 'areas', 'niveis', 'badges', 'eventos', 'requisitos', 'sla'].includes(vistaAtiva)) {
+  if (['candidaturas', 'learning-paths', 'service-lines', 'areas', 'niveis', 'badges', 'eventos', 'requisitos', 'sla', 'avisos'].includes(vistaAtiva)) {
     return 'max-w-[1560px] px-5 lg:px-10 xl:px-16';
   }
   return 'max-w-[1760px] px-5 lg:px-8 xl:px-10 2xl:px-12';
