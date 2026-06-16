@@ -1,0 +1,14 @@
+{
+  "name": "pint",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Plataforma de Badges Softinsa — API (Express) + Web (Vite) num único serviço.",
+  "scripts": {
+    "postinstall": "cd web && npm ci --include=dev --ignore-scripts && cd ../api && npm ci --include=dev --ignore-scripts",
+    "build": "npm --prefix web run build",
+    "start": "node api/src/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -62,6 +62,12 @@ function formatarData(d) {
   return new Date(d).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+function obterUrlFicheiro(caminho) {
+  if (!caminho) return '#';
+  if (/^https?:\/\//i.test(caminho)) return caminho;
+  return `${api.defaults.baseURL || ''}/${String(caminho).replace(/^\/+/, '')}`;
+}
+
 /* ─── Campo de info ─────────────────────────────────────────────────── */
 function CampoInfo({ label, valor, destaque }) {
   return (
@@ -104,7 +110,7 @@ function BlocoRequisito({ req, evidencias, tmDecisao }) {
           {evidenciasDoReq.map(ev => (
             <a
               key={ev.id_evidencia}
-              href={`http://localhost:3000/${ev.ficheiro_url}`}
+              href={obterUrlFicheiro(ev.ficheiro_url)}
               target="_blank"
               rel="noreferrer"
               className="flex items-center gap-2 text-xs text-softinsa-600 hover:underline"
