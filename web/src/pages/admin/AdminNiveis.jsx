@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
+import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
 
 const BADGES_NIVEL = {
@@ -187,91 +188,19 @@ function BadgeResumo({ nivel, modo }) {
   );
 }
 
-function gerarCsvNiveis(items) {
-  const linhas = [
-    ['Dificuldade', 'Area', 'Service Line', 'Learning Path', 'N Requisitos', 'Badge', 'Data Criacao', 'Estado'],
-    ...items.map((nivel) => [
-      dificuldade(nivel),
-      nivel.nome_area || '',
-      nivel.nome_service_line || '',
-      nivel.nome_learning_path || '',
-      nivel.total_requisitos || 0,
-      nivel.titulo_badge || nivel.codigo_nivel || '',
-      formatarData(nivel.created_at),
-      nivel.ativo !== 0 ? 'Ativo' : 'Inativo',
-    ]),
-  ];
-
-  return linhas
-    .map((linha) => linha.map((valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`).join(';'))
-    .join('\n');
-}
-
-function descarregarCsv(nomeFicheiro, csv) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nomeFicheiro;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function escaparHtml(valor) {
-  return String(valor ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function imprimirTabelaNiveis(items) {
-  const linhas = items.map((nivel) => `
-    <tr>
-      <td>${escaparHtml(dificuldade(nivel))}</td>
-      <td>${escaparHtml(nivel.nome_area)}</td>
-      <td>${escaparHtml(nivel.nome_service_line)}</td>
-      <td>${escaparHtml(nivel.nome_learning_path)}</td>
-      <td>${escaparHtml(nivel.total_requisitos || 0)}</td>
-      <td>${escaparHtml(nivel.titulo_badge || nivel.codigo_nivel || '')}</td>
-      <td>${escaparHtml(formatarData(nivel.created_at))}</td>
-      <td>${nivel.ativo !== 0 ? 'Ativo' : 'Inativo'}</td>
-    </tr>
-  `).join('');
-
-  const janela = window.open('', '_blank');
-  if (!janela) return;
-  janela.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>Níveis</title>
-        <style>
-          body { font-family: Arial, sans-serif; color: #1f2937; padding: 24px; }
-          h1 { font-size: 22px; margin-bottom: 18px; }
-          table { border-collapse: collapse; width: 100%; font-size: 12px; }
-          th, td { border: 1px solid #d7dde5; padding: 8px; text-align: left; }
-          th { background: #f1f5f9; }
-        </style>
-      </head>
-      <body>
-        <h1>Gestão de Níveis</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Dificuldade</th><th>Área</th><th>Service Line</th><th>Learning Path</th>
-              <th>N.º Requisitos</th><th>Badge</th><th>Data Criação</th><th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>${linhas || '<tr><td colspan="8">Sem resultados</td></tr>'}</tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  janela.document.close();
-  janela.focus();
-  janela.print();
+function dadosNiveis(items) {
+  const headers = ['Dificuldade', 'Área', 'Service Line', 'Learning Path', 'Nº Requisitos', 'Badge', 'Data Criação', 'Estado'];
+  const linhas = items.map((nivel) => [
+    dificuldade(nivel),
+    nivel.nome_area || '',
+    nivel.nome_service_line || '',
+    nivel.nome_learning_path || '',
+    nivel.total_requisitos || 0,
+    nivel.titulo_badge || nivel.codigo_nivel || '',
+    formatarData(nivel.created_at),
+    nivel.ativo !== 0 ? 'Ativo' : 'Inativo',
+  ]);
+  return { headers, linhas };
 }
 
 function FormNivel({
@@ -612,7 +541,8 @@ export default function AdminNiveis() {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      descarregarCsv('niveis.csv', gerarCsvNiveis(todos));
+      const { headers, linhas } = dadosNiveis(todos);
+      descarregarCsv('niveis.csv', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível exportar os níveis.'));
     }
@@ -621,7 +551,8 @@ export default function AdminNiveis() {
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      imprimirTabelaNiveis(todos);
+      const { headers, linhas } = dadosNiveis(todos);
+      imprimirTabela('Gestão de Níveis', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
     }

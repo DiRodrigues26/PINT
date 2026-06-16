@@ -290,9 +290,16 @@ function LineChart({ dados }) {
 }
 
 export default function AdminDashboard() {
+  const [intervalo, setIntervalo] = useState({ data_inicio: '', data_fim: '' });
+
   const estatisticas = useQuery({
-    queryKey: ['admin-dashboard', 'estatisticas'],
-    queryFn: async () => (await api.get('/api/estatisticas/gestor')).data,
+    queryKey: ['admin-dashboard', 'estatisticas', intervalo],
+    queryFn: async () => (await api.get('/api/estatisticas/gestor', {
+      params: {
+        data_inicio: intervalo.data_inicio || undefined,
+        data_fim: intervalo.data_fim || undefined,
+      },
+    })).data,
     refetchInterval: 15000,
   });
 
@@ -397,6 +404,53 @@ export default function AdminDashboard() {
 
       <Painel titulo="Evolução Mensal">
         <LineChart dados={dados.badges_por_mes} />
+      </Painel>
+
+      <Painel titulo="Badges por Intervalo de Datas">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-wrap items-end gap-4">
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-500">Data início</span>
+              <input
+                type="date"
+                className="input"
+                value={intervalo.data_inicio}
+                max={intervalo.data_fim || undefined}
+                onChange={(e) => setIntervalo((i) => ({ ...i, data_inicio: e.target.value }))}
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-slate-500">Data fim</span>
+              <input
+                type="date"
+                className="input"
+                value={intervalo.data_fim}
+                min={intervalo.data_inicio || undefined}
+                onChange={(e) => setIntervalo((i) => ({ ...i, data_fim: e.target.value }))}
+              />
+            </label>
+            {(intervalo.data_inicio || intervalo.data_fim) && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setIntervalo({ data_inicio: '', data_fim: '' })}
+              >
+                <ShellIcon nome="x" className="h-4 w-4" /> Limpar
+              </button>
+            )}
+          </div>
+          <div className="rounded-xl bg-softinsa-50 px-6 py-4 text-center">
+            <div className="text-xs font-medium uppercase tracking-wide text-softinsa-700">Badges atribuídos no período</div>
+            <div className="mt-1 text-4xl font-bold text-softinsa-700">
+              {(intervalo.data_inicio || intervalo.data_fim) ? numero(dados.badges_no_intervalo) : numero(dados.total_badges_atribuidos)}
+            </div>
+            <div className="mt-1 text-xs text-slate-500">
+              {(intervalo.data_inicio || intervalo.data_fim)
+                ? `${intervalo.data_inicio ? formatarData(intervalo.data_inicio) : '…'} — ${intervalo.data_fim ? formatarData(intervalo.data_fim) : '…'}`
+                : 'Todos os períodos (selecione um intervalo)'}
+            </div>
+          </div>
+        </div>
       </Painel>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">

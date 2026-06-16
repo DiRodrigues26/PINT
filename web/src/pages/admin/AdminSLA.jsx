@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
+import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { estadoCandidatura } from '../../lib/formatar';
 import { DetalheCandidatura, Modal } from './AdminCandidaturas';
 
@@ -63,88 +64,19 @@ function estadoProcesso(estado) {
   return estadoCandidatura(estado).label;
 }
 
-function csvLinhas(items) {
-  const linhas = [
-    ['Consultor', 'Badge', 'Area', 'Service Line', 'Estado Processo', 'Tempo Decorrido', 'SLA Definido', 'Estado SLA'],
-    ...items.map((item) => [
-      item.nome_consultor,
-      item.titulo_badge,
-      item.nome_area,
-      item.nome_service_line,
-      estadoProcesso(item.estado_atual),
-      `${item.horas_em_fase || 0}h`,
-      item.limite_horas ? `${item.limite_horas}h` : 'Sem SLA',
-      estadoSla(item).label,
-    ]),
-  ];
-  return linhas.map((linha) => linha.map((valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`).join(';')).join('\n');
-}
-
-function descarregarCsv(nomeFicheiro, csv) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nomeFicheiro;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function escaparHtml(valor) {
-  return String(valor ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function imprimirTabela(items) {
-  const linhas = items.map((item) => `
-    <tr>
-      <td>${escaparHtml(item.nome_consultor)}</td>
-      <td>${escaparHtml(item.titulo_badge)}</td>
-      <td>${escaparHtml(item.nome_area)}</td>
-      <td>${escaparHtml(item.nome_service_line)}</td>
-      <td>${escaparHtml(estadoProcesso(item.estado_atual))}</td>
-      <td>${escaparHtml(`${item.horas_em_fase || 0}h`)}</td>
-      <td>${escaparHtml(item.limite_horas ? `${item.limite_horas}h` : 'Sem SLA')}</td>
-      <td>${escaparHtml(estadoSla(item).label)}</td>
-    </tr>
-  `).join('');
-
-  const janela = window.open('', '_blank');
-  if (!janela) return;
-  janela.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>Gestão de SLA</title>
-        <style>
-          body { font-family: Arial, sans-serif; color: #1f2937; padding: 24px; }
-          h1 { font-size: 22px; margin-bottom: 18px; }
-          table { border-collapse: collapse; width: 100%; font-size: 12px; }
-          th, td { border: 1px solid #d7dde5; padding: 8px; text-align: left; }
-          th { background: #f1f5f9; }
-        </style>
-      </head>
-      <body>
-        <h1>Gestão de SLA</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Consultor</th><th>Badge</th><th>Área</th><th>Service Line</th>
-              <th>Estado Processo</th><th>Tempo Decorrido</th><th>SLA Definido</th><th>Estado SLA</th>
-            </tr>
-          </thead>
-          <tbody>${linhas || '<tr><td colspan="8">Sem resultados</td></tr>'}</tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  janela.document.close();
-  janela.focus();
-  janela.print();
+function dadosSla(items) {
+  const headers = ['Consultor', 'Badge', 'Área', 'Service Line', 'Estado Processo', 'Tempo Decorrido', 'SLA Definido', 'Estado SLA'];
+  const linhas = items.map((item) => [
+    item.nome_consultor,
+    item.titulo_badge,
+    item.nome_area,
+    item.nome_service_line,
+    estadoProcesso(item.estado_atual),
+    `${item.horas_em_fase || 0}h`,
+    item.limite_horas ? `${item.limite_horas}h` : 'Sem SLA',
+    estadoSla(item).label,
+  ]);
+  return { headers, linhas };
 }
 
 function CardConfig({ meta, form, onChange }) {
@@ -272,10 +204,10 @@ export default function AdminSLA() {
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de SLA</h1>
         <div className="flex flex-wrap gap-3">
-          <button type="button" className="btn-secondary" onClick={() => descarregarCsv('gestao-sla.csv', csvLinhas(itens))}>
+          <button type="button" className="btn-secondary" onClick={() => { const { headers, linhas } = dadosSla(itens); descarregarCsv('gestao-sla.csv', headers, linhas); }}>
             <Icon nome="download" className="h-4 w-4" /> Exportar Excel
           </button>
-          <button type="button" className="btn-secondary" onClick={() => imprimirTabela(itens)}>
+          <button type="button" className="btn-secondary" onClick={() => { const { headers, linhas } = dadosSla(itens); imprimirTabela('Gestão de SLA', headers, linhas); }}>
             <Icon nome="file" className="h-4 w-4" /> Exportar PDF
           </button>
           <button type="button" className="btn-primary" disabled={guardar.isPending} onClick={() => guardar.mutate()}>

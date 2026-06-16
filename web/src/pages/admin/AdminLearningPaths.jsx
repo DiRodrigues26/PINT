@@ -16,6 +16,7 @@ import {
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { formatarData } from '../../lib/formatar';
+import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 
 const ESTADO_INICIAL = {
   nome: '',
@@ -50,86 +51,16 @@ function prepararPayload(form) {
   };
 }
 
-function gerarCsvLearningPaths(items) {
-  const linhas = [
-    ['Nome do Learning Path', 'N Service Lines', 'N Badges', 'Data de Criacao', 'Estado'],
-    ...items.map((lp) => [
-      lp.nome,
-      lp.total_service_lines || 0,
-      lp.total_badges || 0,
-      formatarData(lp.created_at),
-      lp.ativo ? 'Ativo' : 'Inativo',
-    ]),
-  ];
-
-  const csv = linhas
-    .map((linha) => linha.map((valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`).join(';'))
-    .join('\n');
-  return csv;
-}
-
-function descarregarCsv(nomeFicheiro, csv) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nomeFicheiro;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function escaparHtml(valor) {
-  return String(valor ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function imprimirTabelaLearningPaths(items) {
-  const linhas = items.map((lp) => `
-    <tr>
-      <td>${escaparHtml(lp.nome)}</td>
-      <td>${lp.total_service_lines || 0}</td>
-      <td>${lp.total_badges || 0}</td>
-      <td>${escaparHtml(formatarData(lp.created_at))}</td>
-      <td>${lp.ativo ? 'Ativo' : 'Inativo'}</td>
-    </tr>
-  `).join('');
-
-  const janela = window.open('', '_blank');
-  if (!janela) return;
-  janela.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>Learning Paths</title>
-        <style>
-          body { font-family: Arial, sans-serif; color: #1f2937; padding: 24px; }
-          h1 { font-size: 22px; margin-bottom: 18px; }
-          table { border-collapse: collapse; width: 100%; font-size: 12px; }
-          th, td { border: 1px solid #d7dde5; padding: 8px; text-align: left; }
-          th { background: #f1f5f9; }
-        </style>
-      </head>
-      <body>
-        <h1>Gestão de Learning Paths</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Nome do Learning Path</th><th>Nº Service Lines</th><th>Nº Badges</th>
-              <th>Data de Criação</th><th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>${linhas || '<tr><td colspan="5">Sem resultados</td></tr>'}</tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  janela.document.close();
-  janela.focus();
-  janela.print();
+function dadosLearningPaths(items) {
+  const headers = ['Nome do Learning Path', 'Nº Service Lines', 'Nº Badges', 'Data de Criação', 'Estado'];
+  const linhas = items.map((lp) => [
+    lp.nome,
+    lp.total_service_lines || 0,
+    lp.total_badges || 0,
+    formatarData(lp.created_at),
+    lp.ativo ? 'Ativo' : 'Inativo',
+  ]);
+  return { headers, linhas };
 }
 
 function Modal({ titulo, children, onFechar, icon, iconTone = 'blue', size = 'md' }) {
@@ -305,8 +236,8 @@ export default function AdminLearningPaths() {
 
   async function exportarExcel() {
     try {
-      const todos = await obterTodosFiltrados();
-      descarregarCsv('learning-paths.csv', gerarCsvLearningPaths(todos));
+      const { headers, linhas } = dadosLearningPaths(await obterTodosFiltrados());
+      descarregarCsv('learning-paths.csv', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível exportar os learning paths.'));
     }
@@ -314,8 +245,8 @@ export default function AdminLearningPaths() {
 
   async function exportarPdf() {
     try {
-      const todos = await obterTodosFiltrados();
-      imprimirTabelaLearningPaths(todos);
+      const { headers, linhas } = dadosLearningPaths(await obterTodosFiltrados());
+      imprimirTabela('Gestão de Learning Paths', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
     }

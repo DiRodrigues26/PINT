@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
+import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
 import UploadImagemAdmin from '../../components/UploadImagemAdmin';
 
@@ -139,89 +140,18 @@ function tipoRequisito(req) {
   return 'Evento';
 }
 
-function gerarCsvEventos(items) {
-  const linhas = [
-    ['Titulo', 'Dificuldade', 'N Requisitos', 'Badge', 'Data Criacao', 'Data Limite', 'Estado'],
-    ...items.map((evento) => [
-      evento.titulo,
-      dificuldade(evento),
-      evento.n_requisitos || 0,
-      evento.titulo_badge || '',
-      formatarData(evento.data_criacao),
-      formatarData(evento.data_limite),
-      evento.ativo ? 'Ativo' : 'Inativo',
-    ]),
-  ];
-
-  return linhas
-    .map((linha) => linha.map((valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`).join(';'))
-    .join('\n');
-}
-
-function descarregarCsv(nomeFicheiro, csv) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nomeFicheiro;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function escaparHtml(valor) {
-  return String(valor ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function imprimirTabelaEventos(items) {
-  const linhas = items.map((evento) => `
-    <tr>
-      <td>${escaparHtml(evento.titulo)}</td>
-      <td>${escaparHtml(dificuldade(evento))}</td>
-      <td>${evento.n_requisitos || 0}</td>
-      <td>${escaparHtml(evento.titulo_badge)}</td>
-      <td>${escaparHtml(formatarData(evento.data_criacao))}</td>
-      <td>${escaparHtml(formatarData(evento.data_limite))}</td>
-      <td>${evento.ativo ? 'Ativo' : 'Inativo'}</td>
-    </tr>
-  `).join('');
-
-  const janela = window.open('', '_blank');
-  if (!janela) return;
-  janela.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>Eventos Especiais</title>
-        <style>
-          body { font-family: Arial, sans-serif; color: #1f2937; padding: 24px; }
-          h1 { font-size: 22px; margin-bottom: 18px; }
-          table { border-collapse: collapse; width: 100%; font-size: 12px; }
-          th, td { border: 1px solid #d7dde5; padding: 8px; text-align: left; }
-          th { background: #f1f5f9; }
-        </style>
-      </head>
-      <body>
-        <h1>Gestão de Eventos Especiais</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Título</th><th>Dificuldade</th><th>N.º Requisitos</th><th>Badge</th>
-              <th>Data Criação</th><th>Data Limite</th><th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>${linhas || '<tr><td colspan="7">Sem resultados</td></tr>'}</tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  janela.document.close();
-  janela.focus();
-  janela.print();
+function dadosEventos(items) {
+  const headers = ['Título', 'Dificuldade', 'Nº Requisitos', 'Badge', 'Data Criação', 'Data Limite', 'Estado'];
+  const linhas = items.map((evento) => [
+    evento.titulo,
+    dificuldade(evento),
+    evento.n_requisitos || 0,
+    evento.titulo_badge || '',
+    formatarData(evento.data_criacao),
+    formatarData(evento.data_limite),
+    evento.ativo ? 'Ativo' : 'Inativo',
+  ]);
+  return { headers, linhas };
 }
 
 function prepararPayload(form, niveis) {
@@ -668,7 +598,8 @@ export default function AdminEventosEspeciais() {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      descarregarCsv('eventos-especiais.csv', gerarCsvEventos(todos));
+      const { headers, linhas } = dadosEventos(todos);
+      descarregarCsv('eventos-especiais.csv', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível exportar os eventos especiais.'));
     }
@@ -677,7 +608,8 @@ export default function AdminEventosEspeciais() {
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      imprimirTabelaEventos(todos);
+      const { headers, linhas } = dadosEventos(todos);
+      imprimirTabela('Gestão de Eventos Especiais', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
     }

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
+import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData, formatarDataHora } from '../../lib/formatar';
 
 const PERFIS = ['Consultor', 'Talent Manager', 'Service Line', 'Administrador'];
@@ -83,92 +84,19 @@ function prepararPayload(form, incluirPassword = false) {
   return payload;
 }
 
-function gerarCsvUtilizadores(utilizadores) {
-  const linhas = [
-    ['Nome', 'Email', 'Perfil', 'Service Line', 'Area', 'Data Registo', 'Estado', 'Ultimo Login'],
-    ...utilizadores.map((u) => [
-      u.nome,
-      u.email,
-      perfisComoTexto(u.perfis),
-      u.nome_service_line || '',
-      u.nome_area || '',
-      formatarData(u.created_at),
-      u.ativo ? 'Ativo' : 'Inativo',
-      formatarDataHora(u.ultimo_login),
-    ]),
-  ];
-
-  const csv = linhas
-    .map((linha) => linha.map((valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`).join(';'))
-    .join('\n');
-  return csv;
-}
-
-function descarregarCsv(nomeFicheiro, csv) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nomeFicheiro;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function escaparHtml(valor) {
-  return String(valor ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function imprimirTabelaUtilizadores(utilizadores) {
-  const linhas = utilizadores.map((u) => `
-    <tr>
-      <td>${escaparHtml(u.nome)}</td>
-      <td>${escaparHtml(u.email)}</td>
-      <td>${escaparHtml(perfisComoTexto(u.perfis))}</td>
-      <td>${escaparHtml(u.nome_service_line)}</td>
-      <td>${escaparHtml(u.nome_area)}</td>
-      <td>${escaparHtml(formatarData(u.created_at))}</td>
-      <td>${u.ativo ? 'Ativo' : 'Inativo'}</td>
-      <td>${escaparHtml(formatarDataHora(u.ultimo_login))}</td>
-    </tr>
-  `).join('');
-
-  const janela = window.open('', '_blank');
-  if (!janela) return;
-  janela.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>Utilizadores</title>
-        <style>
-          body { font-family: Arial, sans-serif; color: #1f2937; padding: 24px; }
-          h1 { font-size: 22px; margin-bottom: 18px; }
-          table { border-collapse: collapse; width: 100%; font-size: 12px; }
-          th, td { border: 1px solid #d7dde5; padding: 8px; text-align: left; }
-          th { background: #f1f5f9; }
-        </style>
-      </head>
-      <body>
-        <h1>Gestão de Utilizadores</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Nome</th><th>Email</th><th>Perfil</th><th>Service Line</th>
-              <th>Área</th><th>Data Registo</th><th>Estado</th><th>Último Login</th>
-            </tr>
-          </thead>
-          <tbody>${linhas || '<tr><td colspan="8">Sem resultados</td></tr>'}</tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  janela.document.close();
-  janela.focus();
-  janela.print();
+function dadosUtilizadores(utilizadores) {
+  const headers = ['Nome', 'Email', 'Perfil', 'Service Line', 'Área', 'Data Registo', 'Estado', 'Último Login'];
+  const linhas = utilizadores.map((u) => [
+    u.nome,
+    u.email,
+    perfisComoTexto(u.perfis),
+    u.nome_service_line || '',
+    u.nome_area || '',
+    formatarData(u.created_at),
+    u.ativo ? 'Ativo' : 'Inativo',
+    formatarDataHora(u.ultimo_login),
+  ]);
+  return { headers, linhas };
 }
 
 function Modal({ titulo, children, onFechar, icon, iconTone = 'blue', size = 'md' }) {
@@ -406,7 +334,8 @@ export default function AdminUtilizadores() {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      descarregarCsv('utilizadores.csv', gerarCsvUtilizadores(todos));
+      const { headers, linhas } = dadosUtilizadores(todos);
+      descarregarCsv('utilizadores.csv', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível exportar os utilizadores.'));
     }
@@ -415,7 +344,8 @@ export default function AdminUtilizadores() {
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      imprimirTabelaUtilizadores(todos);
+      const { headers, linhas } = dadosUtilizadores(todos);
+      imprimirTabela('Gestão de Utilizadores', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
     }

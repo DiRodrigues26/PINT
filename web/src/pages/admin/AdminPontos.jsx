@@ -10,6 +10,7 @@ import {
   TrendingUp,
   X,
 } from 'lucide-react';
+import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { formatarData } from '../../lib/formatar';
@@ -66,89 +67,18 @@ function numero(valor) {
   return new Intl.NumberFormat('pt-PT').format(Number(valor) || 0);
 }
 
-function gerarCsv(items) {
-  const linhas = [
-    ['Nome do Badge', 'Learning Path', 'Service Line', 'Area', 'Nivel', 'Pontos atuais', 'Estado'],
-    ...items.map((badge) => [
-      badge.titulo,
-      badge.nome_learning_path || '',
-      badge.nome_service_line || '',
-      badge.nome_area || '',
-      dificuldade(badge),
-      badge.pontos || 0,
-      estadoBadge(badge),
-    ]),
-  ];
-
-  return linhas
-    .map((linha) => linha.map((valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`).join(';'))
-    .join('\n');
-}
-
-function descarregarCsv(nomeFicheiro, csv) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nomeFicheiro;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function escaparHtml(valor) {
-  return String(valor ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function imprimir(items) {
-  const linhas = items.map((badge) => `
-    <tr>
-      <td>${escaparHtml(badge.titulo)}</td>
-      <td>${escaparHtml(badge.nome_learning_path)}</td>
-      <td>${escaparHtml(badge.nome_service_line)}</td>
-      <td>${escaparHtml(badge.nome_area)}</td>
-      <td>${escaparHtml(dificuldade(badge))}</td>
-      <td>${escaparHtml(badge.pontos || 0)}</td>
-      <td>${escaparHtml(estadoBadge(badge))}</td>
-    </tr>
-  `).join('');
-
-  const janela = window.open('', '_blank');
-  if (!janela) return;
-  janela.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>Gestão de Pontos</title>
-        <style>
-          body { font-family: Arial, sans-serif; color: #1f2937; padding: 24px; }
-          h1 { font-size: 22px; margin-bottom: 18px; }
-          table { border-collapse: collapse; width: 100%; font-size: 12px; }
-          th, td { border: 1px solid #d7dde5; padding: 8px; text-align: left; }
-          th { background: #f1f5f9; }
-        </style>
-      </head>
-      <body>
-        <h1>Gestão de Pontos</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Nome do Badge</th><th>Learning Path</th><th>Service Line</th>
-              <th>Área</th><th>Nível</th><th>Pontos atuais</th><th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>${linhas || '<tr><td colspan="7">Sem resultados</td></tr>'}</tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  janela.document.close();
-  janela.focus();
-  janela.print();
+function dadosPontos(items) {
+  const headers = ['Nome do Badge', 'Learning Path', 'Service Line', 'Área', 'Nível', 'Pontos atuais', 'Estado'];
+  const linhas = items.map((badge) => [
+    badge.titulo,
+    badge.nome_learning_path || '',
+    badge.nome_service_line || '',
+    badge.nome_area || '',
+    dificuldade(badge),
+    badge.pontos || 0,
+    estadoBadge(badge),
+  ]);
+  return { headers, linhas };
 }
 
 export default function AdminPontos({ onEditarBadge }) {
@@ -282,7 +212,8 @@ export default function AdminPontos({ onEditarBadge }) {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      descarregarCsv('gestao-pontos.csv', gerarCsv(todos));
+      const { headers, linhas } = dadosPontos(todos);
+      descarregarCsv('gestao-pontos.csv', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível exportar os pontos.'));
     }
@@ -291,7 +222,8 @@ export default function AdminPontos({ onEditarBadge }) {
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      imprimir(todos);
+      const { headers, linhas } = dadosPontos(todos);
+      imprimirTabela('Gestão de Pontos', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
     }

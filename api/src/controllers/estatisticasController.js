@@ -235,6 +235,21 @@ async function dashboardGestor(req, res, next) {
       'SELECT COUNT(*) AS total_acoes_registadas FROM historico_candidatura'
     );
 
+    // # de Badges atribuídos por intervalo de datas (opcional, requisito de reporting)
+    const { data_inicio, data_fim } = req.query;
+    let badges_no_intervalo = null;
+    if (data_inicio || data_fim) {
+      const condicoes = [];
+      const paramsIntervalo = [];
+      if (data_inicio) { condicoes.push('data_atribuicao >= ?'); paramsIntervalo.push(`${data_inicio} 00:00:00`); }
+      if (data_fim) { condicoes.push('data_atribuicao <= ?'); paramsIntervalo.push(`${data_fim} 23:59:59`); }
+      const [[{ total }]] = await pool.query(
+        `SELECT COUNT(*) AS total FROM badge_atribuido WHERE ${condicoes.join(' AND ')}`,
+        paramsIntervalo
+      );
+      badges_no_intervalo = total;
+    }
+
     res.json({
       total_utilizadores,
       total_badges_ativos,
@@ -249,6 +264,8 @@ async function dashboardGestor(req, res, next) {
       melhor_service_line: melhorServiceLine[0] || null,
       total_conquistas_especiais,
       total_acoes_registadas,
+      badges_no_intervalo,
+      intervalo: (data_inicio || data_fim) ? { data_inicio: data_inicio || null, data_fim: data_fim || null } : null,
     });
   } catch (err) { next(err); }
 }

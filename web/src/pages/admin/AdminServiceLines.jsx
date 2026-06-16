@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
+import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
 
 const ESTADO_INICIAL = {
@@ -54,87 +55,17 @@ function prepararPayload(form) {
   };
 }
 
-function gerarCsvServiceLines(items) {
-  const linhas = [
-    ['Nome da Service Line', 'Learning Path', 'N Areas', 'N Badges', 'Data de Criacao', 'Estado'],
-    ...items.map((sl) => [
-      sl.nome,
-      sl.nome_learning_path || '',
-      sl.total_areas || 0,
-      sl.total_badges || 0,
-      formatarData(sl.created_at),
-      sl.ativo ? 'Ativo' : 'Inativo',
-    ]),
-  ];
-
-  return linhas
-    .map((linha) => linha.map((valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`).join(';'))
-    .join('\n');
-}
-
-function descarregarCsv(nomeFicheiro, csv) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nomeFicheiro;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function escaparHtml(valor) {
-  return String(valor ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function imprimirTabelaServiceLines(items) {
-  const linhas = items.map((sl) => `
-    <tr>
-      <td>${escaparHtml(sl.nome)}</td>
-      <td>${escaparHtml(sl.nome_learning_path)}</td>
-      <td>${sl.total_areas || 0}</td>
-      <td>${sl.total_badges || 0}</td>
-      <td>${escaparHtml(formatarData(sl.created_at))}</td>
-      <td>${sl.ativo ? 'Ativo' : 'Inativo'}</td>
-    </tr>
-  `).join('');
-
-  const janela = window.open('', '_blank');
-  if (!janela) return;
-  janela.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>Service Lines</title>
-        <style>
-          body { font-family: Arial, sans-serif; color: #1f2937; padding: 24px; }
-          h1 { font-size: 22px; margin-bottom: 18px; }
-          table { border-collapse: collapse; width: 100%; font-size: 12px; }
-          th, td { border: 1px solid #d7dde5; padding: 8px; text-align: left; }
-          th { background: #f1f5f9; }
-        </style>
-      </head>
-      <body>
-        <h1>Gestão de Service Lines</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Nome da Service Line</th><th>Learning Path</th><th>Nº de Áreas</th>
-              <th>Nº de Badges</th><th>Data de Criação</th><th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>${linhas || '<tr><td colspan="6">Sem resultados</td></tr>'}</tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  janela.document.close();
-  janela.focus();
-  janela.print();
+function dadosServiceLines(items) {
+  const headers = ['Nome da Service Line', 'Learning Path', 'Nº de Áreas', 'Nº de Badges', 'Data de Criação', 'Estado'];
+  const linhas = items.map((sl) => [
+    sl.nome,
+    sl.nome_learning_path || '',
+    sl.total_areas || 0,
+    sl.total_badges || 0,
+    formatarData(sl.created_at),
+    sl.ativo ? 'Ativo' : 'Inativo',
+  ]);
+  return { headers, linhas };
 }
 
 function Modal({ titulo, children, onFechar, icon, iconTone = 'blue', size = 'md' }) {
@@ -336,7 +267,8 @@ export default function AdminServiceLines() {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      descarregarCsv('service-lines.csv', gerarCsvServiceLines(todos));
+      const { headers, linhas } = dadosServiceLines(todos);
+      descarregarCsv('service-lines.csv', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível exportar as service lines.'));
     }
@@ -345,7 +277,8 @@ export default function AdminServiceLines() {
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      imprimirTabelaServiceLines(todos);
+      const { headers, linhas } = dadosServiceLines(todos);
+      imprimirTabela('Gestão de Service Lines', headers, linhas);
     } catch (err) {
       toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
     }

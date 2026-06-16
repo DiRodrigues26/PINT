@@ -5,6 +5,7 @@ const express = require('express');
 const cors    = require('cors');
 const { testConnection } = require('./db/connection');
 const { tratadorErros } = require('./middleware/erros');
+const { iniciarJobSLA } = require('./jobs/slaAlertas');
 
 const authRoutes           = require('./routes/authRoutes');
 const utilizadoresRoutes   = require('./routes/utilizadoresRoutes');
@@ -97,6 +98,7 @@ async function arrancar() {
   await testConnection();
   app.listen(PORT, () => {
     console.log(`🚀 API a correr em http://localhost:${PORT}`);
+    iniciarJobSLA();
   });
 }
 

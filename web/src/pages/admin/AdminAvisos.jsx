@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
+import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData, formatarDataHora } from '../../lib/formatar';
 
 const ESTADO_INICIAL = {
@@ -90,88 +91,17 @@ function prepararPayload(form) {
   };
 }
 
-function gerarCsvAvisos(items) {
-  const linhas = [
-    ['Titulo', 'Tipo', 'Criador', 'Vigencia', 'Data de Criacao', 'Estado'],
-    ...items.map((aviso) => [
-      aviso.titulo,
-      tipoAviso(aviso.tipo).label,
-      aviso.nome_criador || '—',
-      vigenciaAviso(aviso),
-      formatarData(aviso.created_at),
-      aviso.ativo ? 'Ativo' : 'Inativo',
-    ]),
-  ];
-
-  const csv = linhas
-    .map((linha) => linha.map((valor) => `"${String(valor ?? '').replace(/"/g, '""')}"`).join(';'))
-    .join('\n');
-  return csv;
-}
-
-function descarregarCsv(nomeFicheiro, csv) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nomeFicheiro;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function escaparHtml(valor) {
-  return String(valor ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function imprimirTabelaAvisos(items) {
-  const linhas = items.map((aviso) => `
-    <tr>
-      <td>${escaparHtml(aviso.titulo)}</td>
-      <td>${escaparHtml(tipoAviso(aviso.tipo).label)}</td>
-      <td>${escaparHtml(aviso.nome_criador || '—')}</td>
-      <td>${escaparHtml(vigenciaAviso(aviso))}</td>
-      <td>${escaparHtml(formatarData(aviso.created_at))}</td>
-      <td>${aviso.ativo ? 'Ativo' : 'Inativo'}</td>
-    </tr>
-  `).join('');
-
-  const janela = window.open('', '_blank');
-  if (!janela) return;
-  janela.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>Informações/Avisos</title>
-        <style>
-          body { font-family: Arial, sans-serif; color: #1f2937; padding: 24px; }
-          h1 { font-size: 22px; margin-bottom: 18px; }
-          table { border-collapse: collapse; width: 100%; font-size: 12px; }
-          th, td { border: 1px solid #d7dde5; padding: 8px; text-align: left; }
-          th { background: #f1f5f9; }
-        </style>
-      </head>
-      <body>
-        <h1>Gestão de Informações/Avisos</h1>
-        <table>
-          <thead>
-            <tr>
-              <th>Título</th><th>Tipo</th><th>Criador</th>
-              <th>Vigência</th><th>Data de Criação</th><th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>${linhas || '<tr><td colspan="6">Sem resultados</td></tr>'}</tbody>
-        </table>
-      </body>
-    </html>
-  `);
-  janela.document.close();
-  janela.focus();
-  janela.print();
+function dadosAvisos(items) {
+  const headers = ['Título', 'Tipo', 'Criador', 'Vigência', 'Data de Criação', 'Estado'];
+  const linhas = items.map((aviso) => [
+    aviso.titulo,
+    tipoAviso(aviso.tipo).label,
+    aviso.nome_criador || '—',
+    vigenciaAviso(aviso),
+    formatarData(aviso.created_at),
+    aviso.ativo ? 'Ativo' : 'Inativo',
+  ]);
+  return { headers, linhas };
 }
 
 function Modal({ titulo, children, onFechar, icon, iconTone = 'blue', size = 'md' }) {
@@ -364,11 +294,13 @@ export default function AdminAvisos() {
   const lista = todosFiltrados.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA);
 
   function exportarExcel() {
-    descarregarCsv('avisos.csv', gerarCsvAvisos(todosFiltrados));
+    const { headers, linhas } = dadosAvisos(todosFiltrados);
+    descarregarCsv('avisos.csv', headers, linhas);
   }
 
   function exportarPdf() {
-    imprimirTabelaAvisos(todosFiltrados);
+    const { headers, linhas } = dadosAvisos(todosFiltrados);
+    imprimirTabela('Gestão de Informações/Avisos', headers, linhas);
   }
 
   function abrirCriacao() {

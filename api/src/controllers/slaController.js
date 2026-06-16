@@ -72,62 +72,92 @@ async function atualizar(req, res, next) {
   } catch (err) { next(err); }
 }
 
+/*
+ * Lógica reutilizável de deteção de SLA (usada pelo endpoint e pelo job automático).
+ * incluirTodos=true devolve todas as candidaturas monitorizadas; false só as ULTRAPASSADO.
+ */
+async function listarForaSLA(incluirTodos = false) {
+  const [slas] = await pool.query('SELECT fase, limite, unidade, ativo FROM sla_config');
+  const mapaSLA = {};
+  for (const s of slas) {
+    if (!s.ativo) continue;
+    const horas = s.unidade === 'dias' ? s.limite * 24 : s.limite;
+    mapaSLA[s.fase] = horas;
+  }
+
+  const [linhas] = await pool.query(
+    `SELECT cb.id_candidatura, cb.estado_atual, cb.data_submissao,
+            cb.id_consultor,
+            COALESCE((
+              SELECT MAX(h.data_evento)
+                FROM historico_candidatura h
+               WHERE h.id_candidatura = cb.id_candidatura
+                 AND h.estado_destino = cb.estado_atual
+            ), cb.data_submissao, cb.data_abertura) AS data_inicio_fase,
+            TIMESTAMPDIFF(HOUR, COALESCE((
+              SELECT MAX(h.data_evento)
+                FROM historico_candidatura h
+               WHERE h.id_candidatura = cb.id_candidatura
+                 AND h.estado_destino = cb.estado_atual
+            ), cb.data_submissao, cb.data_abertura), CURRENT_TIMESTAMP) AS horas_em_fase,
+            b.titulo AS titulo_badge,
+            u.nome AS nome_consultor,
+            u.email AS email_consultor,
+            a.id_area, a.nome AS nome_area,
+            sl.id_service_line, sl.nome AS nome_service_line
+       FROM candidatura_badge cb
+       JOIN badge b ON b.id_badge = cb.id_badge
+       JOIN utilizador u ON u.id_utilizador = cb.id_consultor
+       JOIN nivel n ON n.id_nivel = b.id_nivel
+       JOIN area a ON a.id_area = n.id_area
+       JOIN service_line sl ON sl.id_service_line = a.id_service_line
+      WHERE cb.estado_atual IN ('SUBMITTED', 'IN_TALENT_REVIEW', 'IN_SERVICE_LINE_REVIEW')
+      ORDER BY cb.data_submissao DESC, cb.data_abertura DESC`
+  );
+
+  const dados = linhas.map(l => {
+    const fase = faseDaCandidatura(l.estado_atual);
+    const limiteHoras = fase ? mapaSLA[fase] : null;
+    return {
+      ...l,
+      fase_sla: fase,
+      limite_horas: limiteHoras || null,
+      estado_sla: estadoSLA(l.horas_em_fase, limiteHoras),
+    };
+  });
+
+  return incluirTodos ? dados : dados.filter(l => l.estado_sla === 'ULTRAPASSADO');
+}
+
+/* Responsáveis a notificar consoante a fase do SLA. */
+async function responsaveisPorFase(fase, idServiceLine) {
+  if (fase === 'TALENT_REVIEW') {
+    const [r] = await pool.query(
+      `SELECT DISTINCT u.id_utilizador, u.nome, u.email
+         FROM utilizador u
+         JOIN utilizador_perfil up ON up.id_utilizador = u.id_utilizador
+         JOIN perfil p ON p.id_perfil = up.id_perfil
+        WHERE p.nome_perfil = 'Talent Manager' AND u.ativo = 1`
+    );
+    return r;
+  }
+  if (fase === 'SERVICE_LINE_REVIEW') {
+    const [r] = await pool.query(
+      `SELECT DISTINCT u.id_utilizador, u.nome, u.email
+         FROM service_line_responsavel slr
+         JOIN utilizador u ON u.id_utilizador = slr.id_utilizador
+        WHERE slr.id_service_line = ? AND u.ativo = 1`,
+      [idServiceLine]
+    );
+    return r;
+  }
+  return [];
+}
+
 async function candidaturasForaSLA(req, res, next) {
   try {
-    const [slas] = await pool.query('SELECT fase, limite, unidade, ativo FROM sla_config');
-    const mapaSLA = {};
-    for (const s of slas) {
-      if (!s.ativo) continue;
-      const horas = s.unidade === 'dias' ? s.limite * 24 : s.limite;
-      mapaSLA[s.fase] = horas;
-    }
-
-    const [linhas] = await pool.query(
-      `SELECT cb.id_candidatura, cb.estado_atual, cb.data_submissao,
-              cb.id_consultor,
-              COALESCE((
-                SELECT MAX(h.data_evento)
-                  FROM historico_candidatura h
-                 WHERE h.id_candidatura = cb.id_candidatura
-                   AND h.estado_destino = cb.estado_atual
-              ), cb.data_submissao, cb.data_abertura) AS data_inicio_fase,
-              TIMESTAMPDIFF(HOUR, COALESCE((
-                SELECT MAX(h.data_evento)
-                  FROM historico_candidatura h
-                 WHERE h.id_candidatura = cb.id_candidatura
-                   AND h.estado_destino = cb.estado_atual
-              ), cb.data_submissao, cb.data_abertura), CURRENT_TIMESTAMP) AS horas_em_fase,
-              b.titulo AS titulo_badge,
-              u.nome AS nome_consultor,
-              u.email AS email_consultor,
-              a.id_area, a.nome AS nome_area,
-              sl.id_service_line, sl.nome AS nome_service_line
-         FROM candidatura_badge cb
-         JOIN badge b ON b.id_badge = cb.id_badge
-         JOIN utilizador u ON u.id_utilizador = cb.id_consultor
-         JOIN nivel n ON n.id_nivel = b.id_nivel
-         JOIN area a ON a.id_area = n.id_area
-         JOIN service_line sl ON sl.id_service_line = a.id_service_line
-        WHERE cb.estado_atual IN ('SUBMITTED', 'IN_TALENT_REVIEW', 'IN_SERVICE_LINE_REVIEW')
-        ORDER BY cb.data_submissao DESC, cb.data_abertura DESC`
-    );
-
-    const dados = linhas.map(l => {
-      const fase = faseDaCandidatura(l.estado_atual);
-      const limiteHoras = fase ? mapaSLA[fase] : null;
-      return {
-        ...l,
-        fase_sla: fase,
-        limite_horas: limiteHoras || null,
-        estado_sla: estadoSLA(l.horas_em_fase, limiteHoras),
-      };
-    });
-
-    const foraSLA = req.query.todos === '1' || req.query.todos === 'true'
-      ? dados
-      : dados.filter(l => l.estado_sla === 'ULTRAPASSADO');
-
-    res.json({ dados: foraSLA });
+    const incluirTodos = req.query.todos === '1' || req.query.todos === 'true';
+    res.json({ dados: await listarForaSLA(incluirTodos) });
   } catch (err) { next(err); }
 }
 
@@ -139,21 +169,7 @@ async function notificar(req, res, next) {
     const fase = faseDaCandidatura(candidatura.estado_atual);
     if (!fase) return res.status(400).json({ erro: 'Esta candidatura não está numa fase monitorizada por SLA.' });
 
-    const [destinatarios] = fase === 'TALENT_REVIEW'
-      ? await pool.query(
-        `SELECT DISTINCT u.id_utilizador, u.nome, u.email
-           FROM utilizador u
-           JOIN utilizador_perfil up ON up.id_utilizador = u.id_utilizador
-           JOIN perfil p ON p.id_perfil = up.id_perfil
-          WHERE p.nome_perfil = 'Talent Manager' AND u.ativo = 1`
-      )
-      : await pool.query(
-        `SELECT DISTINCT u.id_utilizador, u.nome, u.email
-           FROM service_line_responsavel slr
-           JOIN utilizador u ON u.id_utilizador = slr.id_utilizador
-          WHERE slr.id_service_line = ? AND u.ativo = 1`,
-        [candidatura.id_service_line]
-      );
+    const destinatarios = await responsaveisPorFase(fase, candidatura.id_service_line);
 
     if (destinatarios.length === 0) {
       return res.status(404).json({ erro: 'Não foram encontrados responsáveis para notificar.' });
@@ -218,4 +234,4 @@ async function notificar(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listar, atualizar, candidaturasForaSLA, notificar };
+module.exports = { listar, atualizar, candidaturasForaSLA, notificar, listarForaSLA, responsaveisPorFase };
