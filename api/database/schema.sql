@@ -320,6 +320,22 @@ CREATE TABLE `preferencia_notificacao` (
   CONSTRAINT `fk_pref_utilizador` FOREIGN KEY (`id_utilizador`) REFERENCES `utilizador` (`id_utilizador`) ON DELETE CASCADE
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS `config_notificacao`;
+CREATE TABLE `config_notificacao` (
+  `id_config` int unsigned NOT NULL,
+  `email_confirmacao_registo` tinyint(1) NOT NULL DEFAULT '1',
+  `email_redefinicao_password` tinyint(1) NOT NULL DEFAULT '1',
+  `email_candidatura_badge` tinyint(1) NOT NULL DEFAULT '1',
+  `notif_aprovacao_badge` tinyint(1) NOT NULL DEFAULT '1',
+  `notif_rejeicao_badge` tinyint(1) NOT NULL DEFAULT '1',
+  `alerta_sla_ultrapassado` tinyint(1) NOT NULL DEFAULT '1',
+  `canal_email` tinyint(1) NOT NULL DEFAULT '1',
+  `canal_plataforma` tinyint(1) NOT NULL DEFAULT '1',
+  `canal_push` tinyint(1) NOT NULL DEFAULT '0',
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_config`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 DROP TABLE IF EXISTS `requisito`;
 CREATE TABLE `requisito` (
   `id_requisito` int unsigned NOT NULL AUTO_INCREMENT,

@@ -69,9 +69,14 @@ export default function AdminLayout() {
     navigate('/login', { replace: true });
   }
 
-  const subtitulo = vistaAtiva === 'dashboard'
-    ? 'Dashboard - Administrador'
-    : `${vista.label} - Administrador`;
+  let subtitulo;
+  if (vistaAtiva === 'dashboard') {
+    subtitulo = 'Dashboard - Administrador';
+  } else if (location.pathname.replace(/\/$/, '').endsWith('/notificacoes/definicoes')) {
+    subtitulo = 'Definições de Notificações - Administrador';
+  } else {
+    subtitulo = `${vista.label} - Administrador`;
+  }
 
   return (
     <div className="min-h-screen bg-[#f3f6fa] text-slate-900">

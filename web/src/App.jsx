@@ -18,6 +18,10 @@ import AdminEventosEspeciais from './pages/admin/AdminEventosEspeciais';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminLearningPaths from './pages/admin/AdminLearningPaths';
 import AdminNiveis from './pages/admin/AdminNiveis';
+import AdminNotificacoes from './pages/admin/AdminNotificacoes';
+import AdminNotificacoesDefinicoes from './pages/admin/AdminNotificacoesDefinicoes';
+import AdminPerfil from './pages/admin/AdminPerfil';
+import AdminRelatorios from './pages/admin/AdminRelatorios';
 import AdminPontos from './pages/admin/AdminPontos';
 import AdminRequisitos from './pages/admin/AdminRequisitos';
 import AdminServiceLines from './pages/admin/AdminServiceLines';
@@ -116,11 +120,12 @@ export default function App() {
         <Route path="eventos" element={<AdminEventosEspeciais />} />
         <Route path="pontos" element={<AdminPontosRoute />} />
         <Route path="sla" element={<AdminSLA />} />
-        <Route path="notificacoes" element={<PerfilEmDesenvolvimento />} />
-        <Route path="relatorios" element={<PerfilEmDesenvolvimento />} />
+        <Route path="notificacoes" element={<AdminNotificacoes />} />
+        <Route path="notificacoes/definicoes" element={<AdminNotificacoesDefinicoes />} />
+        <Route path="relatorios" element={<AdminRelatorios />} />
         <Route path="avisos" element={<AdminAvisos />} />
         <Route path="rgpd" element={<PerfilEmDesenvolvimento />} />
-        <Route path="perfil" element={<PerfilEmDesenvolvimento />} />
+        <Route path="perfil" element={<AdminPerfil />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>
       {/* Rotas do Consultor */}

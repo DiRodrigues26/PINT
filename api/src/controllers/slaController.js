@@ -1,5 +1,6 @@
 const { pool } = require('../db/connection');
 const { enviarEmail } = require('../utils/email');
+const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
 
 function faseDaCandidatura(estado) {
   if (['SUBMITTED', 'IN_TALENT_REVIEW'].includes(estado)) return 'TALENT_REVIEW';
@@ -161,16 +162,21 @@ async function notificar(req, res, next) {
     const mensagem = req.body?.mensagem || `O processo #${candidatura.id_candidatura} requer atenção de SLA.`;
     const titulo = `Alerta SLA: ${candidatura.titulo_badge}`;
 
+    const enviarPlataforma = await podeNotificarPlataforma('alerta_sla_ultrapassado');
+    const enviarEmailSla = await podeEnviarEmail('alerta_sla_ultrapassado');
+
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
 
-      for (const d of destinatarios) {
-        await conn.query(
-          `INSERT INTO notificacao (id_utilizador, tipo, categoria, titulo, mensagem, entidade_relacionada)
-           VALUES (?, 'SLA_ALERTA', 'CANDIDATURA', ?, ?, ?)`,
-          [d.id_utilizador, titulo, mensagem, `Candidatura #${candidatura.id_candidatura}`]
-        );
+      if (enviarPlataforma) {
+        for (const d of destinatarios) {
+          await conn.query(
+            `INSERT INTO notificacao (id_utilizador, tipo, categoria, titulo, mensagem, entidade_relacionada)
+             VALUES (?, 'SLA_ALERTA', 'CANDIDATURA', ?, ?, ?)`,
+            [d.id_utilizador, titulo, mensagem, `Candidatura #${candidatura.id_candidatura}`]
+          );
+        }
       }
 
       await conn.query(
@@ -194,14 +200,21 @@ async function notificar(req, res, next) {
       conn.release();
     }
 
-    await Promise.all(destinatarios.map(d => enviarEmail({
-      para: d.email,
-      assunto: titulo,
-      texto: `${mensagem}\n\nConsultor: ${candidatura.nome_consultor}\nBadge: ${candidatura.titulo_badge}`,
-      html: `<p>${mensagem}</p><p><strong>Consultor:</strong> ${candidatura.nome_consultor}</p><p><strong>Badge:</strong> ${candidatura.titulo_badge}</p>`,
-    })));
+    if (enviarEmailSla) {
+      await Promise.all(destinatarios.map(d => enviarEmail({
+        para: d.email,
+        assunto: titulo,
+        texto: `${mensagem}\n\nConsultor: ${candidatura.nome_consultor}\nBadge: ${candidatura.titulo_badge}`,
+        html: `<p>${mensagem}</p><p><strong>Consultor:</strong> ${candidatura.nome_consultor}</p><p><strong>Badge:</strong> ${candidatura.titulo_badge}</p>`,
+      })));
+    }
 
-    res.json({ mensagem: 'Notificação enviada.', total_destinatarios: destinatarios.length });
+    res.json({
+      mensagem: 'Notificação processada.',
+      total_destinatarios: destinatarios.length,
+      plataforma: enviarPlataforma,
+      email: enviarEmailSla,
+    });
   } catch (err) { next(err); }
 }
 

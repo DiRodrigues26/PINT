@@ -16,6 +16,7 @@ const {
   enviarConfirmacaoRegisto,
   enviarRecuperacaoPassword,
 } = require('../utils/email');
+const { podeEnviarEmail } = require('../utils/configNotificacao');
 const { calcularSaudacao } = require('../utils/saudacao');
 
 const PERFIS_PERMITIDOS_REGISTO = ['Consultor', 'Service Line', 'Talent Manager'];
@@ -67,7 +68,9 @@ async function registar(req, res, next) {
     );
 
     try {
-      await enviarConfirmacaoRegisto({ email }, tokenConfirmacao);
+      if (await podeEnviarEmail('email_confirmacao_registo')) {
+        await enviarConfirmacaoRegisto({ email }, tokenConfirmacao);
+      }
     } catch (e) {
       console.warn('Aviso: falha ao enviar email de confirmação:', e.message);
     }
@@ -379,7 +382,9 @@ async function pedirRecuperacao(req, res, next) {
     );
 
     try {
-      await enviarRecuperacaoPassword(linhas[0], token);
+      if (await podeEnviarEmail('email_redefinicao_password')) {
+        await enviarRecuperacaoPassword(linhas[0], token);
+      }
     } catch (e) {
       console.warn('Aviso: falha ao enviar email de recuperação:', e.message);
     }

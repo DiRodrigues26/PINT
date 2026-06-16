@@ -81,7 +81,7 @@ PINT/
 - **Base de dados:** `softinsa_badges`
 - **Host Railway:** `nozomi.proxy.rlwy.net:15913`
 - **Charset:** `utf8mb4`
-- **Total de tabelas:** 31
+- **Total de tabelas:** 32
 
 ---
 
@@ -146,6 +146,7 @@ npm run dev
 | `consultor_area` | Associação consultor ↔ área |
 | `service_line_responsavel` | Responsável de Service Line |
 | `template_assinatura_email` | Templates de assinatura de email |
+| `config_notificacao` | Configuração global de notificações (toggles de eventos + canais; linha única) |
 
 ---
 
@@ -224,26 +225,28 @@ Todas as transições registam auditoria em `historico_candidatura` e/ou `avalia
 - Conquistas/gamificação: consultor e global.
 - Exportação CSV/PDF nos CRUDs de Utilizadores, Learning Paths, Service Lines, Áreas, Níveis, Eventos Especiais, Requisitos.
 
+### Concluído recentemente (admin) — rev. 2026-06-16
+
+- Gestão de Avisos (CRUD), Gestão de SLA (config + notificar equipa por email), Gestão de Candidaturas (filtros/detalhe/avaliação/auditoria).
+- Configuração de Notificações global (`config_notificacao`: 6 toggles + 3 canais) **ligada ao envio real** de emails/notificações (authController, candidaturasController, slaController via `utils/configNotificacao.js`).
+- Perfil do Admin (`/admin/perfil`) com UI de 2FA ativar/desativar (modais partilhados em `components/PerfilSeguranca.jsx`).
+- Relatórios e Exportações (`/admin/relatorios`): hub Excel/PDF para 11 entidades, incl. Badges, SLA e Candidaturas (via `lib/exportar.js`).
+
 ### Parcial (backend pronto, frontend incompleto)
 
 | Funcionalidade | Estado | Em falta no frontend |
 |---|---|---|
-| Gestão de SLA | `[~]` | Ecrã CRUD/configuração completo |
-| Gestão de Avisos | `[~]` | CRUD admin completo |
-| Gestão de Candidaturas (admin) | `[~]` | Ecrã completo com filtros, detalhe e ações |
-| 2FA/TOTP | `[~]` | UI para ativar/desativar nas definições do utilizador |
-| RGPD | `[~]` | Ecrã admin para gerir versões/textos de política |
-| Configuração de Notificações (global) | `[~]` | Ecrã admin (existem só preferências por utilizador) |
+| RGPD (configurável) | `[~]` | Ecrã admin para gerir versões/textos de política (precisa de tabela + endpoints novos) |
 | Lembretes | `[~]` | UI para consultor gerir lembretes pessoais |
 | Timeline/Objetivos | `[~]` | UI para consultor gerir objetivos |
 | Templates de email | `[~]` | Ecrã admin para gerir templates |
-| Upload real de imagem | `[~]` | Badges e Eventos Especiais (multer está pronto no backend) |
+| Upload real de imagem (Eventos) | `[~]` | Eventos Especiais (Badges já usa `UploadImagemAdmin`) |
 
 ### Não implementado
 
+- Configuração de políticas RGPD (req. 8 do admin) — único requisito admin do enunciado por fazer.
 - Automação de alertas SLA (job/cron para criar notificações quando SLA ultrapassa limite).
-- Notificações push/browser push.
-- Exportação de Badges, SLA, Avisos, Candidaturas.
+- Notificações push/browser push reais (existe notificação interna na plataforma).
 
 ---
 
@@ -290,6 +293,7 @@ Administradores são redirecionados automaticamente para `/admin` após login e 
 | Conquistas | `/api/conquistas` | Listagem + detalhe |
 | Eventos Especiais | `/api/eventos` | CRUD (admin) |
 | Preferências | `/api/preferencias` | Notificações por utilizador |
+| Config Notificações | `/api/config-notificacao` | Config global de notificações (admin) + envio de teste |
 | Lembretes | `/api/lembretes` | CRUD por consultor |
 | Timeline | `/api/timeline` | CRUD objetivos por consultor |
 | RGPD | `/api/rgpd` | Consentimentos |

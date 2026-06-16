@@ -1,6 +1,6 @@
 # Verificacao de Requisitos - Perfil Administrador/Gestor
 
-Data de referencia: 2026-05-04
+Data de referencia: 2026-06-16
 
 Legenda:
 
@@ -218,33 +218,29 @@ Notas:
 - [ ] Falta push real/browser push.
 - [ ] Falta frontend de notificacoes SLA no admin.
 
-## Resumo Executivo
+## Resumo Executivo (rev. 2026-06-16)
 
-Cumprido no frontend admin:
+Estado de cada requisito do Administrador/Gestor (PDF pag. 11):
 
-- Dashboard admin.
-- Gestao de utilizadores/perfis.
-- Gestao de Learning Paths.
-- Gestao de Service Lines.
-- Gestao de Areas.
-- Gestao de Niveis.
-- Gestao de Badges.
-- Gestao de Requisitos.
-- Exportacao nos CRUDs ja criados.
+| # | Requisito | Estado |
+|---|---|---|
+| 1 | Gestao de utilizadores e permissoes | [x] AdminUtilizadores (listar/filtrar/criar/editar/ativar/repor password/exportar) |
+| 2 | Criar utilizadores e definir perfil | [x] Form com perfil (Consultor/Admin/Talent Manager/Service Line) |
+| 3 | Acrescentar e eliminar badges | [x] AdminBadges (CRUD + upload real de imagem) |
+| 4 | CRUD Learning Paths/Service Lines/Areas/Niveis/Requisitos | [x] Ecras dedicados completos |
+| 5 | Exportacao Excel/PDF | [x] Por CRUD + hub AdminRelatorios (11 entidades) |
+| 6 | Gestao de Badges (expiracao, pontos) | [x] AdminBadges + AdminPontos |
+| 7 | Configuracao de notificacoes | [x] AdminNotificacoesDefinicoes (toggles+canais) ligada ao envio real |
+| 8 | Configuracao de politicas RGPD | [ ] Unico requisito admin por implementar (precisa tabela + endpoints novos) |
+| 9 | Consultar e gerir todos os pedidos (curso, atribuidos) | [x] AdminCandidaturas (filtros incl. APPROVED, detalhe, avaliacao, auditoria) |
+| 12 | Informacoes Genericas e Avisos Ativos/Inativos | [x] AdminAvisos (CRUD + vigencia + export) |
 
-Backend ja preparado, mas falta frontend admin:
+Bonus Gestor:
 
-- SLA completo.
-- Avisos completo.
-- RGPD configuravel.
-- Notificacoes configuraveis.
-- Gestao completa de pedidos/candidaturas.
+| # | Requisito | Estado |
+|---|---|---|
+| 1 | Notificar por email equipa Talent/Service Line quando SLA ultrapassado | [x] AdminSLA botao "Notificar" -> POST /api/sla/:id/notificar (sujeito a config) |
+| 10 | Definir e gerir SLA | [x] AdminSLA |
+| 11 | Notificacao PUSH de SLA ultrapassados | [~] Cria notificacao interna na plataforma; falta push real de browser |
 
-Prioridade recomendada para continuar:
-
-1. Gestao de Badges.
-2. Gestao completa de Pedidos/Candidaturas.
-3. Gestao de SLA.
-4. Avisos.
-5. Notificacoes.
-6. RGPD.
+Conclusao: todos os requisitos do admin estao funcionais exceto o #8 (RGPD configuravel). O bonus #11 esta parcial (notificacao interna sim, push de browser nao).

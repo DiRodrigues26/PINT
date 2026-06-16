@@ -75,4 +75,14 @@ async function eliminar(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listarMinhas, marcarLida, marcarTodasLidas, arquivarLidas, eliminar };
+async function apagarLidas(req, res, next) {
+  try {
+    const [result] = await pool.query(
+      'DELETE FROM notificacao WHERE id_utilizador = ? AND lida = 1',
+      [req.utilizador.id_utilizador]
+    );
+    res.json({ mensagem: 'Notificações lidas eliminadas.', total: result.affectedRows });
+  } catch (err) { next(err); }
+}
+
+module.exports = { listarMinhas, marcarLida, marcarTodasLidas, arquivarLidas, apagarLidas, eliminar };

@@ -1,6 +1,7 @@
 const { pool } = require('../db/connection');
 const { gerarTokenAleatorio, gerarCodigoPublico } = require('../utils/tokens');
 const { notificarMudancaEstadoCandidatura } = require('../utils/email');
+const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
 
 const ESTADOS = {
   OPEN: 'OPEN',
@@ -307,22 +308,24 @@ async function submeter(req, res, next) {
         comentario: req.body?.comentario ?? null,
       });
 
-      // notificar talent managers
-      const [talent] = await conn.query(
-        `SELECT u.id_utilizador FROM utilizador u
-           JOIN utilizador_perfil up ON up.id_utilizador = u.id_utilizador
-           JOIN perfil p ON p.id_perfil = up.id_perfil
-          WHERE p.nome_perfil = 'Talent Manager' AND u.ativo = 1`
-      );
-      for (const t of talent) {
-        await criarNotificacao(conn, {
-          id_utilizador: t.id_utilizador,
-          tipo: 'NOVA_SUBMISSAO',
-          categoria: 'CANDIDATURA',
-          titulo: `Nova submissão: ${candidatura.titulo_badge}`,
-          mensagem: `Candidatura #${req.params.id} aguarda validação de evidências.`,
-          entidade_relacionada: 'Consultor',
-        });
+      // notificar talent managers (sujeito à configuração global de notificações)
+      if (await podeNotificarPlataforma('email_candidatura_badge')) {
+        const [talent] = await conn.query(
+          `SELECT u.id_utilizador FROM utilizador u
+             JOIN utilizador_perfil up ON up.id_utilizador = u.id_utilizador
+             JOIN perfil p ON p.id_perfil = up.id_perfil
+            WHERE p.nome_perfil = 'Talent Manager' AND u.ativo = 1`
+        );
+        for (const t of talent) {
+          await criarNotificacao(conn, {
+            id_utilizador: t.id_utilizador,
+            tipo: 'NOVA_SUBMISSAO',
+            categoria: 'CANDIDATURA',
+            titulo: `Nova submissão: ${candidatura.titulo_badge}`,
+            mensagem: `Candidatura #${req.params.id} aguarda validação de evidências.`,
+            entidade_relacionada: 'Consultor',
+          });
+        }
       }
 
       await conn.commit();
@@ -514,20 +517,24 @@ async function avaliarServiceLine(req, res, next) {
         comentario,
       });
 
-      // notificar consultor
+      // notificar consultor (aprovação/rejeição sujeitas à configuração global)
       const titulosNotif = {
         APPROVED: `Parabéns! Badge aprovado: ${candidatura.titulo_badge}`,
         REJECTED: `Candidatura rejeitada: ${candidatura.titulo_badge}`,
         OPEN:     `Candidatura devolvida pelo Service Line: ${candidatura.titulo_badge}`,
       };
-      await criarNotificacao(conn, {
-        id_utilizador: candidatura.id_consultor,
-        tipo: novoEstado,
-        categoria: novoEstado === 'APPROVED' ? 'BADGE' : 'CANDIDATURA',
-        titulo: titulosNotif[novoEstado],
-        mensagem: comentario || null,
-        entidade_relacionada: 'Service Line',
-      });
+      const flagNotifFinal = novoEstado === 'APPROVED' ? 'notif_aprovacao_badge'
+        : novoEstado === 'REJECTED' ? 'notif_rejeicao_badge' : null;
+      if (!flagNotifFinal || await podeNotificarPlataforma(flagNotifFinal)) {
+        await criarNotificacao(conn, {
+          id_utilizador: candidatura.id_consultor,
+          tipo: novoEstado,
+          categoria: novoEstado === 'APPROVED' ? 'BADGE' : 'CANDIDATURA',
+          titulo: titulosNotif[novoEstado],
+          mensagem: comentario || null,
+          entidade_relacionada: 'Service Line',
+        });
+      }
 
       // se aprovado, criar badge_atribuido
       let idBadgeAtribuido = null;
@@ -570,11 +577,15 @@ async function avaliarServiceLine(req, res, next) {
       await conn.commit();
 
       try {
-        const [cons] = await pool.query(
-          'SELECT nome, email FROM utilizador WHERE id_utilizador = ?',
-          [candidatura.id_consultor]
-        );
-        await notificarMudancaEstadoCandidatura(cons[0], novoEstado, candidatura.titulo_badge);
+        const flagEmailFinal = novoEstado === 'APPROVED' ? 'notif_aprovacao_badge'
+          : novoEstado === 'REJECTED' ? 'notif_rejeicao_badge' : null;
+        if (!flagEmailFinal || await podeEnviarEmail(flagEmailFinal)) {
+          const [cons] = await pool.query(
+            'SELECT nome, email FROM utilizador WHERE id_utilizador = ?',
+            [candidatura.id_consultor]
+          );
+          await notificarMudancaEstadoCandidatura(cons[0], novoEstado, candidatura.titulo_badge);
+        }
       } catch (_) { /* email é best-effort */ }
 
       res.json({ mensagem: 'Avaliação registada.', novo_estado: novoEstado, id_badge_atribuido: idBadgeAtribuido });
