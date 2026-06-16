@@ -1,13 +1,15 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Award, Clock, Eye, Trophy, Users } from 'lucide-react';
+import { Award, Clock, Eye, Trophy, Users, Download, FileText } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { api } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
+import { exportCSV, exportPDF } from '../../lib/exportUtils';
+import { useLanguage } from '../../context/LanguageContext';
 
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 const NIVEL_COR = {
@@ -18,16 +20,18 @@ const NIVEL_COR = {
   E: 'bg-purple-600',
 };
 
-const ESTADO_CFG = {
-  OPEN:                   { label: 'Open',           cls: 'bg-slate-100 text-slate-600' },
-  SUBMITTED:              { label: 'Submetido',      cls: 'bg-amber-100 text-amber-700' },
-  IN_TALENT_REVIEW:       { label: 'Talent Review',  cls: 'bg-blue-100 text-blue-700' },
-  IN_SERVICE_LINE_REVIEW: { label: 'Em Validação',   cls: 'bg-orange-100 text-orange-700' },
-  APPROVED:               { label: 'Aprovado',       cls: 'bg-emerald-100 text-emerald-700' },
-  REJECTED:               { label: 'Rejeitado',      cls: 'bg-rose-100 text-rose-600' },
-  SENT_BACK:              { label: 'Devolvido',      cls: 'bg-orange-100 text-orange-600' },
-  CLOSED:                 { label: 'Fechado',        cls: 'bg-slate-100 text-slate-500' },
-};
+function getEstadoCfg(t) {
+  return {
+    OPEN:                   { label: t('sl_estado_open'),          cls: 'bg-slate-100 text-slate-600' },
+    SUBMITTED:              { label: t('sl_estado_submitted'),     cls: 'bg-amber-100 text-amber-700' },
+    IN_TALENT_REVIEW:       { label: t('sl_estado_talent_review'), cls: 'bg-blue-100 text-blue-700' },
+    IN_SERVICE_LINE_REVIEW: { label: t('sl_estado_sl_review'),     cls: 'bg-orange-100 text-orange-700' },
+    APPROVED:               { label: t('sl_estado_approved'),      cls: 'bg-emerald-100 text-emerald-700' },
+    REJECTED:               { label: t('sl_estado_rejected'),      cls: 'bg-rose-100 text-rose-600' },
+    SENT_BACK:              { label: t('sl_estado_sent_back'),     cls: 'bg-orange-100 text-orange-600' },
+    CLOSED:                 { label: t('sl_estado_closed'),        cls: 'bg-slate-100 text-slate-500' },
+  };
+}
 
 function iniciais(nome) {
   return (nome || '?').split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
@@ -45,7 +49,7 @@ function KpiCard({ label, valor, sub }) {
 }
 
 /* ─── Linha da tabela ───────────────────────────────────────────────── */
-function LinhaConsultor({ c, onVerPerfil }) {
+function LinhaConsultor({ c, onVerPerfil, ESTADO_CFG, labelVerPerfil }) {
   const estadoCfg = c.ultimo_estado
     ? (ESTADO_CFG[c.ultimo_estado] || { label: c.ultimo_estado, cls: 'bg-slate-100 text-slate-500' })
     : null;
@@ -105,7 +109,7 @@ function LinhaConsultor({ c, onVerPerfil }) {
           className="flex items-center gap-1.5 rounded-lg border border-softinsa-200 bg-white px-3 py-1.5 text-xs font-semibold text-softinsa-600 hover:bg-softinsa-50 transition"
         >
           <Eye className="h-3 w-3" strokeWidth={2} />
-          Ver Perfil
+          {labelVerPerfil}
         </button>
       </td>
     </tr>
@@ -125,10 +129,12 @@ function TooltipCustom({ active, payload, label, sufixo }) {
 
 /* ─── Aba: Métricas Comparativas ────────────────────────────────────── */
 function MetricasComparativas({ consultores }) {
+  const { t } = useLanguage();
+
   if (!consultores.length) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-400 shadow-sm">
-        Sem dados suficientes para métricas comparativas.
+        {t('sl_consult_sem_dados')}
       </div>
     );
   }
@@ -162,7 +168,7 @@ function MetricasComparativas({ consultores }) {
       {/* Título */}
       <div className="flex items-center gap-2">
         <Trophy className="h-5 w-5 text-amber-500" strokeWidth={1.8} />
-        <h2 className="text-base font-bold text-slate-900">Comparação entre Consultores da Service Line</h2>
+        <h2 className="text-base font-bold text-slate-900">{t('sl_consult_comp_titulo')}</h2>
       </div>
 
       {/* Cards de destaque */}
@@ -171,11 +177,11 @@ function MetricasComparativas({ consultores }) {
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 mb-3">
             <Trophy className="h-3.5 w-3.5" strokeWidth={2} />
-            Top Pontos
+            {t('sl_consult_top_pontos')}
           </div>
           <p className="text-lg font-bold text-slate-900">{topPontos?.nome}</p>
           <p className="text-sm font-semibold text-amber-600 mt-0.5">
-            {Number(topPontos?.pontos_totais).toLocaleString('pt-PT')} pontos
+            {Number(topPontos?.pontos_totais).toLocaleString('pt-PT')} pts
           </p>
           <p className="mt-1 text-xs text-slate-500">{topPontos?.nome_area}</p>
         </div>
@@ -184,11 +190,12 @@ function MetricasComparativas({ consultores }) {
         <div className="rounded-xl border border-blue-200 bg-blue-50 p-5">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 mb-3">
             <Award className="h-3.5 w-3.5" strokeWidth={2} />
-            Mais Badges
+            {t('sl_consult_mais_badges')}
           </div>
           <p className="text-lg font-bold text-slate-900">{topBadges?.nome}</p>
           <p className="text-sm font-semibold text-blue-600 mt-0.5">
-            {topBadges?.total_badges} badge{Number(topBadges?.total_badges) !== 1 ? 's' : ''}
+            {topBadges?.total_badges}{' '}
+            {Number(topBadges?.total_badges) === 1 ? t('sl_consult_badges_atr') : t('sl_consult_badges_atr_pl')}
           </p>
           <p className="mt-1 text-xs text-slate-500">{topBadges?.nome_area}</p>
         </div>
@@ -197,13 +204,17 @@ function MetricasComparativas({ consultores }) {
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 mb-3">
             <Clock className="h-3.5 w-3.5" strokeWidth={2} />
-            Área Mais Activa
+            {t('sl_consult_area_ativa')}
           </div>
           <p className="text-lg font-bold text-slate-900">{topArea?.[0]}</p>
           <p className="text-sm font-semibold text-emerald-600 mt-0.5">
-            {topArea?.[1]?.badges} badge{topArea?.[1]?.badges !== 1 ? 's' : ''} atribuídos
+            {topArea?.[1]?.badges}{' '}
+            {topArea?.[1]?.badges === 1 ? t('sl_consult_badges_atr') : t('sl_consult_badges_atr_pl')}
           </p>
-          <p className="mt-1 text-xs text-slate-500">{topArea?.[1]?.count} consultor{topArea?.[1]?.count !== 1 ? 'es' : ''}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {topArea?.[1]?.count}{' '}
+            {topArea?.[1]?.count === 1 ? t('sl_consult_consultor_s') : t('sl_consult_consult_pl')}
+          </p>
         </div>
       </div>
 
@@ -211,7 +222,7 @@ function MetricasComparativas({ consultores }) {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Ranking por Pontos */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Ranking por Pontos</h3>
+          <h3 className="mb-4 text-sm font-semibold text-slate-700">{t('sl_consult_rank_pontos')}</h3>
           <ResponsiveContainer width="100%" height={dadosPontos.length * 36 + 20}>
             <BarChart data={dadosPontos} layout="vertical" margin={{ left: 70, right: 20, top: 0, bottom: 0 }}>
               <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
@@ -228,7 +239,7 @@ function MetricasComparativas({ consultores }) {
 
         {/* Ranking por Nº de Badges */}
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-semibold text-slate-700">Ranking por Nº de Badges</h3>
+          <h3 className="mb-4 text-sm font-semibold text-slate-700">{t('sl_consult_rank_badges')}</h3>
           <ResponsiveContainer width="100%" height={dadosBadges.length * 36 + 20}>
             <BarChart data={dadosBadges} layout="vertical" margin={{ left: 70, right: 20, top: 0, bottom: 0 }}>
               <XAxis type="number" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} allowDecimals={false} />
@@ -249,10 +260,13 @@ function MetricasComparativas({ consultores }) {
 
 /* ─── Página principal ──────────────────────────────────────────────── */
 export default function ServiceLineConsultores() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [aba, setAba] = useState('lista');
   const [filtroArea, setFiltroArea] = useState('');
   const [filtroNivel, setFiltroNivel] = useState('');
+
+  const ESTADO_CFG = getEstadoCfg(t);
 
   const { data, isLoading } = useQuery({
     queryKey: ['sl-dashboard'],
@@ -284,21 +298,23 @@ export default function ServiceLineConsultores() {
     ? Math.round(consultores.reduce((s, c) => s + Number(c.pontos_totais), 0) / consultores.length)
     : 0;
 
+  const abas = [
+    { id: 'lista',    label: t('sl_consult_aba_lista') },
+    { id: 'metricas', label: t('sl_consult_aba_metricas') },
+  ];
+
   return (
     <div className="flex min-h-screen bg-[#f3f6fa]">
       <ServiceLineSidebar />
 
       <div className="flex flex-1 flex-col lg:pl-[260px]">
-        <ServiceLineTopbar subtitulo="Consultores – Service Line – Análise de Desempenho e Progresso" />
+        <ServiceLineTopbar subtitulo={t('sl_consult_subtitulo')} />
 
         <main className="flex-1 px-5 py-6 lg:px-8 pb-24 lg:pb-8 space-y-5">
 
           {/* Abas */}
           <div className="flex gap-2">
-            {[
-              { id: 'lista',    label: 'Lista de Consultores' },
-              { id: 'metricas', label: 'Métricas Comparativas' },
-            ].map(tab => (
+            {abas.map(tab => (
               <button
                 key={tab.id}
                 type="button"
@@ -320,10 +336,10 @@ export default function ServiceLineConsultores() {
             <>
               {/* KPIs */}
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <KpiCard label="Total de Consultores" valor={data?.total_consultores ?? consultores.length} />
-                <KpiCard label="Média de Pontos" valor={mediaPotos.toLocaleString('pt-PT')} sub="por consultor" />
-                <KpiCard label="Total de Badges Atribuídos" valor={data?.total_badges_emitidos} />
-                <KpiCard label="Pedidos em Validação" valor={data?.pedidos_em_validacao} />
+                <KpiCard label={t('sl_consult_kpi_total')} valor={data?.total_consultores ?? consultores.length} />
+                <KpiCard label={t('sl_consult_kpi_media')} valor={mediaPotos.toLocaleString('pt-PT')} sub={t('sl_consult_kpi_media_sub')} />
+                <KpiCard label={t('sl_consult_kpi_badges')} valor={data?.total_badges_emitidos} />
+                <KpiCard label={t('sl_consult_kpi_validacao')} valor={data?.pedidos_em_validacao} />
               </div>
 
               {aba === 'lista' && (
@@ -331,28 +347,28 @@ export default function ServiceLineConsultores() {
                   {/* Filtros */}
                   <div className="flex flex-wrap items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <label className="text-xs font-medium text-slate-500">Filtrar por Área:</label>
+                      <label className="text-xs font-medium text-slate-500">{t('sl_consult_filtro_area')}</label>
                       <select
                         value={filtroArea}
                         onChange={e => setFiltroArea(e.target.value)}
                         className="input text-sm"
                       >
-                        <option value="">Todas as Áreas</option>
+                        <option value="">{t('sl_consult_todas_areas')}</option>
                         {areas.map(a => (
                           <option key={a.id_area} value={String(a.id_area)}>{a.nome}</option>
                         ))}
                       </select>
                     </div>
                     <div className="flex items-center gap-2">
-                      <label className="text-xs font-medium text-slate-500">Filtrar por Nível:</label>
+                      <label className="text-xs font-medium text-slate-500">{t('sl_consult_filtro_nivel')}</label>
                       <select
                         value={filtroNivel}
                         onChange={e => setFiltroNivel(e.target.value)}
                         className="input text-sm"
                       >
-                        <option value="">Todos os Níveis</option>
+                        <option value="">{t('sl_consult_todos_niveis')}</option>
                         {niveis.map(n => (
-                          <option key={n} value={n}>Nível {n}</option>
+                          <option key={n} value={n}>{t('sl_consult_nivel_opt').replace('{n}', n)}</option>
                         ))}
                       </select>
                     </div>
@@ -360,23 +376,54 @@ export default function ServiceLineConsultores() {
 
                   {/* Tabela */}
                   <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-                    <div className="border-b border-slate-100 px-5 py-3 text-xs text-slate-500">
-                      A mostrar <span className="font-semibold text-slate-700">{filtrados.length}</span> consultor{filtrados.length !== 1 ? 'es' : ''}
+                    <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+                      <span className="text-xs text-slate-500">
+                        {filtrados.length === 1
+                          ? t('sl_consult_mostrando').replace('{n}', filtrados.length)
+                          : t('sl_consult_mostrando_pl').replace('{n}', filtrados.length)}
+                      </span>
+                      {filtrados.length > 0 && (() => {
+                        const hdrs = [
+                          t('sl_consult_csv_nome'), t('sl_consult_csv_area'), t('sl_consult_csv_nivel'),
+                          t('sl_consult_csv_badges'), t('sl_consult_csv_processo'), t('sl_consult_csv_expirados'),
+                          t('sl_consult_csv_pontos'), t('sl_consult_csv_conquista'),
+                        ];
+                        const rows = filtrados.map(c => [
+                          c.nome, c.nome_area, c.nivel_mais_alto || '',
+                          c.total_badges, c.badges_em_processo, c.badges_expirados,
+                          c.pontos_totais, c.conquista_especial || '',
+                        ]);
+                        const hoje = new Date().toISOString().slice(0, 10);
+                        return (
+                          <div className="flex items-center gap-2">
+                            <button type="button"
+                              onClick={() => exportCSV(`consultores_sl_${hoje}.csv`, hdrs, rows)}
+                              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
+                              <Download className="h-3.5 w-3.5" strokeWidth={2} /> Excel (CSV)
+                            </button>
+                            <button type="button"
+                              onClick={() => exportPDF(`consultores_sl_${hoje}.pdf`, t('sl_consult_pdf_titulo'), hdrs, rows)}
+                              className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition">
+                              <FileText className="h-3.5 w-3.5" strokeWidth={2} /> PDF
+                            </button>
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-slate-100 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                            <th className="px-4 py-3 text-left">Nome do Consultor</th>
-                            <th className="px-3 py-3 text-left">Área</th>
-                            <th className="px-3 py-3 text-center">Nível Mais Alto</th>
-                            <th className="px-3 py-3 text-center">Badges Obtidos</th>
-                            <th className="px-3 py-3 text-center">Badges em Processo</th>
-                            <th className="px-3 py-3 text-center">Badges Expirados</th>
-                            <th className="px-3 py-3 text-center">Total de Pontos</th>
-                            <th className="px-3 py-3 text-left">Conquistas Especiais</th>
-                            <th className="px-3 py-3 text-left">Estado Atual</th>
-                            <th className="px-3 py-3 text-center">Ação</th>
+                            <th className="px-4 py-3 text-left">{t('sl_consult_th_nome')}</th>
+                            <th className="px-3 py-3 text-left">{t('sl_consult_th_area')}</th>
+                            <th className="px-3 py-3 text-center">{t('sl_consult_th_nivel')}</th>
+                            <th className="px-3 py-3 text-center">{t('sl_consult_th_badges')}</th>
+                            <th className="px-3 py-3 text-center">{t('sl_consult_th_processo')}</th>
+                            <th className="px-3 py-3 text-center">{t('sl_consult_th_expirados')}</th>
+                            <th className="px-3 py-3 text-center">{t('sl_consult_th_pontos')}</th>
+                            <th className="px-3 py-3 text-left">{t('sl_consult_th_conquistas')}</th>
+                            <th className="px-3 py-3 text-left">{t('sl_consult_th_estado')}</th>
+                            <th className="px-3 py-3 text-center">{t('sl_consult_th_acao')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -384,11 +431,17 @@ export default function ServiceLineConsultores() {
                             <tr>
                               <td colSpan={10} className="px-4 py-12 text-center text-sm text-slate-400">
                                 <Users className="mx-auto mb-3 h-8 w-8 opacity-30" strokeWidth={1.5} />
-                                Nenhum consultor encontrado.
+                                {t('sl_consult_nenhum')}
                               </td>
                             </tr>
                           ) : filtrados.map(c => (
-                            <LinhaConsultor key={c.id_utilizador} c={c} onVerPerfil={(id) => navigate(`/sl/consultores/${id}`)} />
+                            <LinhaConsultor
+                              key={c.id_utilizador}
+                              c={c}
+                              onVerPerfil={(id) => navigate(`/sl/consultores/${id}`)}
+                              ESTADO_CFG={ESTADO_CFG}
+                              labelVerPerfil={t('sl_consult_ver_perfil')}
+                            />
                           ))}
                         </tbody>
                       </table>

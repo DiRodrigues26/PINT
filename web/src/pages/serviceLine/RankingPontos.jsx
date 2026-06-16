@@ -8,6 +8,7 @@ import {
 import { api } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
+import { useLanguage } from '../../context/LanguageContext';
 
 /* ─── Cores ─────────────────────────────────────────────────────────── */
 const NIVEL_COR = {
@@ -50,6 +51,7 @@ function CustomTooltip({ active, payload, label }) {
 
 /* ─── Página principal ──────────────────────────────────────────────── */
 export default function ServiceLineRanking() {
+  const { t } = useLanguage();
   const [ordenar, setOrdenar]       = useState('pontos'); // 'pontos' | 'badges'
   const [mostrarTodos, setMostrarTodos] = useState(false);
 
@@ -109,14 +111,14 @@ export default function ServiceLineRanking() {
       <ServiceLineSidebar />
 
       <div className="flex flex-1 flex-col lg:pl-[260px]">
-        <ServiceLineTopbar subtitulo="Ranking & Pontos – Service Line Leader" />
+        <ServiceLineTopbar subtitulo={t('sl_ranking_subtitulo')} />
 
         <main className="flex-1 px-5 py-6 lg:px-8 pb-24 lg:pb-8 space-y-6">
 
           {/* Título */}
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Ranking & Pontos</h1>
-            <p className="mt-1 text-sm text-slate-500">Comparação Estratégica – {slNome}</p>
+            <h1 className="text-2xl font-bold text-slate-900">{t('sl_ranking_titulo')}</h1>
+            <p className="mt-1 text-sm text-slate-500">{t('sl_ranking_desc').replace('{sl}', slNome)}</p>
           </div>
 
           {isLoading ? (
@@ -126,27 +128,27 @@ export default function ServiceLineRanking() {
               {/* ── Ranking Geral ───────────────────────────────────── */}
               <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                  <h2 className="text-sm font-bold text-slate-800">Ranking Geral</h2>
+                  <h2 className="text-sm font-bold text-slate-800">{t('sl_ranking_geral')}</h2>
                   <button
                     type="button"
                     onClick={() => setOrdenar(o => o === 'pontos' ? 'badges' : 'pontos')}
                     className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
                   >
                     <ArrowUpDown className="h-3.5 w-3.5" strokeWidth={2} />
-                    Ordenar por {ordenar === 'pontos' ? 'Badges' : 'Pontos'}
+                    {ordenar === 'pontos' ? t('sl_ranking_ordenar_badges') : t('sl_ranking_ordenar_pontos')}
                   </button>
                 </div>
 
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                      <th className="px-5 py-3 text-left w-20">Posição</th>
-                      <th className="px-3 py-3 text-left">Nome do Consultor</th>
-                      <th className="px-3 py-3 text-left">Área</th>
-                      <th className="px-3 py-3 text-right">Total de Pontos</th>
-                      <th className="px-3 py-3 text-right">Nº de Badges</th>
-                      <th className="px-3 py-3 text-center">Nível Mais Alto</th>
-                      <th className="px-3 py-3 text-left">Conquistas Especiais</th>
+                      <th className="px-5 py-3 text-left w-20">{t('sl_ranking_th_posicao')}</th>
+                      <th className="px-3 py-3 text-left">{t('sl_ranking_th_nome')}</th>
+                      <th className="px-3 py-3 text-left">{t('sl_ranking_th_area')}</th>
+                      <th className="px-3 py-3 text-right">{t('sl_ranking_th_pontos')}</th>
+                      <th className="px-3 py-3 text-right">{t('sl_ranking_th_badges')}</th>
+                      <th className="px-3 py-3 text-center">{t('sl_ranking_th_nivel')}</th>
+                      <th className="px-3 py-3 text-left">{t('sl_ranking_th_conquistas')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -188,7 +190,7 @@ export default function ServiceLineRanking() {
                     {ranking.length === 0 && (
                       <tr>
                         <td colSpan={7} className="px-5 py-12 text-center text-sm text-slate-400">
-                          Sem consultores nesta Service Line.
+                          {t('sl_ranking_sem_consult')}
                         </td>
                       </tr>
                     )}
@@ -203,7 +205,7 @@ export default function ServiceLineRanking() {
                       onClick={() => setMostrarTodos(v => !v)}
                       className="rounded-lg bg-softinsa-600 px-6 py-2 text-sm font-semibold text-white hover:bg-softinsa-700 transition"
                     >
-                      {mostrarTodos ? 'Ver Menos' : 'Ver Mais'}
+                      {mostrarTodos ? t('sl_ranking_ver_menos') : t('sl_ranking_ver_mais')}
                     </button>
                   </div>
                 )}
@@ -212,19 +214,19 @@ export default function ServiceLineRanking() {
               {/* ── Comparação por Área ─────────────────────────────── */}
               {dadosArea.length > 0 && (
                 <div className="space-y-3">
-                  <h2 className="text-base font-bold text-slate-900">Comparação por Área</h2>
+                  <h2 className="text-base font-bold text-slate-900">{t('sl_ranking_comp_area')}</h2>
 
                   <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
                     {/* Média de Pontos por Área */}
                     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <h3 className="mb-4 text-xs font-semibold text-slate-600">Média de Pontos por Área</h3>
+                      <h3 className="mb-4 text-xs font-semibold text-slate-600">{t('sl_ranking_media_pts')}</h3>
                       <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={dadosArea} margin={{ left: -10, right: 10, bottom: 30 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                           <XAxis dataKey="area" tick={{ fontSize: 10, fill: '#94a3b8' }} angle={-30} textAnchor="end" interval={0} />
                           <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} />
                           <Tooltip content={<CustomTooltip />} />
-                          <Bar dataKey="media_pontos" name="Média Pontos" radius={[4, 4, 0, 0]} barSize={28}>
+                          <Bar dataKey="media_pontos" name={t('sl_ranking_media_pts_name')} radius={[4, 4, 0, 0]} barSize={28}>
                             {dadosArea.map((_, i) => <Cell key={i} fill={AREA_COLORS[i % AREA_COLORS.length]} />)}
                           </Bar>
                         </BarChart>
@@ -233,14 +235,14 @@ export default function ServiceLineRanking() {
 
                     {/* Total de Badges por Área */}
                     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <h3 className="mb-4 text-xs font-semibold text-slate-600">Total de Badges por Área</h3>
+                      <h3 className="mb-4 text-xs font-semibold text-slate-600">{t('sl_ranking_total_badges')}</h3>
                       <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={dadosArea} margin={{ left: -10, right: 10, bottom: 30 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                           <XAxis dataKey="area" tick={{ fontSize: 10, fill: '#94a3b8' }} angle={-30} textAnchor="end" interval={0} />
                           <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} allowDecimals={false} />
                           <Tooltip content={<CustomTooltip />} />
-                          <Bar dataKey="badges" name="Badges" radius={[4, 4, 0, 0]} barSize={28}>
+                          <Bar dataKey="badges" name={t('sl_ranking_badges_name')} radius={[4, 4, 0, 0]} barSize={28}>
                             {dadosArea.map((_, i) => <Cell key={i} fill={AREA_COLORS[i % AREA_COLORS.length]} />)}
                           </Bar>
                         </BarChart>
@@ -249,7 +251,7 @@ export default function ServiceLineRanking() {
 
                     {/* % Consultores por Nível */}
                     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                      <h3 className="mb-4 text-xs font-semibold text-slate-600">% Consultores por Nível</h3>
+                      <h3 className="mb-4 text-xs font-semibold text-slate-600">{t('sl_ranking_pct_nivel')}</h3>
                       <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={dadosNivel} margin={{ left: -10, right: 10, bottom: 30 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -257,7 +259,7 @@ export default function ServiceLineRanking() {
                           <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} unit="%" domain={[0, 100]} />
                           <Tooltip content={<CustomTooltip />} />
                           {['A', 'B', 'C', 'D', 'E'].map((n, i) => (
-                            <Bar key={n} dataKey={n} name={`Nível ${n}`} stackId="a"
+                            <Bar key={n} dataKey={n} name={t('sl_ranking_nivel').replace('{n}', n)} stackId="a"
                               fill={AREA_COLORS[i % AREA_COLORS.length]}
                               radius={i === 4 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
                           ))}
@@ -268,7 +270,7 @@ export default function ServiceLineRanking() {
                         {['A', 'B', 'C', 'D', 'E'].map((n, i) => (
                           <span key={n} className="flex items-center gap-1 text-[10px] text-slate-500">
                             <span className="h-2 w-2 rounded-sm inline-block" style={{ background: AREA_COLORS[i] }} />
-                            Nível {n}
+                            {t('sl_ranking_nivel').replace('{n}', n)}
                           </span>
                         ))}
                       </div>

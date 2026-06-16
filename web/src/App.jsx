@@ -38,6 +38,8 @@ import ServiceLineConsultores from './pages/serviceLine/Consultores';
 import ServiceLineConsultorPerfil from './pages/serviceLine/ConsultorPerfil';
 import ServiceLineRelatorios from './pages/serviceLine/Relatorios';
 import ServiceLineRanking from './pages/serviceLine/RankingPontos';
+import ServiceLineHistorico from './pages/serviceLine/Historico';
+import ServiceLineConquistas from './pages/serviceLine/Conquistas';
 import ConsultorDashboard from './pages/consultor/Dashboard';
 import CatalogoBadges from './pages/consultor/CatalogoBadges';
 import MeusBadges from './pages/consultor/MeusBadges';
@@ -176,6 +178,12 @@ export default function App() {
       } />
       <Route path="/sl/ranking" element={
         <RotaProtegida perfis={['Service Line']}><ServiceLineRanking /></RotaProtegida>
+      } />
+      <Route path="/sl/historico" element={
+        <RotaProtegida perfis={['Service Line']}><ServiceLineHistorico /></RotaProtegida>
+      } />
+      <Route path="/sl/conquistas" element={
+        <RotaProtegida perfis={['Service Line']}><ServiceLineConquistas /></RotaProtegida>
       } />
       <Route path="/sl/*" element={
         <RotaProtegida perfis={['Service Line']}><PerfilEmDesenvolvimento /></RotaProtegida>

@@ -8,24 +8,37 @@ import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
+import { useLanguage } from '../../context/LanguageContext';
 
 /* ─── Mapeamento tipo → ícone + cor ────────────────────────────────── */
-const TIPO_CONFIG = {
-  NOVO_PEDIDO:             { icon: FileText,       bg: 'bg-blue-500',     label: 'Novo Pedido' },
-  PEDIDO_VALIDACAO:        { icon: FileText,       bg: 'bg-blue-500',     label: 'Pedido em Validação' },
-  SLA_LIMITE:              { icon: TriangleAlert,  bg: 'bg-amber-500',    label: 'SLA Limite' },
-  SLA_PROXIMO:             { icon: TriangleAlert,  bg: 'bg-amber-500',    label: 'SLA Próximo' },
-  BADGE_APROVADO:          { icon: CheckCircle,    bg: 'bg-emerald-500',  label: 'Badge Aprovado' },
-  CANDIDATURA_APROVADA:    { icon: CheckCircle,    bg: 'bg-emerald-500',  label: 'Badge Aprovado' },
-  BADGE_REJEITADO:         { icon: XCircle,        bg: 'bg-rose-500',     label: 'Badge Rejeitado' },
-  CANDIDATURA_REJEITADA:   { icon: XCircle,        bg: 'bg-rose-500',     label: 'Badge Rejeitado' },
-  AVISO:                   { icon: Bell,           bg: 'bg-slate-400',    label: 'Aviso' },
-  SISTEMA:                 { icon: Bell,           bg: 'bg-slate-400',    label: 'Sistema' },
-  default:                 { icon: Bell,           bg: 'bg-slate-400',    label: 'Geral' },
+const TIPO_ICON_BG = {
+  NOVO_PEDIDO:             { icon: FileText,       bg: 'bg-blue-500'    },
+  PEDIDO_VALIDACAO:        { icon: FileText,       bg: 'bg-blue-500'    },
+  SLA_LIMITE:              { icon: TriangleAlert,  bg: 'bg-amber-500'   },
+  SLA_PROXIMO:             { icon: TriangleAlert,  bg: 'bg-amber-500'   },
+  BADGE_APROVADO:          { icon: CheckCircle,    bg: 'bg-emerald-500' },
+  CANDIDATURA_APROVADA:    { icon: CheckCircle,    bg: 'bg-emerald-500' },
+  BADGE_REJEITADO:         { icon: XCircle,        bg: 'bg-rose-500'    },
+  CANDIDATURA_REJEITADA:   { icon: XCircle,        bg: 'bg-rose-500'    },
+  AVISO:                   { icon: Bell,           bg: 'bg-slate-400'   },
+  SISTEMA:                 { icon: Bell,           bg: 'bg-slate-400'   },
+  default:                 { icon: Bell,           bg: 'bg-slate-400'   },
 };
 
-function getCfg(tipo) {
-  return TIPO_CONFIG[tipo] || TIPO_CONFIG.default;
+function getTipoConfig(t) {
+  return {
+    NOVO_PEDIDO:           { ...TIPO_ICON_BG.NOVO_PEDIDO,           label: t('sl_notif_tipo_novo_pedido') },
+    PEDIDO_VALIDACAO:      { ...TIPO_ICON_BG.PEDIDO_VALIDACAO,      label: t('sl_notif_tipo_pedido_val')  },
+    SLA_LIMITE:            { ...TIPO_ICON_BG.SLA_LIMITE,            label: t('sl_notif_tipo_sla_limite')  },
+    SLA_PROXIMO:           { ...TIPO_ICON_BG.SLA_PROXIMO,           label: t('sl_notif_tipo_sla_proximo') },
+    BADGE_APROVADO:        { ...TIPO_ICON_BG.BADGE_APROVADO,        label: t('sl_notif_tipo_badge_aprov') },
+    CANDIDATURA_APROVADA:  { ...TIPO_ICON_BG.CANDIDATURA_APROVADA,  label: t('sl_notif_tipo_badge_aprov') },
+    BADGE_REJEITADO:       { ...TIPO_ICON_BG.BADGE_REJEITADO,       label: t('sl_notif_tipo_badge_rejeit') },
+    CANDIDATURA_REJEITADA: { ...TIPO_ICON_BG.CANDIDATURA_REJEITADA, label: t('sl_notif_tipo_badge_rejeit') },
+    AVISO:                 { ...TIPO_ICON_BG.AVISO,                 label: t('sl_notif_tipo_aviso')       },
+    SISTEMA:               { ...TIPO_ICON_BG.SISTEMA,               label: t('sl_notif_tipo_sistema')     },
+    default:               { ...TIPO_ICON_BG.default,               label: t('sl_notif_tipo_geral')       },
+  };
 }
 
 function formatarDataHora(dataStr) {
@@ -35,16 +48,11 @@ function formatarDataHora(dataStr) {
     + ' ' + d.toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
 }
 
-const CATEGORIAS = [
-  { valor: '', label: 'Todos os Tipos' },
-  { valor: 'CANDIDATURA', label: 'Candidatura' },
-  { valor: 'BADGE',       label: 'Badge' },
-  { valor: 'SISTEMA',     label: 'Sistema' },
-];
-
 /* ─── Item de notificação ───────────────────────────────────────────── */
 function ItemNotificacao({ notif, onLer, onEliminar }) {
-  const cfg = getCfg(notif.tipo);
+  const { t } = useLanguage();
+  const TIPO_CONFIG = getTipoConfig(t);
+  const cfg = TIPO_CONFIG[notif.tipo] || TIPO_CONFIG.default;
   const Icon = cfg.icon;
 
   return (
@@ -64,7 +72,7 @@ function ItemNotificacao({ notif, onLer, onEliminar }) {
           <span className="text-[11px] text-slate-400">{formatarDataHora(notif.data_criacao)}</span>
           {!notif.lida && (
             <span className="inline-flex items-center rounded-full bg-softinsa-50 px-2 py-0.5 text-[10px] font-semibold text-softinsa-600">
-              Não Lida
+              {t('sl_notif_nao_lida')}
             </span>
           )}
         </div>
@@ -77,14 +85,13 @@ function ItemNotificacao({ notif, onLer, onEliminar }) {
             type="button"
             onClick={() => onLer(notif.id_notificacao)}
             className="h-2.5 w-2.5 rounded-full bg-softinsa-500 hover:bg-softinsa-700 transition"
-            title="Marcar como lida"
+            title={t('sl_notif_marcar_todas')}
           />
         )}
         <button
           type="button"
           onClick={() => onEliminar(notif.id_notificacao)}
           className="text-slate-300 hover:text-rose-500 transition"
-          title="Eliminar"
         >
           <Trash2 className="h-4 w-4" strokeWidth={1.8} />
         </button>
@@ -95,10 +102,18 @@ function ItemNotificacao({ notif, onLer, onEliminar }) {
 
 /* ─── Página principal ──────────────────────────────────────────────── */
 export default function ServiceLineNotificacoes() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
   const [filtroDataFim, setFiltroDataFim] = useState('');
+
+  const CATEGORIAS = [
+    { valor: '',           label: t('sl_notif_todos_tipos')  },
+    { valor: 'CANDIDATURA', label: t('sl_notif_candidatura') },
+    { valor: 'BADGE',       label: t('sl_notif_badge')       },
+    { valor: 'SISTEMA',     label: t('sl_notif_sistema')     },
+  ];
 
   const { data, isLoading } = useQuery({
     queryKey: ['sl-notificacoes', filtroCategoria],
@@ -134,7 +149,7 @@ export default function ServiceLineNotificacoes() {
   const mutLerTodas = useMutation({
     mutationFn: () => api.post('/api/notificacoes/ler-todas'),
     onSuccess: () => {
-      toast.success('Todas as notificações marcadas como lidas.');
+      toast.success(t('sl_notif_todas_lidas'));
       queryClient.invalidateQueries({ queryKey: ['sl-notificacoes'] });
     },
     onError: (err) => toast.error(extrairErro(err)),
@@ -160,7 +175,7 @@ export default function ServiceLineNotificacoes() {
       <ServiceLineSidebar />
 
       <div className="flex flex-1 flex-col lg:pl-[260px]">
-        <ServiceLineTopbar subtitulo="Alertas e Atualizações da Service Line" />
+        <ServiceLineTopbar subtitulo={t('sl_notif_subtitulo')} />
 
         <main className="flex-1 px-5 py-6 lg:px-8 pb-24 lg:pb-8 space-y-4">
 
@@ -168,11 +183,11 @@ export default function ServiceLineNotificacoes() {
           <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
               <Filter className="h-4 w-4" strokeWidth={1.8} />
-              Filtros
+              {t('sl_notif_filtros')}
             </div>
             <div className="flex flex-wrap items-end gap-4">
               <div className="flex-1 min-w-[180px]">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Tipo de Notificação</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_notif_tipo_label')}</label>
                 <select
                   value={filtroCategoria}
                   onChange={e => setFiltroCategoria(e.target.value)}
@@ -184,7 +199,7 @@ export default function ServiceLineNotificacoes() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Intervalo de Datas</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_notif_intervalo')}</label>
                 <div className="flex items-center gap-2">
                   <input
                     type="date"
@@ -192,7 +207,7 @@ export default function ServiceLineNotificacoes() {
                     onChange={e => setFiltroDataInicio(e.target.value)}
                     className="input text-sm"
                   />
-                  <span className="text-xs text-slate-400">até</span>
+                  <span className="text-xs text-slate-400">{t('sl_notif_ate')}</span>
                   <input
                     type="date"
                     value={filtroDataFim}
@@ -208,7 +223,7 @@ export default function ServiceLineNotificacoes() {
                   className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition"
                 >
                   <X className="h-3.5 w-3.5" strokeWidth={2} />
-                  Limpar Filtros
+                  {t('sl_notif_limpar')}
                 </button>
               )}
             </div>
@@ -223,14 +238,14 @@ export default function ServiceLineNotificacoes() {
               className="flex items-center gap-2 rounded-lg bg-softinsa-600 px-4 py-2 text-xs font-semibold text-white hover:bg-softinsa-700 disabled:opacity-50 transition"
             >
               <CheckCheck className="h-4 w-4" strokeWidth={2} />
-              Marcar Todas como Lidas
+              {t('sl_notif_marcar_todas')}
               {naoLidas > 0 && (
                 <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">{naoLidas}</span>
               )}
             </button>
             <p className="flex items-center gap-1.5 text-xs text-slate-400">
               <Mail className="h-3.5 w-3.5" strokeWidth={1.8} />
-              Notificações também enviadas por email, conforme preferências do utilizador.
+              {t('sl_notif_email_info')}
             </p>
           </div>
 
@@ -238,7 +253,7 @@ export default function ServiceLineNotificacoes() {
           <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
             <div className="border-b border-slate-100 px-5 py-3">
               <h2 className="text-sm font-semibold text-slate-800">
-                Lista de Notificações
+                {t('sl_notif_lista_titulo')}
                 {notificacoes.length > 0 && (
                   <span className="ml-2 text-xs font-normal text-slate-400">({notificacoes.length})</span>
                 )}
@@ -250,10 +265,10 @@ export default function ServiceLineNotificacoes() {
             ) : notificacoes.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-14 text-slate-400">
                 <Bell className="h-10 w-10 mb-3 opacity-30" strokeWidth={1.5} />
-                <p className="text-sm font-medium">Sem notificações</p>
+                <p className="text-sm font-medium">{t('sl_notif_sem')}</p>
                 {temFiltros && (
                   <button onClick={limparFiltros} className="mt-2 text-xs text-softinsa-600 hover:underline">
-                    Limpar filtros
+                    {t('sl_notif_limpar_link')}
                   </button>
                 )}
               </div>

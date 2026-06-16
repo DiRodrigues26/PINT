@@ -1,28 +1,26 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Award, Users, BarChart2, Trophy, Bell, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Award, Users, BarChart2, Trophy, Bell, User, LogOut, History, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 
-function getSaudacao() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Bom dia';
-  if (h < 18) return 'Boa tarde';
-  return 'Boa noite';
-}
+const SAUDACAO_HORA = (h) => h < 12 ? 'bom_dia' : h < 18 ? 'boa_tarde' : 'boa_noite';
 
-const MENU = [
-  { label: 'Dashboard',          to: '/sl/dashboard',     icon: LayoutDashboard },
-  { label: 'Pedidos de Badges',  to: '/sl/pedidos',       icon: FileText },
-  { label: 'Badges',             to: '/sl/badges',        icon: Award },
-  { label: 'Consultores',        to: '/sl/consultores',   icon: Users },
-  { label: 'Relatórios',         to: '/sl/relatorios',    icon: BarChart2 },
-  { label: 'Ranking & Pontuação',to: '/sl/ranking',       icon: Trophy },
-  { label: 'Notificações',       to: '/sl/notificacoes',  icon: Bell },
-  { label: 'Perfil',             to: '/sl/perfil',        icon: User },
+const MENU_KEYS = [
+  { key: 'sl_menu_dashboard',  to: '/sl/dashboard',     icon: LayoutDashboard },
+  { key: 'sl_menu_pedidos',    to: '/sl/pedidos',       icon: FileText },
+  { key: 'sl_menu_badges',     to: '/sl/badges',        icon: Award },
+  { key: 'sl_menu_consult',    to: '/sl/consultores',   icon: Users },
+  { key: 'sl_menu_historico',  to: '/sl/historico',     icon: History },
+  { key: 'sl_menu_conquistas', to: '/sl/conquistas',    icon: Star },
+  { key: 'sl_menu_relatorios', to: '/sl/relatorios',    icon: BarChart2 },
+  { key: 'sl_menu_ranking',    to: '/sl/ranking',       icon: Trophy },
+  { key: 'notificacoes',       to: '/sl/notificacoes',  icon: Bell },
+  { key: 'perfil',             to: '/sl/perfil',        icon: User },
 ];
 
 export function ServiceLineSidebar() {
   const { utilizador, logout } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -44,7 +42,7 @@ export function ServiceLineSidebar() {
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <div className="space-y-0.5">
-            {MENU.map(({ label, to, icon: Icon }) => (
+            {MENU_KEYS.map(({ key, to, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -57,7 +55,7 @@ export function ServiceLineSidebar() {
                 }
               >
                 <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
-                <span>{label}</span>
+                <span>{t(key)}</span>
               </NavLink>
             ))}
           </div>
@@ -73,7 +71,7 @@ export function ServiceLineSidebar() {
             className="mt-4 flex items-center gap-2 text-xs font-semibold text-white/70 hover:text-white transition"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
-            Terminar Sessão
+            {t('terminar_sessao')}
           </button>
         </div>
       </aside>
@@ -81,7 +79,7 @@ export function ServiceLineSidebar() {
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
         <div className="flex gap-1 overflow-x-auto pb-1">
-          {MENU.map(({ label, to, icon: Icon }) => (
+          {MENU_KEYS.map(({ key, to, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -92,7 +90,7 @@ export function ServiceLineSidebar() {
               }
             >
               <Icon className="h-5 w-5 shrink-0" strokeWidth={1.8} />
-              <span className="line-clamp-1 max-w-[56px] text-center">{label}</span>
+              <span className="line-clamp-1 max-w-[56px] text-center">{t(key)}</span>
             </NavLink>
           ))}
         </div>
@@ -103,9 +101,9 @@ export function ServiceLineSidebar() {
 
 export function ServiceLineTopbar({ subtitulo }) {
   const { utilizador } = useAuth();
-  const { idioma, mudarIdioma } = useLanguage();
+  const { idioma, mudarIdioma, t } = useLanguage();
   const nome = utilizador?.nome || 'Utilizador';
-  const saudacao = `${getSaudacao()}, ${nome}!`;
+  const saudacao = `${t(SAUDACAO_HORA(new Date().getHours()))}, ${nome}!`;
   const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
   const IDIOMAS = ['pt', 'en', 'es'];
 
@@ -136,9 +134,10 @@ export function ServiceLineTopbar({ subtitulo }) {
             <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
           </NavLink>
           <div className="hidden text-sm font-semibold text-white sm:block">{nome}</div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-softinsa-500 text-sm font-bold text-white">
+          <NavLink to="/sl/perfil" aria-label="Ir para o perfil"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-softinsa-500 text-sm font-bold text-white hover:bg-softinsa-400 transition">
             {iniciais}
-          </div>
+          </NavLink>
         </div>
       </div>
     </header>

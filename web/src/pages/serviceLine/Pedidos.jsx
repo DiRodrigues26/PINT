@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ExternalLink } from 'lucide-react';
+import { Search, X, ExternalLink, Download, FileText } from 'lucide-react';
 import { api } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
+import { exportCSV, exportPDF } from '../../lib/exportUtils';
+import { useLanguage } from '../../context/LanguageContext';
 
 /* ─── Dados ─────────────────────────────────────────────────────────── */
 function usePedidos() {
@@ -49,18 +51,20 @@ const NIVEL_COR = {
   E: 'bg-purple-800',
 };
 
-const ESTADO_CFG = {
-  OPEN:                   { label: 'Open',              cls: 'bg-slate-100 text-slate-600' },
-  SUBMITTED:              { label: 'Submetido',         cls: 'bg-amber-100 text-amber-700' },
-  IN_TALENT_REVIEW:       { label: 'Talent Review',     cls: 'bg-blue-100 text-blue-700' },
-  IN_SERVICE_LINE_REVIEW: { label: 'Em Validação',      cls: 'bg-orange-100 text-orange-700' },
-  APPROVED:               { label: 'Fechado – Aprovado', cls: 'bg-emerald-100 text-emerald-700' },
-  REJECTED:               { label: 'Fechado – Rejeitado', cls: 'bg-rose-100 text-rose-700' },
-  SENT_BACK:              { label: 'Devolvido',         cls: 'bg-orange-100 text-orange-600' },
-  CLOSED:                 { label: 'Fechado',           cls: 'bg-slate-100 text-slate-500' },
-};
+function getEstadoCfg(t) {
+  return {
+    OPEN:                   { label: t('sl_estado_open'),             cls: 'bg-slate-100 text-slate-600' },
+    SUBMITTED:              { label: t('sl_estado_submitted'),        cls: 'bg-amber-100 text-amber-700' },
+    IN_TALENT_REVIEW:       { label: t('sl_estado_talent_review'),    cls: 'bg-blue-100 text-blue-700' },
+    IN_SERVICE_LINE_REVIEW: { label: t('sl_estado_sl_review'),        cls: 'bg-orange-100 text-orange-700' },
+    APPROVED:               { label: t('sl_estado_closed_approved'),  cls: 'bg-emerald-100 text-emerald-700' },
+    REJECTED:               { label: t('sl_estado_closed_rejected'),  cls: 'bg-rose-100 text-rose-700' },
+    SENT_BACK:              { label: t('sl_estado_sent_back'),        cls: 'bg-orange-100 text-orange-600' },
+    CLOSED:                 { label: t('sl_estado_closed'),           cls: 'bg-slate-100 text-slate-500' },
+  };
+}
 
-function calcularSLA(candidatura, slaConfig) {
+function calcularSLA(candidatura, slaConfig, labelExpirado) {
   if (!candidatura.data_submissao) return null;
   if (['APPROVED', 'REJECTED', 'CLOSED'].includes(candidatura.estado_atual)) return null;
 
@@ -77,7 +81,7 @@ function calcularSLA(candidatura, slaConfig) {
   const horasDecorridas = (agora - inicioFase) / 3_600_000;
   const horasRestantes = limiteHoras - horasDecorridas;
 
-  if (horasRestantes <= 0) return { label: 'Expirado', cls: 'text-rose-600 font-semibold' };
+  if (horasRestantes <= 0) return { label: labelExpirado, cls: 'text-rose-600 font-semibold' };
   const diasRestantes = Math.ceil(horasRestantes / 24);
   const cor = horasRestantes < 48 ? 'text-orange-500 font-semibold' : 'text-slate-600';
   return { label: `${diasRestantes} dia${diasRestantes !== 1 ? 's' : ''}`, cls: cor };
@@ -88,7 +92,7 @@ function iniciais(nome) {
 }
 
 /* ─── Linha da tabela ───────────────────────────────────────────────── */
-function LinhaPedido({ c, slaInfo, navigate }) {
+function LinhaPedido({ c, slaInfo, navigate, ESTADO_CFG, labelRever }) {
   const estadoCfg = ESTADO_CFG[c.estado_atual] || { label: c.estado_atual, cls: 'bg-slate-100 text-slate-500' };
   const ini = iniciais(c.nome_consultor);
 
@@ -142,7 +146,7 @@ function LinhaPedido({ c, slaInfo, navigate }) {
           className="flex items-center gap-1.5 rounded-lg border border-softinsa-200 bg-white px-3 py-1.5 text-xs font-semibold text-softinsa-600 hover:bg-softinsa-50 transition"
         >
           <ExternalLink className="h-3 w-3" strokeWidth={2} />
-          Rever Pedido
+          {labelRever}
         </button>
       </td>
     </tr>
@@ -151,6 +155,7 @@ function LinhaPedido({ c, slaInfo, navigate }) {
 
 /* ─── Página principal ──────────────────────────────────────────────── */
 export default function ServiceLinePedidos() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { data: pedidos = [], isLoading } = usePedidos();
   const { data: slaConfig = [] } = useSLA();
@@ -160,6 +165,8 @@ export default function ServiceLinePedidos() {
   const [filtroArea, setFiltroArea] = useState('');
   const [filtroNivel, setFiltroNivel] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
+
+  const ESTADO_CFG = getEstadoCfg(t);
 
   const niveis = useMemo(() => {
     const set = new Map();
@@ -186,12 +193,26 @@ export default function ServiceLinePedidos() {
 
   const temFiltros = pesquisa || filtroArea || filtroNivel || filtroEstado;
 
+  const CSV_HEADERS = [
+    t('sl_ped_csv_consultor'), t('sl_ped_csv_area'), t('sl_ped_csv_badge'),
+    t('sl_ped_csv_nivel'), t('sl_ped_csv_data'), t('sl_ped_csv_estado'), t('sl_ped_csv_validado'),
+  ];
+  const hoje = new Date().toISOString().slice(0, 10);
+  function pedidosParaLinhas(lista) {
+    return lista.map(p => [
+      p.nome_consultor, p.nome_area, p.titulo_badge, p.codigo_nivel,
+      p.data_submissao ? new Date(p.data_submissao).toLocaleDateString('pt-PT') : '',
+      ESTADO_CFG[p.estado_atual]?.label || p.estado_atual,
+      p.validado_por || '',
+    ]);
+  }
+
   return (
     <div className="flex min-h-screen bg-[#f3f6fa]">
       <ServiceLineSidebar />
 
       <div className="flex flex-1 flex-col lg:pl-[260px]">
-        <ServiceLineTopbar subtitulo="Pedidos de Badge – Validação Final" />
+        <ServiceLineTopbar subtitulo={t('sl_ped_subtitulo')} />
 
         <main className="flex-1 px-5 py-6 lg:px-8 pb-24 lg:pb-8 space-y-4">
 
@@ -200,23 +221,23 @@ export default function ServiceLinePedidos() {
             <div className="flex flex-wrap items-end gap-4">
               {/* Pesquisa */}
               <div className="flex-1 min-w-[200px]">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Pesquisa por Nome do Consultor</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_ped_pesquisa_label')}</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" strokeWidth={2} />
                   <input
                     type="text"
                     value={pesquisa}
                     onChange={e => setPesquisa(e.target.value)}
-                    placeholder="Procurar consultor..."
+                    placeholder={t('sl_ped_pesquisa_ph')}
                     className="input pl-8 text-sm"
                   />
                 </div>
               </div>
               {/* Área */}
               <div className="min-w-[160px]">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Filtro por Área</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_ped_filtro_area')}</label>
                 <select value={filtroArea} onChange={e => setFiltroArea(e.target.value)} className="input text-sm">
-                  <option value="">Todas as áreas</option>
+                  <option value="">{t('sl_ped_todas_areas')}</option>
                   {areas.map(a => (
                     <option key={a.id_area} value={String(a.id_area)}>{a.nome}</option>
                   ))}
@@ -224,9 +245,9 @@ export default function ServiceLinePedidos() {
               </div>
               {/* Nível */}
               <div className="min-w-[150px]">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Filtro por Nível</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_ped_filtro_nivel')}</label>
                 <select value={filtroNivel} onChange={e => setFiltroNivel(e.target.value)} className="input text-sm">
-                  <option value="">Todos os níveis</option>
+                  <option value="">{t('sl_ped_todos_niveis')}</option>
                   {niveis.map(([cod, nome]) => (
                     <option key={cod} value={cod}>{cod} – {nome}</option>
                   ))}
@@ -234,9 +255,9 @@ export default function ServiceLinePedidos() {
               </div>
               {/* Estado */}
               <div className="min-w-[170px]">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Filtro por Estado</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_ped_filtro_estado')}</label>
                 <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} className="input text-sm">
-                  <option value="">Todos os estados</option>
+                  <option value="">{t('sl_ped_todos_estados')}</option>
                   {Object.entries(ESTADO_CFG).map(([val, cfg]) => (
                     <option key={val} value={val}>{cfg.label}</option>
                   ))}
@@ -250,7 +271,7 @@ export default function ServiceLinePedidos() {
                   className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition self-end"
                 >
                   <X className="h-3.5 w-3.5" strokeWidth={2} />
-                  Limpar Filtros
+                  {t('sl_ped_limpar')}
                 </button>
               )}
             </div>
@@ -262,38 +283,55 @@ export default function ServiceLinePedidos() {
               <div className="flex items-center justify-center py-16"><Carregando /></div>
             ) : (
               <>
-                <div className="border-b border-slate-100 px-5 py-3 text-xs text-slate-500">
-                  A mostrar <span className="font-semibold text-slate-700">{filtrados.length}</span> de{' '}
-                  <span className="font-semibold text-slate-700">{pedidos.length}</span> pedidos
+                <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+                  <span className="text-xs text-slate-500">
+                    {t('sl_ped_mostrando').replace('{n}', filtrados.length).replace('{total}', pedidos.length)}
+                  </span>
+                  {filtrados.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <button type="button"
+                        onClick={() => exportCSV(`pedidos_sl_${hoje}.csv`, CSV_HEADERS, pedidosParaLinhas(filtrados))}
+                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
+                        <Download className="h-3.5 w-3.5" strokeWidth={2} /> Excel (CSV)
+                      </button>
+                      <button type="button"
+                        onClick={() => exportPDF(`pedidos_sl_${hoje}.pdf`, t('sl_ped_subtitulo'), CSV_HEADERS, pedidosParaLinhas(filtrados))}
+                        className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition">
+                        <FileText className="h-3.5 w-3.5" strokeWidth={2} /> PDF
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100 bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                        <th className="px-4 py-3 text-left">Consultor</th>
-                        <th className="px-3 py-3 text-left">Área</th>
-                        <th className="px-3 py-3 text-left">Badge</th>
-                        <th className="px-3 py-3 text-center">Nível</th>
-                        <th className="px-3 py-3 text-left">Data de Submissão</th>
-                        <th className="px-3 py-3 text-left">Tempo Restante (SLA)</th>
-                        <th className="px-3 py-3 text-left">Estado</th>
-                        <th className="px-3 py-3 text-left">Validado Por</th>
-                        <th className="px-3 py-3 text-center">Ação</th>
+                        <th className="px-4 py-3 text-left">{t('sl_ped_col_consultor')}</th>
+                        <th className="px-3 py-3 text-left">{t('sl_ped_col_area')}</th>
+                        <th className="px-3 py-3 text-left">{t('sl_ped_col_badge')}</th>
+                        <th className="px-3 py-3 text-center">{t('sl_ped_col_nivel')}</th>
+                        <th className="px-3 py-3 text-left">{t('sl_ped_col_data')}</th>
+                        <th className="px-3 py-3 text-left">{t('sl_ped_col_sla')}</th>
+                        <th className="px-3 py-3 text-left">{t('sl_ped_col_estado')}</th>
+                        <th className="px-3 py-3 text-left">{t('sl_ped_col_validado')}</th>
+                        <th className="px-3 py-3 text-center">{t('sl_ped_col_acao')}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filtrados.length === 0 ? (
                         <tr>
                           <td colSpan={9} className="px-4 py-12 text-center text-sm text-slate-400">
-                            Nenhum pedido encontrado.
+                            {t('sl_ped_nenhum')}
                           </td>
                         </tr>
                       ) : filtrados.map(c => (
                         <LinhaPedido
                           key={c.id_candidatura}
                           c={c}
-                          slaInfo={calcularSLA(c, slaConfig)}
+                          slaInfo={calcularSLA(c, slaConfig, t('sl_ped_expirado'))}
                           navigate={navigate}
+                          ESTADO_CFG={ESTADO_CFG}
+                          labelRever={t('sl_ped_rever')}
                         />
                       ))}
                     </tbody>

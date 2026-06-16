@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Award, Layers, Search, Star, Timer, X } from 'lucide-react';
+import { Award, Layers, Search, Star, Timer, X, Download, FileText } from 'lucide-react';
 import { api } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
+import { exportCSV, exportPDF } from '../../lib/exportUtils';
+import { useLanguage } from '../../context/LanguageContext';
 
 /* ─── Cor do círculo por nível ──────────────────────────────────────── */
 const NIVEL_COR = {
@@ -32,6 +34,7 @@ function mesesDeValidade(validade_dias) {
 
 /* ─── Card ──────────────────────────────────────────────────────────── */
 function BadgeCard({ badge, onDetalhe }) {
+  const { t } = useLanguage();
   const meses = mesesDeValidade(badge.validade_dias);
   const pilCls = NIVEL_PILL[badge.codigo_nivel] || 'bg-slate-100 text-slate-600';
   const cirCls = NIVEL_COR[badge.codigo_nivel] || 'bg-softinsa-600';
@@ -74,20 +77,20 @@ function BadgeCard({ badge, onDetalhe }) {
       {/* Rodapé */}
       <div className="border-t border-slate-100 px-6 pb-5 pt-4 space-y-2">
         <span className={`inline-flex items-center rounded-full px-3 py-0.5 text-[11px] font-semibold ${pilCls}`}>
-          Nível {badge.codigo_nivel} · {badge.nome_nivel}
+          {t('sl_badges_nivel_tag').replace('{cod}', badge.codigo_nivel).replace('{nome}', badge.nome_nivel)}
         </span>
 
         <div className="flex items-center justify-between text-xs text-slate-500">
           {badge.pontos > 0 ? (
             <span className="flex items-center gap-1">
               <Star className="h-3.5 w-3.5 text-amber-400" strokeWidth={1.8} />
-              {badge.pontos} pontos
+              {badge.pontos} {t('sl_badges_pontos_tag')}
             </span>
           ) : <span />}
           {meses && (
             <span className="flex items-center gap-1 text-amber-500 font-medium">
               <Timer className="h-3.5 w-3.5" strokeWidth={1.8} />
-              Expira em {meses} {meses === 1 ? 'mês' : 'meses'}
+              {meses === 1 ? t('sl_badges_expira').replace('{n}', meses) : t('sl_badges_expira_pl').replace('{n}', meses)}
             </span>
           )}
         </div>
@@ -97,7 +100,7 @@ function BadgeCard({ badge, onDetalhe }) {
           onClick={() => onDetalhe(badge.id_badge)}
           className="mt-1 w-full rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
         >
-          Ver Detalhes
+          {t('sl_badges_ver_det')}
         </button>
       </div>
     </div>
@@ -106,6 +109,7 @@ function BadgeCard({ badge, onDetalhe }) {
 
 /* ─── Página principal ──────────────────────────────────────────────── */
 export default function ServiceLineBadges() {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [pesquisa, setPesquisa] = useState('');
   const [filtroLP, setFiltroLP] = useState('');
@@ -183,7 +187,7 @@ export default function ServiceLineBadges() {
       <ServiceLineSidebar />
 
       <div className="flex flex-1 flex-col lg:pl-[260px]">
-        <ServiceLineTopbar subtitulo="Catálogo de Badges" />
+        <ServiceLineTopbar subtitulo={t('sl_badges_subtitulo')} />
 
         <main className="flex-1 px-5 py-6 lg:px-8 pb-24 lg:pb-8 space-y-4">
 
@@ -192,9 +196,9 @@ export default function ServiceLineBadges() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {/* Learning Path */}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Learning Path</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_badges_lp_label')}</label>
                 <select value={filtroLP} onChange={e => setFiltroLP(e.target.value)} className="input text-sm">
-                  <option value="">Todos</option>
+                  <option value="">{t('sl_badges_todos')}</option>
                   {learningPaths.map(lp => (
                     <option key={lp.id} value={String(lp.id)}>{lp.nome}</option>
                   ))}
@@ -202,9 +206,9 @@ export default function ServiceLineBadges() {
               </div>
               {/* Service Line */}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Service Line</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_badges_sl_label')}</label>
                 <select value={filtroSL} onChange={e => { setFiltroSL(e.target.value); setFiltroArea(''); }} className="input text-sm">
-                  <option value="">Todas</option>
+                  <option value="">{t('sl_badges_todas')}</option>
                   {serviceLines.map(sl => (
                     <option key={sl.id} value={String(sl.id)}>{sl.nome}</option>
                   ))}
@@ -212,9 +216,9 @@ export default function ServiceLineBadges() {
               </div>
               {/* Área */}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Área</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_badges_area_label')}</label>
                 <select value={filtroArea} onChange={e => setFiltroArea(e.target.value)} className="input text-sm">
-                  <option value="">Todas</option>
+                  <option value="">{t('sl_badges_todas')}</option>
                   {areas.map(a => (
                     <option key={a.id} value={String(a.id)}>{a.nome}</option>
                   ))}
@@ -222,9 +226,9 @@ export default function ServiceLineBadges() {
               </div>
               {/* Nível */}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Nível</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_badges_nivel_label')}</label>
                 <select value={filtroNivel} onChange={e => setFiltroNivel(e.target.value)} className="input text-sm">
-                  <option value="">Todos</option>
+                  <option value="">{t('sl_badges_todos')}</option>
                   {niveis.map(([cod, nome]) => (
                     <option key={cod} value={cod}>{cod} – {nome}</option>
                   ))}
@@ -232,32 +236,32 @@ export default function ServiceLineBadges() {
               </div>
               {/* Pontos */}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Pontos</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_badges_pontos_label')}</label>
                 <select value={filtroPontos} onChange={e => setFiltroPontos(e.target.value)} className="input text-sm">
-                  <option value="">Todos</option>
-                  <option value="com">Com pontos</option>
-                  <option value="sem">Sem pontos</option>
+                  <option value="">{t('sl_badges_todos')}</option>
+                  <option value="com">{t('sl_badges_com_pontos')}</option>
+                  <option value="sem">{t('sl_badges_sem_pontos')}</option>
                 </select>
               </div>
               {/* Expiração */}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Expiração</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_badges_exp_label')}</label>
                 <select value={filtroExp} onChange={e => setFiltroExp(e.target.value)} className="input text-sm">
-                  <option value="">Todos</option>
-                  <option value="com">Com expiração</option>
-                  <option value="sem">Sem expiração</option>
+                  <option value="">{t('sl_badges_todos')}</option>
+                  <option value="com">{t('sl_badges_com_exp')}</option>
+                  <option value="sem">{t('sl_badges_sem_exp')}</option>
                 </select>
               </div>
               {/* Pesquisa */}
               <div className="sm:col-span-1 lg:col-span-1">
-                <label className="block text-xs font-medium text-slate-500 mb-1">Pesquisar</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_badges_pesquisar_label')}</label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" strokeWidth={2} />
                   <input
                     type="text"
                     value={pesquisa}
                     onChange={e => setPesquisa(e.target.value)}
-                    placeholder="Nome do Badge"
+                    placeholder={t('sl_badges_pesquisar_ph')}
                     className="input pl-8 text-sm"
                   />
                 </div>
@@ -271,18 +275,48 @@ export default function ServiceLineBadges() {
                     className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-50 transition w-full justify-center"
                   >
                     <X className="h-3.5 w-3.5" strokeWidth={2} />
-                    Limpar Filtros
+                    {t('sl_badges_limpar')}
                   </button>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Contador */}
+          {/* Contador + Exportar */}
           {!isLoading && (
-            <p className="text-sm text-slate-500">
-              <span className="font-semibold text-slate-700">{filtrados.length}</span> badge{filtrados.length !== 1 ? 's' : ''} encontrado{filtrados.length !== 1 ? 's' : ''}
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-slate-500">
+                <span className="font-semibold text-slate-700">{filtrados.length}</span>{' '}
+                {filtrados.length === 1
+                  ? t('sl_badges_contagem').replace('{n}', '').trim()
+                  : t('sl_badges_contagem_pl').replace('{n}', '').trim()}
+              </p>
+              {filtrados.length > 0 && (() => {
+                const hdrs = [
+                  t('sl_badges_csv_badge'), t('sl_badges_csv_nivel'), t('sl_badges_csv_nome_nivel'),
+                  t('sl_badges_csv_area'), t('sl_badges_csv_sl'), t('sl_badges_csv_pontos'), t('sl_badges_csv_validade'),
+                ];
+                const rows = filtrados.map(b => [
+                  b.titulo, b.codigo_nivel, b.nome_nivel, b.nome_area, b.nome_service_line,
+                  b.pontos, b.validade_dias || '',
+                ]);
+                const hoje = new Date().toISOString().slice(0, 10);
+                return (
+                  <div className="flex items-center gap-2">
+                    <button type="button"
+                      onClick={() => exportCSV(`badges_sl_${hoje}.csv`, hdrs, rows)}
+                      className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
+                      <Download className="h-3.5 w-3.5" strokeWidth={2} /> Excel (CSV)
+                    </button>
+                    <button type="button"
+                      onClick={() => exportPDF(`badges_sl_${hoje}.pdf`, t('sl_badges_pdf_titulo'), hdrs, rows)}
+                      className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition">
+                      <FileText className="h-3.5 w-3.5" strokeWidth={2} /> PDF
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
           )}
 
           {/* Grid */}
@@ -291,10 +325,10 @@ export default function ServiceLineBadges() {
           ) : filtrados.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-slate-400">
               <Award className="h-12 w-12 mb-3 opacity-30" strokeWidth={1.5} />
-              <p className="text-sm font-medium">Nenhum badge encontrado</p>
+              <p className="text-sm font-medium">{t('sl_badges_nenhum')}</p>
               {temFiltros && (
                 <button onClick={limparFiltros} className="mt-2 text-xs text-softinsa-600 hover:underline">
-                  Limpar filtros
+                  {t('sl_badges_limpar_link')}
                 </button>
               )}
             </div>

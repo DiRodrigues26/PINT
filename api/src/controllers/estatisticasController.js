@@ -547,6 +547,79 @@ async function dashboardServiceLine(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function historicoServiceLine(req, res, next) {
+  try {
+    const idUtilizador = req.utilizador.id_utilizador;
+    const { id_area, data_inicio, data_fim } = req.query;
+
+    const [slRows] = await pool.query(
+      'SELECT id_service_line FROM service_line_responsavel WHERE id_utilizador = ?',
+      [idUtilizador]
+    );
+    if (slRows.length === 0) return res.status(403).json({ erro: 'Sem service line associada.' });
+    const id_service_line = slRows[0].id_service_line;
+
+    const whereObt = ['a.id_service_line = ?'];
+    const paramsObt = [id_service_line];
+    if (id_area)    { whereObt.push('a.id_area = ?');              paramsObt.push(id_area); }
+    if (data_inicio){ whereObt.push('ba.data_atribuicao >= ?');    paramsObt.push(data_inicio); }
+    if (data_fim)   { whereObt.push('ba.data_atribuicao <= ?');    paramsObt.push(data_fim + ' 23:59:59'); }
+
+    const [obtidos] = await pool.query(
+      `SELECT 'OBTIDO' AS tipo_registo,
+              ba.data_atribuicao AS data_evento,
+              u.nome AS nome_consultor,
+              b.titulo AS titulo_badge,
+              COALESCE(ba.pontos_atribuidos, b.pontos, 0) AS pontos,
+              n.codigo_nivel, n.nome_nivel,
+              a.id_area, a.nome AS nome_area,
+              NULL AS estado_atual
+         FROM badge_atribuido ba
+         JOIN utilizador u    ON u.id_utilizador = ba.id_consultor
+         JOIN badge b         ON b.id_badge      = ba.id_badge
+         JOIN nivel n         ON n.id_nivel      = b.id_nivel
+         JOIN area a          ON a.id_area       = n.id_area
+        WHERE ${whereObt.join(' AND ')}
+        ORDER BY ba.data_atribuicao DESC
+        LIMIT 300`,
+      paramsObt
+    );
+
+    const whereProc = ['a.id_service_line = ?', "cb.estado_atual NOT IN ('APPROVED','REJECTED','CLOSED')"];
+    const paramsProc = [id_service_line];
+    if (id_area)    { whereProc.push('a.id_area = ?');             paramsProc.push(id_area); }
+    if (data_inicio){ whereProc.push('cb.data_submissao >= ?');    paramsProc.push(data_inicio); }
+    if (data_fim)   { whereProc.push('cb.data_submissao <= ?');    paramsProc.push(data_fim + ' 23:59:59'); }
+
+    const [emProcesso] = await pool.query(
+      `SELECT 'EM_PROCESSO' AS tipo_registo,
+              COALESCE(cb.data_submissao, cb.data_abertura) AS data_evento,
+              u.nome AS nome_consultor,
+              b.titulo AS titulo_badge,
+              b.pontos,
+              n.codigo_nivel, n.nome_nivel,
+              a.id_area, a.nome AS nome_area,
+              cb.estado_atual
+         FROM candidatura_badge cb
+         JOIN utilizador u    ON u.id_utilizador = cb.id_consultor
+         JOIN badge b         ON b.id_badge      = cb.id_badge
+         JOIN nivel n         ON n.id_nivel      = b.id_nivel
+         JOIN area a          ON a.id_area       = n.id_area
+        WHERE ${whereProc.join(' AND ')}
+        ORDER BY data_evento DESC
+        LIMIT 300`,
+      paramsProc
+    );
+
+    res.json({
+      obtidos,
+      em_processo: emProcesso,
+      total_obtidos: obtidos.length,
+      total_em_processo: emProcesso.length,
+    });
+  } catch (err) { next(err); }
+}
+
 async function relatorioServiceLine(req, res, next) {
   try {
     const idUtilizador = req.utilizador.id_utilizador;
@@ -706,12 +779,74 @@ async function perfilConsultorSL(req, res, next) {
   } catch (err) { next(err); }
 }
 
+async function conquistasServiceLine(req, res, next) {
+  try {
+    const idUtilizador = req.utilizador.id_utilizador;
+
+    const [slRows] = await pool.query(
+      'SELECT id_service_line FROM service_line_responsavel WHERE id_utilizador = ?',
+      [idUtilizador]
+    );
+    if (slRows.length === 0) return res.status(403).json({ erro: 'Sem service line associada.' });
+    const id_service_line = slRows[0].id_service_line;
+
+    const [conquistas] = await pool.query(
+      `SELECT ce.id_conquista, ce.nome, ce.descricao, ce.imagem_url,
+              ce.criterio, ce.tipo_criterio, ce.valor_objetivo,
+              ce.entidade_referencia, ce.pontos_bonus,
+              COUNT(DISTINCT CASE WHEN a.id_service_line = ? THEN uc.id_utilizador END) AS total_obtido_sl
+         FROM conquista_especial ce
+         LEFT JOIN utilizador_conquista uc ON uc.id_conquista = ce.id_conquista
+         LEFT JOIN consultor_area ca ON ca.id_utilizador = uc.id_utilizador AND ca.ativo = 1
+         LEFT JOIN area a ON a.id_area = ca.id_area
+        WHERE ce.ativo = 1
+        GROUP BY ce.id_conquista, ce.nome, ce.descricao, ce.imagem_url,
+                 ce.criterio, ce.tipo_criterio, ce.valor_objetivo,
+                 ce.entidade_referencia, ce.pontos_bonus
+        ORDER BY total_obtido_sl DESC, ce.pontos_bonus DESC`,
+      [id_service_line]
+    );
+
+    const [atribuicoes] = await pool.query(
+      `SELECT u.id_utilizador, u.nome AS nome_consultor, u.url_slug,
+              a.nome AS nome_area,
+              ce.id_conquista, ce.nome AS nome_conquista, ce.pontos_bonus,
+              uc.data_atribuicao
+         FROM utilizador_conquista uc
+         JOIN conquista_especial ce ON ce.id_conquista = uc.id_conquista
+         JOIN utilizador u ON u.id_utilizador = uc.id_utilizador
+         JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
+         JOIN area a ON a.id_area = ca.id_area
+        WHERE a.id_service_line = ? AND ce.ativo = 1
+        ORDER BY uc.data_atribuicao DESC
+        LIMIT 50`,
+      [id_service_line]
+    );
+
+    const consultoresPremiados = new Set(atribuicoes.map(r => r.id_utilizador)).size;
+    const pontosTotal = atribuicoes.reduce((s, r) => s + Number(r.pontos_bonus), 0);
+
+    res.json({
+      conquistas,
+      atribuicoes,
+      resumo: {
+        total_tipos: conquistas.length,
+        consultores_premiados: consultoresPremiados,
+        total_atribuicoes: atribuicoes.length,
+        pontos_bonus_total: pontosTotal,
+      },
+    });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
   dashboardConsultor,
   dashboardGestor,
   rankingConsultores,
   estatisticasPontos,
   dashboardServiceLine,
+  historicoServiceLine,
   relatorioServiceLine,
   perfilConsultorSL,
+  conquistasServiceLine,
 };

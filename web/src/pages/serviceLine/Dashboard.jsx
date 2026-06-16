@@ -10,6 +10,7 @@ import { Users, Award, TrendingUp, Clock, Zap, TrendingDown, Eye } from 'lucide-
 import { api } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
+import { useLanguage } from '../../context/LanguageContext';
 
 function useDashboardSL() {
   return useQuery({
@@ -23,7 +24,7 @@ function useDashboardSL() {
 }
 
 /* ─── KPI Card ─────────────────────────────────────────────────────── */
-function KpiCard({ icon: Icon, label, valor, variacao, positivo }) {
+function KpiCard({ icon: Icon, label, valor, variacao, positivo, labelMes }) {
   const cor = variacao === undefined ? '' : positivo ? 'text-emerald-600' : 'text-rose-500';
   const Seta = positivo ? TrendingUp : TrendingDown;
   return (
@@ -38,24 +39,17 @@ function KpiCard({ icon: Icon, label, valor, variacao, positivo }) {
       {variacao !== undefined && (
         <div className={`mt-1 flex items-center gap-1 text-xs font-medium ${cor}`}>
           <Seta className="h-3 w-3" strokeWidth={2} />
-          <span>{variacao} vs último mês</span>
+          <span>{variacao} {labelMes}</span>
         </div>
       )}
     </div>
   );
 }
 
+/* ─── Cores dos níveis ──────────────────────────────────────────────── */
+const NIVEL_COR = { A: '#1e3a5f', B: '#2563eb', C: '#4f46e5', D: '#7c3aed', E: '#6d28d9' };
+
 /* ─── Cores dos estados ─────────────────────────────────────────────── */
-const ESTADO_LABEL = {
-  OPEN: 'Em Aberto',
-  SUBMITTED: 'Submetidos',
-  IN_TALENT_REVIEW: 'Em Talent Review',
-  IN_SERVICE_LINE_REVIEW: 'Em Validação',
-  APPROVED: 'Aprovados',
-  REJECTED: 'Rejeitados',
-  SENT_BACK: 'Devolvidos',
-  CLOSED: 'Fechados',
-};
 const ESTADO_COR = {
   OPEN: '#64748b',
   SUBMITTED: '#f59e0b',
@@ -67,17 +61,15 @@ const ESTADO_COR = {
   CLOSED: '#1e3a5f',
 };
 
-/* ─── Cores dos níveis ──────────────────────────────────────────────── */
-const NIVEL_COR = { A: '#1e3a5f', B: '#2563eb', C: '#4f46e5', D: '#7c3aed', E: '#6d28d9' };
-
 /* ─── Tooltip customizado do Pie ────────────────────────────────────── */
 function PieTooltip({ active, payload }) {
+  const { t } = useLanguage();
   if (!active || !payload?.length) return null;
   const { name, value } = payload[0];
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-md text-xs">
       <p className="font-semibold text-slate-800">{name}</p>
-      <p className="text-slate-500">{value} candidaturas</p>
+      <p className="text-slate-500">{value} {t('sl_dash_candidaturas')}</p>
     </div>
   );
 }
@@ -86,9 +78,22 @@ function PieTooltip({ active, payload }) {
 const MEDALHA = ['bg-yellow-400', 'bg-slate-300', 'bg-amber-600'];
 
 export default function ServiceLineDashboard() {
+  const { t } = useLanguage();
   const { data, isLoading, isError } = useDashboardSL();
   const [filtroArea, setFiltroArea] = useState('');
   const navigate = useNavigate();
+
+  /* Estado labels (derived from t so they react to language changes) */
+  const ESTADO_LABEL = {
+    OPEN:                   t('sl_dash_estado_em_aberto'),
+    SUBMITTED:              t('sl_dash_estado_submetidos'),
+    IN_TALENT_REVIEW:       t('sl_dash_estado_talent'),
+    IN_SERVICE_LINE_REVIEW: t('sl_dash_estado_sl'),
+    APPROVED:               t('sl_dash_estado_aprovados'),
+    REJECTED:               t('sl_dash_estado_rejeitados'),
+    SENT_BACK:              t('sl_dash_estado_devolvidos'),
+    CLOSED:                 t('sl_dash_estado_fechados'),
+  };
 
   if (isLoading) return (
     <div className="flex min-h-screen items-center justify-center bg-[#f3f6fa]">
@@ -98,7 +103,7 @@ export default function ServiceLineDashboard() {
 
   if (isError) return (
     <div className="flex min-h-screen items-center justify-center bg-[#f3f6fa]">
-      <p className="text-sm text-slate-500">Erro ao carregar dados.</p>
+      <p className="text-sm text-slate-500">{t('sl_dash_erro')}</p>
     </div>
   );
 
@@ -138,17 +143,17 @@ export default function ServiceLineDashboard() {
       <ServiceLineSidebar />
 
       <div className="flex flex-1 flex-col lg:pl-[260px]">
-        <ServiceLineTopbar subtitulo={`Service Line Dashboard – ${nome_service_line || ''}`} />
+        <ServiceLineTopbar subtitulo={`${t('sl_dash_subtitulo')} – ${nome_service_line || ''}`} />
 
         <main className="flex-1 px-5 py-6 lg:px-8 pb-24 lg:pb-8 space-y-6">
 
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-            <KpiCard icon={Users}      label="Nº Total de Consultores"  valor={total_consultores}     variacao="+5.2%"  positivo />
-            <KpiCard icon={Award}      label="Total Badges Issued"      valor={total_badges_emitidos} variacao="+12.3%" positivo />
-            <KpiCard icon={TrendingUp} label="Badges este mês"          valor={badges_este_mes}       variacao="+8.1%"  positivo />
-            <KpiCard icon={Clock}      label="Pedidos (Em Validação)"   valor={pedidos_em_validacao}  variacao="-3.2%"  positivo={false} />
-            <KpiCard icon={Zap}        label="Pontuação Total"          valor={pontuacao_total.toLocaleString('pt-PT')} variacao="+15.7%" positivo />
+            <KpiCard icon={Users}      label={t('sl_dash_total_consult')}     valor={total_consultores}     variacao="+5.2%"  positivo labelMes={t('sl_dash_vs_mes')} />
+            <KpiCard icon={Award}      label={t('sl_dash_badges_emitidos')}    valor={total_badges_emitidos} variacao="+12.3%" positivo labelMes={t('sl_dash_vs_mes')} />
+            <KpiCard icon={TrendingUp} label={t('sl_dash_badges_mes')}         valor={badges_este_mes}       variacao="+8.1%"  positivo labelMes={t('sl_dash_vs_mes')} />
+            <KpiCard icon={Clock}      label={t('sl_dash_pedidos_validacao')}  valor={pedidos_em_validacao}  variacao="-3.2%"  positivo={false} labelMes={t('sl_dash_vs_mes')} />
+            <KpiCard icon={Zap}        label={t('sl_dash_pontuacao')}          valor={pontuacao_total.toLocaleString('pt-PT')} variacao="+15.7%" positivo labelMes={t('sl_dash_vs_mes')} />
           </div>
 
           {/* Gráficos */}
@@ -156,7 +161,7 @@ export default function ServiceLineDashboard() {
 
             {/* Bar — Nível de Badges */}
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-4 text-sm font-semibold text-slate-800">Nível de Badges</h2>
+              <h2 className="mb-4 text-sm font-semibold text-slate-800">{t('sl_dash_nivel_badges')}</h2>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={nivelData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -173,12 +178,12 @@ export default function ServiceLineDashboard() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              <p className="mt-2 text-center text-[10px] text-slate-400">*LC – Líder de Conhecimento</p>
+              <p className="mt-2 text-center text-[10px] text-slate-400">{t('sl_dash_lc')}</p>
             </div>
 
             {/* Pie — Estado do Pedido */}
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-4 text-sm font-semibold text-slate-800">Distribuição do Estado do Pedido</h2>
+              <h2 className="mb-4 text-sm font-semibold text-slate-800">{t('sl_dash_dist_estado')}</h2>
               {pieData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
@@ -200,13 +205,13 @@ export default function ServiceLineDashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex h-[200px] items-center justify-center text-xs text-slate-400">Sem dados</div>
+                <div className="flex h-[200px] items-center justify-center text-xs text-slate-400">{t('sl_dash_sem_dados')}</div>
               )}
             </div>
 
             {/* Line — Aprovação Mensal */}
             <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="mb-4 text-sm font-semibold text-slate-800">Aprovação de Badges Mensal</h2>
+              <h2 className="mb-4 text-sm font-semibold text-slate-800">{t('sl_dash_aprov_mensal')}</h2>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={aprovacao_mensal} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -235,15 +240,15 @@ export default function ServiceLineDashboard() {
             {/* Tabela de Performance */}
             <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-                <h2 className="text-sm font-semibold text-slate-800">Performance de Consultores</h2>
+                <h2 className="text-sm font-semibold text-slate-800">{t('sl_dash_perf_consult')}</h2>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-slate-500">Filtrar por Área:</label>
+                  <label className="text-xs text-slate-500">{t('sl_dash_filtrar_area')}</label>
                   <select
                     value={filtroArea}
                     onChange={e => setFiltroArea(e.target.value)}
                     className="text-xs border border-slate-200 rounded-lg px-2 py-1 text-slate-700 focus:outline-none focus:ring-2 focus:ring-softinsa-500"
                   >
-                    <option value="">Todas</option>
+                    <option value="">{t('sl_dash_todas')}</option>
                     {areas.map(a => (
                       <option key={a.id_area} value={String(a.id_area)}>{a.nome}</option>
                     ))}
@@ -254,21 +259,21 @@ export default function ServiceLineDashboard() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50">
-                      <th className="px-4 py-3 text-left font-semibold text-slate-600">Consultor</th>
-                      <th className="px-3 py-3 text-left font-semibold text-slate-600">Área</th>
-                      <th className="px-3 py-3 text-center font-semibold text-slate-600">Total Badges</th>
-                      <th className="px-3 py-3 text-center font-semibold text-slate-600">Nível</th>
-                      <th className="px-3 py-3 text-center font-semibold text-slate-600">Ativos</th>
-                      <th className="px-3 py-3 text-center font-semibold text-slate-600">Expirados</th>
-                      <th className="px-3 py-3 text-center font-semibold text-slate-600">Pontos</th>
-                      <th className="px-3 py-3 text-center font-semibold text-slate-600">Conquistas</th>
-                      <th className="px-3 py-3 text-center font-semibold text-slate-600">Ações</th>
+                      <th className="px-4 py-3 text-left font-semibold text-slate-600">{t('sl_dash_consultor')}</th>
+                      <th className="px-3 py-3 text-left font-semibold text-slate-600">{t('sl_dash_area')}</th>
+                      <th className="px-3 py-3 text-center font-semibold text-slate-600">{t('sl_dash_total_badges')}</th>
+                      <th className="px-3 py-3 text-center font-semibold text-slate-600">{t('sl_dash_nivel')}</th>
+                      <th className="px-3 py-3 text-center font-semibold text-slate-600">{t('sl_dash_ativos')}</th>
+                      <th className="px-3 py-3 text-center font-semibold text-slate-600">{t('sl_dash_expirados')}</th>
+                      <th className="px-3 py-3 text-center font-semibold text-slate-600">{t('sl_dash_pontos')}</th>
+                      <th className="px-3 py-3 text-center font-semibold text-slate-600">{t('sl_dash_conquistas')}</th>
+                      <th className="px-3 py-3 text-center font-semibold text-slate-600">{t('sl_dash_acoes')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {consultoresFiltrados.length === 0 && (
                       <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-slate-400">Sem consultores</td>
+                        <td colSpan={9} className="px-4 py-8 text-center text-slate-400">{t('sl_dash_sem_consult')}</td>
                       </tr>
                     )}
                     {consultoresFiltrados.map((c, i) => (
@@ -293,7 +298,7 @@ export default function ServiceLineDashboard() {
                             className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[10px] font-semibold text-softinsa-600 hover:bg-softinsa-50 transition"
                           >
                             <Eye className="h-3 w-3" strokeWidth={2} />
-                            Ver
+                            {t('sl_dash_ver')}
                           </button>
                         </td>
                       </tr>
@@ -306,11 +311,11 @@ export default function ServiceLineDashboard() {
             {/* Ranking Top 10 */}
             <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className="px-5 py-4 border-b border-slate-100">
-                <h2 className="text-sm font-semibold text-slate-800">Service Line Ranking – Top 10</h2>
+                <h2 className="text-sm font-semibold text-slate-800">{t('sl_dash_ranking_titulo')}</h2>
               </div>
               <div className="divide-y divide-slate-50 px-3 py-2">
                 {ranking.length === 0 && (
-                  <p className="py-6 text-center text-xs text-slate-400">Sem dados de ranking</p>
+                  <p className="py-6 text-center text-xs text-slate-400">{t('sl_dash_sem_ranking')}</p>
                 )}
                 {ranking.map((r, i) => (
                   <div key={r.id_utilizador} className="flex items-center gap-3 py-3 px-2">
@@ -326,8 +331,8 @@ export default function ServiceLineDashboard() {
                       <p className="truncate text-[10px] text-slate-400">{r.nome_area}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="text-xs font-bold text-softinsa-600">{Number(r.pontos_totais).toLocaleString('pt-PT')} pts</p>
-                      <p className="text-[10px] text-slate-400">{r.total_badges} badges</p>
+                      <p className="text-xs font-bold text-softinsa-600">{Number(r.pontos_totais).toLocaleString('pt-PT')} {t('sl_dash_pts')}</p>
+                      <p className="text-[10px] text-slate-400">{r.total_badges} {t('sl_dash_badges')}</p>
                     </div>
                   </div>
                 ))}

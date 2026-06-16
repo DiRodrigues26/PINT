@@ -5,6 +5,7 @@ import { api, extrairErro } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
 import InputPassword from '../../components/InputPassword';
+import { useLanguage } from '../../context/LanguageContext';
 
 function usePerfil() {
   return useQuery({
@@ -35,6 +36,7 @@ function Campo({ label, valor }) {
 
 /* ─── Secção Informações Pessoais ───────────────────────────────────── */
 function SecçãoInformacoes({ utilizador, isLoading }) {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [emEdicao, setEmEdicao] = useState(false);
   const [nome, setNome] = useState('');
@@ -46,7 +48,7 @@ function SecçãoInformacoes({ utilizador, isLoading }) {
   const mutation = useMutation({
     mutationFn: () => api.put('/api/utilizadores/eu/perfil', { nome }),
     onSuccess: () => {
-      toast.success('Perfil atualizado.');
+      toast.success(t('sl_perfil_toast_ok'));
       queryClient.invalidateQueries({ queryKey: ['sl-perfil-completo'] });
       setEmEdicao(false);
     },
@@ -60,14 +62,14 @@ function SecçãoInformacoes({ utilizador, isLoading }) {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 text-base font-semibold text-slate-800">Informações Pessoais</h2>
+      <h2 className="mb-5 text-base font-semibold text-slate-800">{t('sl_perfil_info_titulo')}</h2>
 
       {isLoading ? (
         <Carregando />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Nome Completo</label>
+            <label className="block text-xs font-medium text-slate-500 mb-1">{t('sl_perfil_nome_label')}</label>
             <input
               type="text"
               value={nome}
@@ -76,11 +78,11 @@ function SecçãoInformacoes({ utilizador, isLoading }) {
               className={`input transition-colors ${emEdicao ? 'bg-white border-softinsa-400' : 'bg-slate-50 cursor-default'}`}
             />
           </div>
-          <Campo label="Email" valor={utilizador?.email} />
-          <Campo label="Service Line" valor={utilizador?.service_line?.nome_service_line} />
-          <Campo label="Área" valor={utilizador?.area?.nome_area} />
-          <Campo label="Cargo" valor="Service Line Leader" />
-          <Campo label="Data de Registo" valor={formatarData(utilizador?.created_at)} />
+          <Campo label={t('sl_perfil_email')} valor={utilizador?.email} />
+          <Campo label={t('sl_perfil_sl')} valor={utilizador?.service_line?.nome_service_line} />
+          <Campo label={t('sl_perfil_area')} valor={utilizador?.area?.nome_area} />
+          <Campo label={t('sl_perfil_cargo')} valor={t('sl_perfil_cargo_val')} />
+          <Campo label={t('sl_perfil_data_reg')} valor={formatarData(utilizador?.created_at)} />
         </div>
       )}
 
@@ -92,7 +94,7 @@ function SecçãoInformacoes({ utilizador, isLoading }) {
             disabled={isLoading}
             className="btn-primary"
           >
-            Editar Perfil
+            {t('sl_perfil_editar')}
           </button>
         ) : (
           <>
@@ -102,7 +104,7 @@ function SecçãoInformacoes({ utilizador, isLoading }) {
               disabled={mutation.isPending || !nome.trim()}
               className="btn-primary"
             >
-              {mutation.isPending ? 'A guardar…' : 'Guardar'}
+              {mutation.isPending ? t('sl_perfil_a_guardar') : t('sl_perfil_guardar')}
             </button>
             <button
               type="button"
@@ -110,7 +112,7 @@ function SecçãoInformacoes({ utilizador, isLoading }) {
               disabled={mutation.isPending}
               className="text-sm font-medium text-slate-600 hover:text-slate-900 transition"
             >
-              Cancelar
+              {t('sl_perfil_cancelar')}
             </button>
           </>
         )}
@@ -121,6 +123,7 @@ function SecçãoInformacoes({ utilizador, isLoading }) {
 
 /* ─── Secção Segurança ──────────────────────────────────────────────── */
 function SecçãoSegurança() {
+  const { t } = useLanguage();
   const [form, setForm] = useState({ password_atual: '', nova_password: '', confirmar: '' });
   const [erroConfirmar, setErroConfirmar] = useState('');
 
@@ -130,7 +133,7 @@ function SecçãoSegurança() {
       nova_password: form.nova_password,
     }),
     onSuccess: () => {
-      toast.success('Password atualizada com sucesso.');
+      toast.success(t('sl_perfil_toast_pass_ok'));
       setForm({ password_atual: '', nova_password: '', confirmar: '' });
     },
     onError: (err) => toast.error(extrairErro(err)),
@@ -139,7 +142,7 @@ function SecçãoSegurança() {
   function submeter(e) {
     e.preventDefault();
     if (form.nova_password !== form.confirmar) {
-      setErroConfirmar('As passwords não coincidem.');
+      setErroConfirmar(t('sl_perfil_pass_nao_coinc'));
       return;
     }
     setErroConfirmar('');
@@ -148,30 +151,30 @@ function SecçãoSegurança() {
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="mb-5 text-base font-semibold text-slate-800">Segurança</h2>
+      <h2 className="mb-5 text-base font-semibold text-slate-800">{t('sl_perfil_seg_titulo')}</h2>
       <form onSubmit={submeter} className="space-y-4 max-w-md">
         <div>
-          <label className="label">Password Atual</label>
+          <label className="label">{t('sl_perfil_pass_atual')}</label>
           <InputPassword
             value={form.password_atual}
             onChange={e => setForm(f => ({ ...f, password_atual: e.target.value }))}
-            placeholder="Password atual"
+            placeholder={t('sl_perfil_pass_atual_ph')}
           />
         </div>
         <div>
-          <label className="label">Nova Password</label>
+          <label className="label">{t('sl_perfil_nova_pass')}</label>
           <InputPassword
             value={form.nova_password}
             onChange={e => setForm(f => ({ ...f, nova_password: e.target.value }))}
-            placeholder="Mínimo 8 caracteres"
+            placeholder={t('sl_perfil_nova_pass_ph')}
           />
         </div>
         <div>
-          <label className="label">Confirmar Password</label>
+          <label className="label">{t('sl_perfil_conf_pass')}</label>
           <InputPassword
             value={form.confirmar}
             onChange={e => setForm(f => ({ ...f, confirmar: e.target.value }))}
-            placeholder="Repita a nova password"
+            placeholder={t('sl_perfil_conf_pass_ph')}
           />
           {erroConfirmar && <p className="mt-1 text-xs text-rose-500">{erroConfirmar}</p>}
         </div>
@@ -180,7 +183,7 @@ function SecçãoSegurança() {
           disabled={mutation.isPending || !form.password_atual || !form.nova_password || !form.confirmar}
           className="btn-primary mt-2"
         >
-          {mutation.isPending ? 'A atualizar…' : 'Atualizar Password'}
+          {mutation.isPending ? t('sl_perfil_a_atualizar') : t('sl_perfil_atualizar')}
         </button>
       </form>
     </div>
@@ -189,6 +192,7 @@ function SecçãoSegurança() {
 
 /* ─── Página principal ──────────────────────────────────────────────── */
 export default function ServiceLinePerfil() {
+  const { t } = useLanguage();
   const { data: utilizador, isLoading } = usePerfil();
 
   return (
@@ -196,7 +200,7 @@ export default function ServiceLinePerfil() {
       <ServiceLineSidebar />
 
       <div className="flex flex-1 flex-col lg:pl-[260px]">
-        <ServiceLineTopbar subtitulo="Configurações da Conta" />
+        <ServiceLineTopbar subtitulo={t('sl_perfil_subtitulo')} />
 
         <main className="flex-1 px-5 py-6 lg:px-8 pb-24 lg:pb-8 space-y-6 max-w-3xl">
           <SecçãoInformacoes utilizador={utilizador} isLoading={isLoading} />

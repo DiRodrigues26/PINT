@@ -20,6 +20,10 @@ router.get('/service-line',
   autorizarPerfis('Administrador', 'Service Line'),
   ctrl.dashboardServiceLine
 );
+router.get('/service-line/historico',
+  autorizarPerfis('Administrador', 'Service Line'),
+  ctrl.historicoServiceLine
+);
 router.get('/service-line/relatorio',
   autorizarPerfis('Administrador', 'Service Line'),
   ctrl.relatorioServiceLine
@@ -27,6 +31,10 @@ router.get('/service-line/relatorio',
 router.get('/service-line/consultor/:id',
   autorizarPerfis('Administrador', 'Service Line'),
   ctrl.perfilConsultorSL
+);
+router.get('/service-line/conquistas',
+  autorizarPerfis('Administrador', 'Service Line'),
+  ctrl.conquistasServiceLine
 );
 
 module.exports = router;

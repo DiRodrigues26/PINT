@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
+import { useLanguage } from '../../context/LanguageContext';
 
 /* ─── Dados ─────────────────────────────────────────────────────────── */
 function usePedido(id) {
@@ -25,24 +26,28 @@ function usePedido(id) {
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 const NIVEL_COR = { A: 'bg-blue-400', B: 'bg-blue-500', C: 'bg-softinsa-600', D: 'bg-indigo-700', E: 'bg-purple-800' };
 
-const ESTADO_CFG = {
-  OPEN:                   { label: 'Open',               cls: 'bg-slate-100 text-slate-600' },
-  SUBMITTED:              { label: 'Submetido',          cls: 'bg-amber-100 text-amber-700' },
-  IN_TALENT_REVIEW:       { label: 'Talent Review',      cls: 'bg-blue-100 text-blue-700' },
-  IN_SERVICE_LINE_REVIEW: { label: 'Em Validação',       cls: 'bg-orange-100 text-orange-700' },
-  APPROVED:               { label: 'Fechado – Aprovado', cls: 'bg-emerald-100 text-emerald-700' },
-  REJECTED:               { label: 'Fechado – Rejeitado',cls: 'bg-rose-100 text-rose-700' },
-  SENT_BACK:              { label: 'Devolvido',          cls: 'bg-orange-100 text-orange-600' },
-  CLOSED:                 { label: 'Fechado',            cls: 'bg-slate-100 text-slate-500' },
-};
+function getEstadoCfg(t) {
+  return {
+    OPEN:                   { label: t('sl_estado_open'),             cls: 'bg-slate-100 text-slate-600' },
+    SUBMITTED:              { label: t('sl_estado_submitted'),        cls: 'bg-amber-100 text-amber-700' },
+    IN_TALENT_REVIEW:       { label: t('sl_estado_talent_review'),    cls: 'bg-blue-100 text-blue-700' },
+    IN_SERVICE_LINE_REVIEW: { label: t('sl_estado_sl_review'),        cls: 'bg-orange-100 text-orange-700' },
+    APPROVED:               { label: t('sl_estado_closed_approved'),  cls: 'bg-emerald-100 text-emerald-700' },
+    REJECTED:               { label: t('sl_estado_closed_rejected'),  cls: 'bg-rose-100 text-rose-700' },
+    SENT_BACK:              { label: t('sl_estado_sent_back'),        cls: 'bg-orange-100 text-orange-600' },
+    CLOSED:                 { label: t('sl_estado_closed'),           cls: 'bg-slate-100 text-slate-500' },
+  };
+}
 
-const TM_DECISAO_CFG = {
-  CORRETO:   { label: 'Aprovado',  cls: 'bg-emerald-100 text-emerald-700' },
-  INCORRETO: { label: 'Rejeitado', cls: 'bg-rose-100 text-rose-600' },
-  APROVAR:   { label: 'Aprovado',  cls: 'bg-emerald-100 text-emerald-700' },
-  REJEITAR:  { label: 'Rejeitado', cls: 'bg-rose-100 text-rose-600' },
-  SEND_BACK: { label: 'Devolvido', cls: 'bg-orange-100 text-orange-600' },
-};
+function getTMDecisaoCfg(t) {
+  return {
+    CORRETO:   { label: t('sl_ped_det_tm_aprov'),  cls: 'bg-emerald-100 text-emerald-700' },
+    INCORRETO: { label: t('sl_ped_det_tm_rejeit'), cls: 'bg-rose-100 text-rose-600' },
+    APROVAR:   { label: t('sl_ped_det_tm_aprov'),  cls: 'bg-emerald-100 text-emerald-700' },
+    REJEITAR:  { label: t('sl_ped_det_tm_rejeit'), cls: 'bg-rose-100 text-rose-600' },
+    SEND_BACK: { label: t('sl_ped_det_tm_devol'),  cls: 'bg-orange-100 text-orange-600' },
+  };
+}
 
 function formatarDataHora(d) {
   if (!d) return '—';
@@ -69,6 +74,8 @@ function CampoInfo({ label, valor, destaque }) {
 
 /* ─── Bloco de requisito ────────────────────────────────────────────── */
 function BlocoRequisito({ req, evidencias, tmDecisao }) {
+  const { t } = useLanguage();
+  const TM_DECISAO_CFG = getTMDecisaoCfg(t);
   const evidenciasDoReq = evidencias.filter(e => e.id_requisito === req.id_requisito);
   const temEvidencia = evidenciasDoReq.length > 0;
 
@@ -93,7 +100,7 @@ function BlocoRequisito({ req, evidencias, tmDecisao }) {
       {/* Evidências */}
       {evidenciasDoReq.length > 0 && (
         <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
-          <p className="text-xs font-semibold text-slate-500">Evidência</p>
+          <p className="text-xs font-semibold text-slate-500">{t('sl_ped_det_evidencia')}</p>
           {evidenciasDoReq.map(ev => (
             <a
               key={ev.id_evidencia}
@@ -113,7 +120,7 @@ function BlocoRequisito({ req, evidencias, tmDecisao }) {
       {tmDecisao && (
         <div className="mt-3 border-t border-slate-100 pt-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-slate-500">Validação TM:</span>
+            <span className="text-xs font-semibold text-slate-500">{t('sl_ped_det_val_tm')}</span>
             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${TM_DECISAO_CFG[tmDecisao.decisao]?.cls || 'bg-slate-100 text-slate-600'}`}>
               {TM_DECISAO_CFG[tmDecisao.decisao]?.label || tmDecisao.decisao}
             </span>
@@ -129,14 +136,15 @@ function BlocoRequisito({ req, evidencias, tmDecisao }) {
 
 /* ─── Timeline histórico ────────────────────────────────────────────── */
 function ItemHistorico({ h }) {
+  const { t } = useLanguage();
   const labelAcao = {
-    SUBMISSAO:                  'Submissão do Pedido',
-    SUBMIT:                     'Submissão do Pedido',
-    'TALENT_CORRETO':           'Validação do Talent Manager',
-    'TALENT_INCORRETO':         'Devolução pelo Talent Manager',
-    'SERVICE_LINE_APROVAR':     'Aprovação do Service Line',
-    'SERVICE_LINE_REJEITAR':    'Rejeição pelo Service Line',
-    'SERVICE_LINE_SEND_BACK':   'Devolvido pelo Service Line',
+    SUBMISSAO:                  t('sl_ped_det_acao_submissao'),
+    SUBMIT:                     t('sl_ped_det_acao_submissao'),
+    'TALENT_CORRETO':           t('sl_ped_det_acao_talent_ok'),
+    'TALENT_INCORRETO':         t('sl_ped_det_acao_talent_nok'),
+    'SERVICE_LINE_APROVAR':     t('sl_ped_det_acao_sl_aprov'),
+    'SERVICE_LINE_REJEITAR':    t('sl_ped_det_acao_sl_rejeit'),
+    'SERVICE_LINE_SEND_BACK':   t('sl_ped_det_acao_sl_back'),
   };
 
   return (
@@ -150,7 +158,7 @@ function ItemHistorico({ h }) {
           {labelAcao[h.acao] || h.acao || h.estado_destino}
           <span className="ml-2 font-normal text-slate-400">{formatarDataHora(h.data_evento)}</span>
         </p>
-        <p className="text-xs text-slate-500">Por: {h.nome_responsavel}</p>
+        <p className="text-xs text-slate-500">{t('sl_ped_det_por')} {h.nome_responsavel}</p>
         {h.comentario && <p className="mt-1 text-xs text-slate-500 italic">{h.comentario}</p>}
       </div>
     </div>
@@ -159,11 +167,13 @@ function ItemHistorico({ h }) {
 
 /* ─── Painel de decisão ─────────────────────────────────────────────── */
 function PainelDecisao({ idCandidatura, estadoAtual }) {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [comentario, setComentario] = useState('');
   const [erro, setErro] = useState('');
 
+  const ESTADO_CFG = getEstadoCfg(t);
   const podeDecidirAgora = estadoAtual === 'IN_SERVICE_LINE_REVIEW';
 
   const mutation = useMutation({
@@ -172,8 +182,12 @@ function PainelDecisao({ idCandidatura, estadoAtual }) {
       comentario,
     }),
     onSuccess: (_, { decisao }) => {
-      const msgs = { APROVAR: 'Badge aprovado com sucesso!', REJEITAR: 'Candidatura rejeitada.', SEND_BACK: 'Candidatura devolvida para correção.' };
-      toast.success(msgs[decisao] || 'Avaliação registada.');
+      const msgs = {
+        APROVAR:    t('sl_ped_det_toast_aprov'),
+        REJEITAR:   t('sl_ped_det_toast_rejeit'),
+        SEND_BACK:  t('sl_ped_det_toast_back'),
+      };
+      toast.success(msgs[decisao] || t('sl_ped_det_toast_ok'));
       queryClient.invalidateQueries({ queryKey: ['sl-pedido', String(idCandidatura)] });
       queryClient.invalidateQueries({ queryKey: ['sl-pedidos'] });
       navigate('/sl/pedidos');
@@ -183,7 +197,7 @@ function PainelDecisao({ idCandidatura, estadoAtual }) {
 
   function submeter(decisao) {
     if (!comentario.trim()) {
-      setErro('O comentário é obrigatório.');
+      setErro(t('sl_ped_det_coment_obrig'));
       return;
     }
     setErro('');
@@ -192,28 +206,28 @@ function PainelDecisao({ idCandidatura, estadoAtual }) {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sticky top-[88px]">
-      <h2 className="text-sm font-bold text-slate-900">Decisão do Service Line</h2>
-      <p className="mt-0.5 text-xs text-slate-500">A decisão final sobre a atribuição do badge</p>
+      <h2 className="text-sm font-bold text-slate-900">{t('sl_ped_det_decisao_titulo')}</h2>
+      <p className="mt-0.5 text-xs text-slate-500">{t('sl_ped_det_decisao_desc')}</p>
 
       {!podeDecidirAgora ? (
         <div className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
-          Esta candidatura não está em revisão de Service Line (estado: <strong>{ESTADO_CFG[estadoAtual]?.label || estadoAtual}</strong>). Não é possível decidir agora.
+          {t('sl_ped_det_nao_sl').replace('{estado}', ESTADO_CFG[estadoAtual]?.label || estadoAtual)}
         </div>
       ) : (
         <>
           <div className="mt-4">
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Comentário da Decisão <span className="text-rose-500">*</span>
+              {t('sl_ped_det_coment_label')} <span className="text-rose-500">*</span>
             </label>
             <textarea
               value={comentario}
               onChange={e => { setComentario(e.target.value); setErro(''); }}
-              placeholder="Adicione o seu comentário sobre a decisão..."
+              placeholder={t('sl_ped_det_coment_ph')}
               rows={8}
               className="input resize-none text-sm"
             />
             {erro && <p className="mt-1 text-xs text-rose-500">{erro}</p>}
-            {!erro && <p className="mt-1 text-xs text-slate-400">O comentário é obrigatório</p>}
+            {!erro && <p className="mt-1 text-xs text-slate-400">{t('sl_ped_det_coment_info')}</p>}
           </div>
 
           <div className="mt-4 space-y-2">
@@ -224,7 +238,7 @@ function PainelDecisao({ idCandidatura, estadoAtual }) {
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition"
             >
               <CheckCircle className="h-4 w-4" strokeWidth={2} />
-              Aprovar Badge
+              {t('sl_ped_det_aprovar')}
             </button>
             <button
               type="button"
@@ -233,7 +247,7 @@ function PainelDecisao({ idCandidatura, estadoAtual }) {
               className="flex w-full items-center justify-center gap-2 rounded-lg bg-rose-600 py-2.5 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-60 transition"
             >
               <XCircle className="h-4 w-4" strokeWidth={2} />
-              Rejeitar
+              {t('sl_ped_det_rejeitar')}
             </button>
             <button
               type="button"
@@ -242,14 +256,14 @@ function PainelDecisao({ idCandidatura, estadoAtual }) {
               className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition"
             >
               <RotateCcw className="h-4 w-4" strokeWidth={2} />
-              Enviar para Correção
+              {t('sl_ped_det_correcao')}
             </button>
           </div>
 
           <div className="mt-4 space-y-1 border-t border-slate-100 pt-3 text-[11px] text-slate-400">
-            <p><span className="font-semibold text-emerald-600">Aprovar:</span> Fechado – Aprovado</p>
-            <p><span className="font-semibold text-rose-600">Rejeitar:</span> Fechado – Rejeitado</p>
-            <p><span className="font-semibold text-slate-500">Correção:</span> Open</p>
+            <p><span className="font-semibold text-emerald-600">{t('sl_ped_det_resultado_aprov')}</span> {t('sl_estado_closed_approved')}</p>
+            <p><span className="font-semibold text-rose-600">{t('sl_ped_det_resultado_rejeit')}</span> {t('sl_estado_closed_rejected')}</p>
+            <p><span className="font-semibold text-slate-500">{t('sl_ped_det_resultado_corr')}</span> {t('sl_estado_open')}</p>
           </div>
         </>
       )}
@@ -259,15 +273,18 @@ function PainelDecisao({ idCandidatura, estadoAtual }) {
 
 /* ─── Página principal ──────────────────────────────────────────────── */
 export default function ServiceLinePedidoDetalhe() {
+  const { t } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const { data, isLoading, isError } = usePedido(id);
+
+  const ESTADO_CFG = getEstadoCfg(t);
 
   if (isLoading) return (
     <div className="flex min-h-screen bg-[#f3f6fa]">
       <ServiceLineSidebar />
       <div className="flex flex-1 flex-col lg:pl-[260px]">
-        <ServiceLineTopbar subtitulo="Pedidos de Badge – Validação Final" />
+        <ServiceLineTopbar subtitulo={t('sl_ped_det_subtitulo')} />
         <div className="flex flex-1 items-center justify-center"><Carregando /></div>
       </div>
     </div>
@@ -277,8 +294,8 @@ export default function ServiceLinePedidoDetalhe() {
     <div className="flex min-h-screen bg-[#f3f6fa]">
       <ServiceLineSidebar />
       <div className="flex flex-1 flex-col lg:pl-[260px]">
-        <ServiceLineTopbar subtitulo="Pedidos de Badge – Validação Final" />
-        <div className="flex flex-1 items-center justify-center text-sm text-slate-400">Candidatura não encontrada.</div>
+        <ServiceLineTopbar subtitulo={t('sl_ped_det_subtitulo')} />
+        <div className="flex flex-1 items-center justify-center text-sm text-slate-400">{t('sl_ped_det_nao_encontrada')}</div>
       </div>
     </div>
   );
@@ -293,7 +310,7 @@ export default function ServiceLinePedidoDetalhe() {
       <ServiceLineSidebar />
 
       <div className="flex flex-1 flex-col lg:pl-[260px]">
-        <ServiceLineTopbar subtitulo={`Pedidos de Badge – Validação Final\nService Line: ${candidatura.nome_service_line || ''}`} />
+        <ServiceLineTopbar subtitulo={`${t('sl_ped_det_subtitulo')}\nService Line: ${candidatura.nome_service_line || ''}`} />
 
         <main className="flex-1 px-5 py-6 lg:px-8 pb-24 lg:pb-8">
           {/* Voltar */}
@@ -303,7 +320,7 @@ export default function ServiceLinePedidoDetalhe() {
             className="mb-5 flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition"
           >
             <ArrowLeft className="h-4 w-4" strokeWidth={2} />
-            Voltar à lista
+            {t('sl_ped_det_voltar')}
           </button>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -312,38 +329,38 @@ export default function ServiceLinePedidoDetalhe() {
 
               {/* Informações da Candidatura */}
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="mb-4 text-sm font-bold text-slate-900">Informações da Candidatura</h2>
+                <h2 className="mb-4 text-sm font-bold text-slate-900">{t('sl_ped_det_info_titulo')}</h2>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4">
-                  <CampoInfo label="Consultor" valor={consultor?.nome || candidatura.nome_consultor} />
-                  <CampoInfo label="Área" valor={candidatura.nome_area} />
-                  <CampoInfo label="Service Line" valor={candidatura.nome_service_line} />
-                  <CampoInfo label="Badge" valor={candidatura.titulo_badge} destaque />
+                  <CampoInfo label={t('sl_ped_det_consultor')} valor={consultor?.nome || candidatura.nome_consultor} />
+                  <CampoInfo label={t('sl_ped_det_area')} valor={candidatura.nome_area} />
+                  <CampoInfo label={t('sl_ped_det_sl')} valor={candidatura.nome_service_line} />
+                  <CampoInfo label={t('sl_ped_det_badge')} valor={candidatura.titulo_badge} destaque />
                   <div>
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Nível</p>
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('sl_ped_det_nivel')}</p>
                     <span className={`mt-1 inline-flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white ${NIVEL_COR[candidatura.codigo_nivel] || 'bg-slate-400'}`}>
                       {candidatura.codigo_nivel}
                     </span>
                   </div>
-                  <CampoInfo label="Data Submissão" valor={formatarData(candidatura.data_submissao)} />
+                  <CampoInfo label={t('sl_ped_det_data_sub')} valor={formatarData(candidatura.data_submissao)} />
                   <div>
-                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Estado</p>
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">{t('sl_ped_det_estado')}</p>
                     <span className={`mt-1 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${estadoCfg.cls}`}>
                       {estadoCfg.label}
                     </span>
                   </div>
-                  <CampoInfo label="Validado por" valor={tmAvaliacao?.nome_avaliador || slAvaliacao?.nome_avaliador} />
+                  <CampoInfo label={t('sl_ped_det_validado')} valor={tmAvaliacao?.nome_avaliador || slAvaliacao?.nome_avaliador} />
                 </div>
               </div>
 
               {/* Requisitos */}
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="text-sm font-bold text-slate-900">Requisitos do Nível {candidatura.codigo_nivel}</h2>
+                <h2 className="text-sm font-bold text-slate-900">{t('sl_ped_det_req_titulo').replace('{nivel}', candidatura.codigo_nivel)}</h2>
                 <p className="mt-0.5 mb-4 text-xs text-slate-500">
-                  O Badge é atribuído apenas quando todos os requisitos do nível estão validados.
+                  {t('sl_ped_det_req_desc')}
                 </p>
                 <div className="space-y-3">
                   {requisitos.length === 0 ? (
-                    <p className="text-xs text-slate-400">Sem requisitos registados para este badge.</p>
+                    <p className="text-xs text-slate-400">{t('sl_ped_det_sem_req')}</p>
                   ) : requisitos.map(req => (
                     <BlocoRequisito
                       key={req.id_requisito}
@@ -357,9 +374,9 @@ export default function ServiceLinePedidoDetalhe() {
 
               {/* Histórico */}
               <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 className="mb-4 text-sm font-bold text-slate-900">Histórico do Processo</h2>
+                <h2 className="mb-4 text-sm font-bold text-slate-900">{t('sl_ped_det_hist_titulo')}</h2>
                 {historico.length === 0 ? (
-                  <p className="text-xs text-slate-400">Sem histórico registado.</p>
+                  <p className="text-xs text-slate-400">{t('sl_ped_det_sem_hist')}</p>
                 ) : (
                   <div>
                     {historico.map(h => <ItemHistorico key={h.id_historico} h={h} />)}
