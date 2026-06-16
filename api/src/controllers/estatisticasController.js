@@ -296,14 +296,18 @@ async function rankingConsultores(req, res, next) {
     const whereSQL = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
     const [linhas] = await pool.query(
-      `SELECT u.id_utilizador, u.nome, u.url_slug,
+      `SELECT u.id_utilizador, u.nome, u.email, u.url_slug,
+              sl.nome AS nome_service_line, ar.nome AS nome_area,
               COUNT(DISTINCT ba.id_badge_atribuido) AS total_badges,
               COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais
          FROM utilizador u
          LEFT JOIN badge_atribuido ba ON ba.id_consultor = u.id_utilizador
          LEFT JOIN badge b ON b.id_badge = ba.id_badge
+         LEFT JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
+         LEFT JOIN area ar ON ar.id_area = ca.id_area
+         LEFT JOIN service_line sl ON sl.id_service_line = ar.id_service_line
          ${whereSQL}
-         GROUP BY u.id_utilizador, u.nome, u.url_slug
+         GROUP BY u.id_utilizador, u.nome, u.email, u.url_slug, sl.nome, ar.nome
          ORDER BY pontos_totais DESC, total_badges DESC
          LIMIT ?`,
       [...params, parseInt(limite, 10)]
@@ -839,7 +843,54 @@ async function conquistasServiceLine(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// Estatísticas e atividade de validação do Talent Manager autenticado
+async function atividadeTalent(req, res, next) {
+  try {
+    const idTM = req.utilizador.id_utilizador;
+
+    const [[stats]] = await pool.query(
+      `SELECT COUNT(*) AS total,
+              COALESCE(SUM(decisao = 'CORRETO'), 0) AS aprovacoes,
+              COALESCE(SUM(decisao = 'INCORRETO'), 0) AS rejeicoes,
+              COALESCE(AVG(GREATEST(DATEDIFF(av.data_avaliacao, cb.data_submissao), 0)), 0) AS tempo_medio_dias
+         FROM avaliacao_candidatura av
+         JOIN candidatura_badge cb ON cb.id_candidatura = av.id_candidatura
+        WHERE av.id_avaliador = ? AND av.tipo_avaliador = 'TALENT_MANAGER'`,
+      [idTM]
+    );
+
+    const total = Number(stats.total) || 0;
+    const aprovacoes = Number(stats.aprovacoes) || 0;
+    const taxa = total > 0 ? Math.round((aprovacoes / total) * 100) : 0;
+
+    const [atividade] = await pool.query(
+      `SELECT av.decisao, av.comentario, av.data_avaliacao,
+              b.titulo AS badge_titulo, u.nome AS nome_consultor
+         FROM avaliacao_candidatura av
+         JOIN candidatura_badge cb ON cb.id_candidatura = av.id_candidatura
+         JOIN badge b              ON b.id_badge = cb.id_badge
+         JOIN utilizador u         ON u.id_utilizador = cb.id_consultor
+        WHERE av.id_avaliador = ? AND av.tipo_avaliador = 'TALENT_MANAGER'
+        ORDER BY av.data_avaliacao DESC
+        LIMIT 10`,
+      [idTM]
+    );
+
+    res.json({
+      stats: {
+        total,
+        aprovacoes,
+        rejeicoes: Number(stats.rejeicoes) || 0,
+        tempo_medio_dias: Number(Number(stats.tempo_medio_dias).toFixed(1)),
+        taxa_aprovacao: taxa,
+      },
+      atividade,
+    });
+  } catch (err) { next(err); }
+}
+
 module.exports = {
+  atividadeTalent,
   dashboardConsultor,
   dashboardGestor,
   rankingConsultores,

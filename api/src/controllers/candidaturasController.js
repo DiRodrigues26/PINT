@@ -461,6 +461,41 @@ async function avaliarTalent(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// Talent Manager inicia a validação: SUBMITTED → IN_TALENT_REVIEW
+async function iniciarValidacaoTalent(req, res, next) {
+  try {
+    const candidatura = await obterCandidaturaOuErro(req.params.id);
+    if (!candidatura) return res.status(404).json({ erro: 'Candidatura não encontrada.' });
+    if (candidatura.estado_atual !== 'SUBMITTED') {
+      return res.status(400).json({ erro: `Só é possível iniciar validação de candidaturas submetidas (estado: ${candidatura.estado_atual}).` });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.query(
+        `UPDATE candidatura_badge SET estado_atual = 'IN_TALENT_REVIEW' WHERE id_candidatura = ?`,
+        [req.params.id]
+      );
+      await registarHistorico(conn, {
+        id_candidatura: req.params.id,
+        id_utilizador: req.utilizador.id_utilizador,
+        estado_origem: 'SUBMITTED',
+        estado_destino: 'IN_TALENT_REVIEW',
+        acao: 'TALENT_INICIO',
+        comentario: null,
+      });
+      await conn.commit();
+      res.json({ mensagem: 'Validação iniciada.', novo_estado: 'IN_TALENT_REVIEW' });
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
+  } catch (err) { next(err); }
+}
+
 async function avaliarServiceLine(req, res, next) {
   try {
     const { decisao, comentario } = req.body;
@@ -607,5 +642,6 @@ module.exports = {
   cancelar,
   historico,
   avaliarTalent,
+  iniciarValidacaoTalent,
   avaliarServiceLine,
 };

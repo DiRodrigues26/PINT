@@ -23,6 +23,10 @@ router.post('/:id/evidencias', upload.single('ficheiro'), ev.carregar);
 router.delete('/:id/evidencias/:idEvidencia',    ev.remover);
 
 // Avaliações
+router.post('/:id/iniciar-validacao-talent',
+  autorizarPerfis('Talent Manager', 'Administrador'),
+  ctrl.iniciarValidacaoTalent
+);
 router.post('/:id/avaliar-talent',
   autorizarPerfis('Talent Manager', 'Administrador'),
   ctrl.avaliarTalent

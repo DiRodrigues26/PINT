@@ -1,0 +1,13 @@
+{
+  "name": "softinsa-badges",
+  "version": "1.0.0",
+  "description": "Plataforma de Badges da Softinsa (PINT) — backend em /api, frontend em /web",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "postinstall": "npm install --prefix api --omit=dev",
+    "start": "npm start --prefix api"
+  }
+}

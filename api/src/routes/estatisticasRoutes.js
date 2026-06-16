@@ -16,6 +16,10 @@ router.get('/gestor',
   autorizarPerfis('Administrador', 'Talent Manager', 'Service Line'),
   ctrl.dashboardGestor
 );
+router.get('/talent-atividade',
+  autorizarPerfis('Administrador', 'Talent Manager'),
+  ctrl.atividadeTalent
+);
 router.get('/service-line',
   autorizarPerfis('Administrador', 'Service Line'),
   ctrl.dashboardServiceLine

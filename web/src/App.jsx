@@ -52,6 +52,15 @@ import BadgeDetalhe from './pages/consultor/BadgeDetalhe';
 import AssinaturaEmail from './pages/consultor/AssinaturaEmail';
 import VerificarBadge from './pages/publico/VerificarBadge';
 import PerfilPublico from './pages/publico/PerfilPublico';
+import TalentDashboard from './pages/talentManager/Dashboard';
+import TalentCandidaturas from './pages/talentManager/Candidaturas';
+import TalentBadges from './pages/talentManager/Badges';
+import TalentBadgeDetalhe from './pages/talentManager/BadgeDetalhe';
+import TalentRelatorios from './pages/talentManager/Relatorios';
+import TalentNotificacoes from './pages/talentManager/Notificacoes';
+import TalentPerfil from './pages/talentManager/Perfil';
+import TalentPedidos from './pages/talentManager/Pedidos';
+import TalentPedidoDetalhe from './pages/talentManager/PedidoDetalhe';
 
 function PerfilEmDesenvolvimento() {
   const { utilizador } = useAuth();
@@ -82,6 +91,9 @@ function Inicio() {
   }
   if (utilizador?.perfis?.includes('Service Line')) {
     return <Navigate to="/sl/dashboard" replace />;
+  }
+  if (utilizador?.perfis?.includes('Talent Manager')) {
+    return <Navigate to="/tm/dashboard" replace />;
   }
   return <PerfilEmDesenvolvimento />;
 }
@@ -196,6 +208,38 @@ export default function App() {
       } />
       <Route path="/sl/*" element={
         <RotaProtegida perfis={['Service Line']}><PerfilEmDesenvolvimento /></RotaProtegida>
+      } />
+
+      {/* Rotas do Talent Manager */}
+      <Route path="/tm/dashboard" element={
+        <RotaProtegida perfis={['Talent Manager']}><TalentDashboard /></RotaProtegida>
+      } />
+      <Route path="/tm/candidaturas" element={
+        <RotaProtegida perfis={['Talent Manager']}><TalentCandidaturas /></RotaProtegida>
+      } />
+      <Route path="/tm/badges" element={
+        <RotaProtegida perfis={['Talent Manager']}><TalentBadges /></RotaProtegida>
+      } />
+      <Route path="/tm/badges/:id" element={
+        <RotaProtegida perfis={['Talent Manager']}><TalentBadgeDetalhe /></RotaProtegida>
+      } />
+      <Route path="/tm/relatorios" element={
+        <RotaProtegida perfis={['Talent Manager']}><TalentRelatorios /></RotaProtegida>
+      } />
+      <Route path="/tm/notificacoes" element={
+        <RotaProtegida perfis={['Talent Manager']}><TalentNotificacoes /></RotaProtegida>
+      } />
+      <Route path="/tm/perfil" element={
+        <RotaProtegida perfis={['Talent Manager']}><TalentPerfil /></RotaProtegida>
+      } />
+      <Route path="/tm/pedidos" element={
+        <RotaProtegida perfis={['Talent Manager']}><TalentPedidos /></RotaProtegida>
+      } />
+      <Route path="/tm/pedidos/:id" element={
+        <RotaProtegida perfis={['Talent Manager']}><TalentPedidoDetalhe /></RotaProtegida>
+      } />
+      <Route path="/tm/*" element={
+        <RotaProtegida perfis={['Talent Manager']}><PerfilEmDesenvolvimento /></RotaProtegida>
       } />
 
       <Route path="*" element={
