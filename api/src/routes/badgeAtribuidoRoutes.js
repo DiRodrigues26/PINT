@@ -12,6 +12,7 @@ router.get('/proximos-expiracao',
   ctrl.badgesProximosExpiracao
 );
 router.get('/consultor/:id',           ctrl.listarDeConsultor);
+router.get('/:id/certificado',         ctrl.gerarCertificado);
 router.post('/:id/publicar',           ctrl.publicar);
 router.post('/:id/despublicar',        ctrl.despublicar);
 router.post('/:id/linkedin',           ctrl.marcarPartilhadoLinkedin);

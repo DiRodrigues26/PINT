@@ -93,7 +93,7 @@ async function listar(req, res, next) {
       `SELECT cb.id_candidatura, cb.estado_atual, cb.data_abertura, cb.data_submissao, cb.data_fecho,
               cb.id_consultor, u.nome AS nome_consultor, u.email AS email_consultor,
               cb.id_badge, b.titulo AS titulo_badge, b.imagem_url, b.pontos,
-              b.is_conquista_especial,
+              b.is_conquista_especial, b.intervalo_temporal_obtencao,
               n.codigo_nivel, n.nome_nivel,
               a.id_area, a.nome AS nome_area,
               sl.id_service_line, sl.nome AS nome_service_line,
@@ -567,7 +567,8 @@ async function avaliarServiceLine(req, res, next) {
         idBadgeAtribuido = result.insertId;
 
         const codigoPublico = gerarCodigoPublico(idBadgeAtribuido);
-        const urlPublica = `${process.env.APP_URL}/publico/badges/${token}`;
+        const baseFrontend = process.env.FRONTEND_URL || process.env.APP_URL || '';
+        const urlPublica = `${baseFrontend}/verificar/${token}`;
         await conn.query(
           `UPDATE badge_atribuido SET codigo_publico = ?, url_publica = ? WHERE id_badge_atribuido = ?`,
           [codigoPublico, urlPublica, idBadgeAtribuido]

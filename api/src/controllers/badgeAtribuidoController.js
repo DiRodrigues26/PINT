@@ -1,4 +1,16 @@
 const { pool } = require('../db/connection');
+const { gerarCertificadoPDF } = require('../utils/certificado');
+
+/* Verifica se o consultor deu (e mantém) um consentimento RGPD do tipo indicado */
+async function temConsentimento(idUtilizador, tipo) {
+  const [r] = await pool.query(
+    `SELECT aceite FROM consentimento_rgpd
+      WHERE id_utilizador = ? AND tipo_consentimento = ?
+      ORDER BY id_consentimento DESC LIMIT 1`,
+    [idUtilizador, tipo]
+  );
+  return r.length > 0 && !!r[0].aceite;
+}
 
 async function listarMeus(req, res, next) {
   try {
@@ -113,6 +125,13 @@ async function despublicar(req, res, next) {
 async function marcarPartilhadoLinkedin(req, res, next) {
   try {
     const { id } = req.params;
+
+    // RGPD (req 10): partilhar exige consentimento de partilha no LinkedIn
+    const consentido = await temConsentimento(req.utilizador.id_utilizador, 'partilha_linkedin');
+    if (!consentido) {
+      return res.status(403).json({ erro: 'Deve aceitar o consentimento de partilha no LinkedIn nas definições de privacidade.' });
+    }
+
     await pool.query(
       'UPDATE badge_atribuido SET linkedin_shared = 1 WHERE id_badge_atribuido = ? AND id_consultor = ?',
       [id, req.utilizador.id_utilizador]
@@ -137,6 +156,51 @@ async function badgesProximosExpiracao(req, res, next) {
       [parseInt(dias, 10)]
     );
     res.json({ dados: linhas });
+  } catch (err) { next(err); }
+}
+
+// Gera e devolve o certificado em PDF (req 18 consultor / 15 SL / 17 TM)
+async function gerarCertificado(req, res, next) {
+  try {
+    const { id } = req.params;
+    const [linhas] = await pool.query(
+      `SELECT ba.id_badge_atribuido, ba.id_consultor, ba.data_atribuicao, ba.data_expiracao,
+              ba.codigo_publico, ba.token_publico,
+              COALESCE(ba.pontos_atribuidos, b.pontos, 0) AS pontos,
+              b.titulo,
+              n.codigo_nivel, n.nome_nivel,
+              a.nome AS nome_area, sl.nome AS nome_service_line,
+              u.nome AS nome_consultor
+         FROM badge_atribuido ba
+         JOIN badge b         ON b.id_badge = ba.id_badge
+         JOIN nivel n         ON n.id_nivel = b.id_nivel
+         JOIN area a          ON a.id_area  = n.id_area
+         JOIN service_line sl ON sl.id_service_line = a.id_service_line
+         JOIN utilizador u    ON u.id_utilizador = ba.id_consultor
+        WHERE ba.id_badge_atribuido = ?`,
+      [id]
+    );
+    if (linhas.length === 0) return res.status(404).json({ erro: 'Badge atribuído não encontrado.' });
+
+    const dados = linhas[0];
+
+    // Apenas o dono ou perfis com permissão de gestão podem descarregar
+    const perfis = req.utilizador.perfis;
+    const ehDono = dados.id_consultor === req.utilizador.id_utilizador;
+    const temAcesso = perfis.includes('Administrador') || perfis.includes('Talent Manager') || perfis.includes('Service Line');
+    if (!ehDono && !temAcesso) {
+      return res.status(403).json({ erro: 'Sem permissão para descarregar este certificado.' });
+    }
+
+    // O QR aponta sempre à página pública humana (derivada do token, não do url guardado)
+    const baseFrontend = process.env.FRONTEND_URL || process.env.APP_URL || '';
+    dados.url_publica = `${baseFrontend}/verificar/${dados.token_publico}`;
+
+    const pdf = await gerarCertificadoPDF(dados);
+    const nomeFicheiro = `certificado-${(dados.titulo || 'badge').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${nomeFicheiro}"`);
+    res.send(pdf);
   } catch (err) { next(err); }
 }
 
@@ -166,7 +230,14 @@ async function verificarPublico(req, res, next) {
     if (linhas.length === 0) return res.status(404).json({ erro: 'Badge não encontrado.' });
 
     const b = linhas[0];
-    const expirado = b.data_expiracao && new Date(b.data_expiracao) < new Date();
+
+    // RGPD: a página pública só está disponível se o titular consentiu a publicação
+    const consentido = await temConsentimento(b.id_utilizador, 'publicacao_badge');
+    if (!consentido) {
+      return res.status(403).json({ erro: 'Este badge não está disponível publicamente. O titular não autorizou a publicação.' });
+    }
+
+    const expirado = !!(b.data_expiracao && new Date(b.data_expiracao) < new Date());
 
     res.json({
       valido: !expirado,
@@ -187,6 +258,13 @@ async function perfilPublico(req, res, next) {
     if (utilizadores.length === 0) return res.status(404).json({ erro: 'Perfil não encontrado.' });
 
     const u = utilizadores[0];
+
+    // RGPD: a galeria pública só mostra badges se o titular consentiu a publicação
+    const consentido = await temConsentimento(u.id_utilizador, 'publicacao_badge');
+    if (!consentido) {
+      return res.json({ perfil: { nome: u.nome, url_slug: u.url_slug }, badges: [], consentido: false });
+    }
+
     const [badges] = await pool.query(
       `SELECT ba.id_badge_atribuido, ba.data_atribuicao, ba.data_expiracao,
               ba.codigo_publico, ba.token_publico, ba.url_publica,
@@ -204,7 +282,7 @@ async function perfilPublico(req, res, next) {
       [u.id_utilizador]
     );
 
-    res.json({ perfil: { nome: u.nome, url_slug: u.url_slug }, badges });
+    res.json({ perfil: { nome: u.nome, url_slug: u.url_slug }, badges, consentido: true });
   } catch (err) { next(err); }
 }
 
@@ -215,6 +293,7 @@ module.exports = {
   despublicar,
   marcarPartilhadoLinkedin,
   badgesProximosExpiracao,
+  gerarCertificado,
   verificarPublico,
   perfilPublico,
 };

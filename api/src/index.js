@@ -71,6 +71,7 @@ app.use('/api/requisitos',       hierarquia.requisitos);
 app.use('/api/badges',           badgesRoutes);
 app.use('/api/candidaturas',     candidaturasRoutes);
 app.use('/api/badges-atribuidos', badgeAtribuidoRoutes);
+app.use('/api/badge-atribuido',  badgeAtribuidoRoutes); // alias (frontend usa singular)
 app.use('/api/notificacoes',     notificacoesRoutes);
 app.use('/api/conquistas',       conquistasRoutes);
 app.use('/api/avisos',           avisosRoutes);
@@ -85,7 +86,8 @@ app.use('/api/estatisticas',     estatisticasRoutes);
 app.use('/api/ficheiros',        ficheirosRoutes);
 app.use('/api/totp',            totpRoutes);
 
-// rotas públicas (sem auth)
+// rotas públicas (sem auth) — acessíveis via /api/publico (frontend) e /publico (legado)
+app.use('/api/publico', publicRoutes);
 app.use('/publico', publicRoutes);
 
 app.use((req, res) => {

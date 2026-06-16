@@ -150,7 +150,7 @@ async function confirmarEmail(req, res, next) {
 
 async function completarPerfil(req, res, next) {
   try {
-    const { token, nome, perfil, id_service_line } = req.body;
+    const { token, nome, perfil, id_service_line, id_area } = req.body;
     if (!token) return res.status(400).json({ erro: 'Token em falta.' });
     if (!nome || !perfil) {
       return res.status(400).json({ erro: 'Nome e perfil são obrigatórios.' });
@@ -158,8 +158,11 @@ async function completarPerfil(req, res, next) {
     if (!PERFIS_PERMITIDOS_REGISTO.includes(perfil)) {
       return res.status(400).json({ erro: 'Perfil inválido.' });
     }
-    if (perfil === 'Consultor' && !id_service_line) {
-      return res.status(400).json({ erro: 'Service Line é obrigatória para Consultor.' });
+    if (perfil === 'Consultor' && !id_area) {
+      return res.status(400).json({ erro: 'Área é obrigatória para Consultor.' });
+    }
+    if (perfil === 'Service Line' && !id_service_line) {
+      return res.status(400).json({ erro: 'Service Line é obrigatória para Service Line Leader.' });
     }
 
     const [linhas] = await pool.query(
@@ -200,18 +203,21 @@ async function completarPerfil(req, res, next) {
         [u.id_utilizador, perfilRow[0].id_perfil]
       );
 
-      if (perfil === 'Consultor' && id_service_line) {
-        const [areas] = await conn.query(
-          'SELECT id_area FROM area WHERE id_service_line = ? ORDER BY id_area ASC LIMIT 1',
-          [id_service_line]
+      // Consultor → associa a ÁREA escolhida (req 2: badges preferenciais da sua área)
+      if (perfil === 'Consultor' && id_area) {
+        await conn.query(
+          `INSERT INTO consultor_area (id_utilizador, id_area) VALUES (?, ?)`,
+          [u.id_utilizador, id_area]
         );
-        if (areas.length > 0) {
-          await conn.query(
-            `INSERT INTO consultor_area (id_utilizador, id_area)
-             VALUES (?, ?)`,
-            [u.id_utilizador, areas[0].id_area]
-          );
-        }
+      }
+      // Service Line Leader → regista a sua Service Line
+      else if (perfil === 'Service Line' && id_service_line) {
+        await conn.query(
+          `INSERT INTO service_line_responsavel (id_utilizador, id_service_line)
+             VALUES (?, ?)
+           ON DUPLICATE KEY UPDATE id_service_line = VALUES(id_service_line)`,
+          [u.id_utilizador, id_service_line]
+        );
       }
 
       await conn.query(
@@ -228,11 +234,8 @@ async function completarPerfil(req, res, next) {
     }
 
     const jwt = assinarToken({ id_utilizador: u.id_utilizador });
-    const saudacao = calcularSaudacao({
-      ultimoLogin: u.ultimo_login,
-      primeiroLoginPendente: !!u.primeiro_login_pendente,
-      idioma: u.idioma,
-    });
+    // Após o registo o utilizador é sempre saudado com "Bem-vindo!" (enunciado, bónus)
+    const saudacao = calcularSaudacao({ primeiroLoginPendente: true, idioma: u.idioma });
 
     await pool.query(
       'UPDATE utilizador SET ultimo_login = CURRENT_TIMESTAMP WHERE id_utilizador = ?',
