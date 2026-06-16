@@ -141,7 +141,7 @@ function BadgeCard({ badge, onCandidatar }) {
         </button>
         <button
           type="button"
-          onClick={() => onCandidatar(badge.id_badge)}
+          onClick={() => navigate(`/badges/${badge.id_badge}`)}
           className="w-full rounded-lg border border-slate-200 bg-white py-2 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700"
         >
           {t('ver_detalhes')}
@@ -194,6 +194,7 @@ export default function ConsultorDashboard() {
   const { data, isLoading } = useDashboard();
   const [modalBadgeId, setModalBadgeId] = useState(null);
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-[#f3f6fa]">
@@ -301,7 +302,7 @@ export default function ConsultorDashboard() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => {}}
+                    onClick={() => navigate('/badges')}
                     className="mt-5 rounded-lg bg-softinsa-600 px-5 py-2 text-sm font-semibold text-white hover:bg-softinsa-700"
                   >
                     {t('ver_catalogo')}

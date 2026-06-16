@@ -1,7 +1,9 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Award, Bell, BookOpen, FileText, LayoutDashboard, LogOut, Trophy, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { api } from '../lib/api';
 
 function getSaudacao(t) {
   const h = new Date().getHours();
@@ -111,6 +113,15 @@ export function ConsultorTopbar({ subtitulo }) {
 
   const IDIOMAS = ['pt', 'en', 'es'];
 
+  /* Contador de notificações não lidas — só mostra o indicador se houver */
+  const { data: notifData } = useQuery({
+    queryKey: ['notificacoes-nao-lidas'],
+    queryFn: async () => { const { data } = await api.get('/api/notificacoes?por_pagina=1'); return data; },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const naoLidas = notifData?.nao_lidas ?? 0;
+
   return (
     <header className="sticky top-0 z-10 bg-softinsa-gradient">
       <div className="flex h-[72px] items-center justify-between px-5 lg:px-8">
@@ -137,7 +148,11 @@ export function ConsultorTopbar({ subtitulo }) {
 
           <NavLink to="/notificacoes" className="relative text-white/70 hover:text-white" aria-label="Notificações">
             <Bell className="h-5 w-5" strokeWidth={1.8} />
-            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
+            {naoLidas > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                {naoLidas > 9 ? '9+' : naoLidas}
+              </span>
+            )}
           </NavLink>
           <div className="hidden text-sm font-semibold text-white sm:block">{nome}</div>
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-softinsa-500 text-sm font-bold text-white">

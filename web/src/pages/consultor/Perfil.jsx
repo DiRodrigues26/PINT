@@ -129,7 +129,8 @@ export default function Perfil() {
   const nome     = utilizador?.nome || '';
   const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
   const slug     = utilizador?.url_slug || nome.toLowerCase().replace(/\s+/g, '-');
-  const urlPublica = `softinsa.pt/badges/${slug}`;
+  const linkGaleria = `${window.location.origin}/perfil-publico/${slug}`;
+  const urlPublica = `${window.location.host}/perfil-publico/${slug}`;
   const ano      = utilizador?.created_at ? new Date(utilizador.created_at).getFullYear() : '—';
 
   /* Dados */
@@ -171,9 +172,13 @@ export default function Perfil() {
   }, [prefData]);
 
   useEffect(() => {
-    if (rgpdData?.consentimentos) {
+    // A API devolve { dados } ordenado por id DESC → o 1.º de cada tipo é o mais recente
+    const lista = rgpdData?.dados ?? rgpdData?.consentimentos;
+    if (lista) {
       const c = {};
-      for (const r of rgpdData.consentimentos) c[r.tipo_consentimento] = !!r.aceite;
+      for (const r of lista) {
+        if (!(r.tipo_consentimento in c)) c[r.tipo_consentimento] = !!r.aceite;
+      }
       setRgpd(prev => ({ ...prev, ...c }));
     }
   }, [rgpdData]);
@@ -201,7 +206,7 @@ export default function Perfil() {
     guardarRgpd.mutate({ tipo_consentimento: tipo, aceite: valor, versao_politica: '1.0' });
   }
 
-  function copiarLink() { navigator.clipboard.writeText(`https://${urlPublica}`); toast.success('Link copiado!'); }
+  function copiarLink() { navigator.clipboard.writeText(linkGaleria); toast.success('Link copiado!'); }
 
   return (
     <div className="min-h-screen bg-[#f3f6fa]">
@@ -264,7 +269,7 @@ export default function Perfil() {
                   <p className="mt-1 text-[11px] text-slate-400">{t('public_url')}</p>
                   <p className="mt-0.5 text-xs font-semibold text-softinsa-600 break-all">{urlPublica}</p>
                   <div className="mt-3 flex gap-2">
-                    <button type="button" onClick={() => window.open(`https://${urlPublica}`, '_blank')} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
+                    <button type="button" onClick={() => window.open(linkGaleria, '_blank')} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">
                       <ExternalLink className="h-3.5 w-3.5" /> {t('ver_pagina_pub')}
                     </button>
                     <button type="button" onClick={copiarLink} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition">

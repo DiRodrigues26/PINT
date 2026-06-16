@@ -192,7 +192,9 @@ export default function Candidaturas() {
                   <tbody className="divide-y divide-slate-100">
                     {candidaturas.map(c => {
                       const cfg = ESTADO_CONFIG[c.estado_atual] || ESTADO_CONFIG.CLOSED;
-                      const dias = diasRestantes(c.data_abertura, 30);
+                      // Prazo real do badge (intervalo opcional para obter); não se aplica a candidaturas finalizadas
+                      const estadoFinal = ['APPROVED', 'REJECTED', 'CLOSED'].includes(c.estado_atual);
+                      const dias = estadoFinal ? null : diasRestantes(c.data_abertura, c.intervalo_temporal_obtencao);
                       return (
                         <tr key={c.id_candidatura} className="hover:bg-slate-50 transition">
                           <td className="px-5 py-4 font-semibold text-slate-800">{c.titulo_badge}</td>

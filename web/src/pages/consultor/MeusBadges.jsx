@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
-  Award, Calendar, CheckCircle, Download, ExternalLink,
+  Award, Calendar, CheckCircle, Download, ExternalLink, Globe, Mail,
   Share2, Search, Sparkles, Star, TriangleAlert, X,
 } from 'lucide-react';
 import { api, extrairErro } from '../../lib/api';
@@ -11,6 +11,7 @@ import Carregando from '../../components/Carregando';
 import BadgeModal from '../../components/BadgeModal';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 
 function formatarData(d) {
   if (!d) return null;
@@ -26,21 +27,23 @@ const NIVEL_BG   = { A: 'bg-softinsa-600', B: 'bg-blue-500', C: 'bg-indigo-500',
 const NIVEL_TEXT = { A: 'text-softinsa-600', B: 'text-blue-600', C: 'text-indigo-600', D: 'text-violet-700', E: 'text-purple-700' };
 
 /* ─── Card de badge obtido ──────────────────────────────────────────────── */
-function CardObtido({ item, onAbrirModal }) {
+function CardObtido({ item, onAbrirModal, podePublicar, podeLinkedin }) {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const expirado = item.data_expiracao && new Date(item.data_expiracao) < new Date();
   const dias = diasParaExpirar(item.data_expiracao);
   const expiraEmBreve = !expirado && dias !== null && dias <= 30;
 
+  /* Link público de verificação (sempre aponta ao frontend) */
+  const linkPublico = `${window.location.origin}/verificar/${item.token_publico}`;
+
   /* LinkedIn share */
   const partilharLinkedIn = useMutation({
     mutationFn: () => api.post(`/api/badge-atribuido/${item.id_badge_atribuido}/linkedin`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meus-badges'] });
-      const url = item.url_publica || `${window.location.origin}/publico/badges/verificar/${item.token_publico}`;
       window.open(
-        `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+        `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(linkPublico)}`,
         '_blank',
       );
     },
@@ -144,13 +147,17 @@ function CardObtido({ item, onAbrirModal }) {
 
         {/* Linha: LinkedIn + PDF */}
         <div className="flex gap-2">
-          {/* LinkedIn share (req 11) */}
+          {/* LinkedIn share (req 11) — exige consentimento de partilha (RGPD, req 10) */}
           <button
             type="button"
-            title={item.linkedin_shared ? 'Já partilhado no LinkedIn' : 'Partilhar no LinkedIn'}
+            title={
+              !podeLinkedin
+                ? 'Ativa "Permitir partilha no LinkedIn" em Perfil › Privacidade e RGPD'
+                : item.linkedin_shared ? 'Já partilhado no LinkedIn' : 'Partilhar no LinkedIn'
+            }
             onClick={() => partilharLinkedIn.mutate()}
-            disabled={partilharLinkedIn.isPending}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold transition ${
+            disabled={partilharLinkedIn.isPending || !podeLinkedin}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
               item.linkedin_shared
                 ? 'border-blue-200 bg-blue-50 text-blue-600'
                 : 'border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600'
@@ -172,16 +179,16 @@ function CardObtido({ item, onAbrirModal }) {
           </button>
         </div>
 
-        {/* Página pública */}
-        {item.url_publica && (
-          <button
-            type="button"
-            onClick={() => window.open(item.url_publica, '_blank')}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700"
-          >
-            <ExternalLink className="h-3.5 w-3.5" /> {t('ver_pagina_pub')}
-          </button>
-        )}
+        {/* Página pública de verificação (req 25, 26) — exige consentimento de publicação (RGPD, req 10) */}
+        <button
+          type="button"
+          disabled={!podePublicar}
+          title={!podePublicar ? 'Ativa "Permitir publicação de badges" em Perfil › Privacidade e RGPD' : undefined}
+          onClick={() => window.open(linkPublico, '_blank')}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-xs font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-slate-200 disabled:hover:text-slate-700"
+        >
+          <ExternalLink className="h-3.5 w-3.5" /> {t('ver_pagina_pub')}
+        </button>
       </div>
     </div>
   );
@@ -275,6 +282,8 @@ function CardEmProgresso({ item, onAbrirModal }) {
 /* ─── Página principal ──────────────────────────────────────────────────── */
 export default function MeusBadges() {
   const { t } = useLanguage();
+  const { utilizador } = useAuth();
+  const slug = utilizador?.url_slug;
   const [modalBadgeId, setModalBadgeId] = useState(null);
   const [pesquisa, setPesquisa] = useState('');
   const [filtroArea, setFiltroArea] = useState('');
@@ -293,6 +302,20 @@ export default function MeusBadges() {
     queryFn: async () => { const { data } = await api.get('/api/candidaturas?fechadas=0&por_pagina=100'); return data; },
     staleTime: 60_000,
   });
+
+  /* Consentimentos RGPD (req 10) — gateiam publicação e partilha */
+  const { data: rgpdData } = useQuery({
+    queryKey: ['rgpd'],
+    queryFn: async () => { const { data } = await api.get('/api/rgpd'); return data; },
+    staleTime: 60_000,
+  });
+  const consents = useMemo(() => {
+    const c = {};
+    for (const r of rgpdData?.dados ?? []) if (!(r.tipo_consentimento in c)) c[r.tipo_consentimento] = !!r.aceite;
+    return c;
+  }, [rgpdData]);
+  const podePublicar = !!consents.publicacao_badge;
+  const podeLinkedin = !!consents.partilha_linkedin;
 
   const isLoading = loadObtidos || loadCand;
   const obtidos = obtidosData?.dados ?? [];
@@ -344,10 +367,45 @@ export default function MeusBadges() {
         <ConsultorTopbar subtitulo="Os Meus Badges" />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
-          <h2 className="text-2xl font-bold text-slate-900">{t('titulo_meus')}</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            {t('desc_meus')}
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">{t('titulo_meus')}</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {t('desc_meus')}
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Link
+                to="/assinatura-email"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-softinsa-300 hover:text-softinsa-700"
+              >
+                <Mail className="h-4 w-4" /> Assinatura de email
+              </Link>
+              {slug && (
+                <button
+                  type="button"
+                  disabled={!podePublicar}
+                  title={!podePublicar ? 'Ativa "Permitir publicação de badges" em Perfil › Privacidade e RGPD' : undefined}
+                  onClick={() => window.open(`/perfil-publico/${slug}`, '_blank')}
+                  className="flex items-center gap-1.5 rounded-lg bg-softinsa-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-softinsa-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-softinsa-600"
+                >
+                  <Globe className="h-4 w-4" /> Galeria pública
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Aviso RGPD — publicação desligada (req 10) */}
+          {!isLoading && !podePublicar && (
+            <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
+              <p>
+                Os teus badges estão <strong>privados</strong>. Para os tornares públicos (galeria, link de
+                verificação e partilha no LinkedIn), ativa os consentimentos em{' '}
+                <Link to="/perfil" className="font-semibold underline">Perfil › Privacidade e RGPD</Link>.
+              </p>
+            </div>
+          )}
 
           {/* KPIs */}
           {!isLoading && (
@@ -411,7 +469,7 @@ export default function MeusBadges() {
               )}
               {mostrarObtidos && badgesObtidosFiltrados.length > 0 && (
                 <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 ${mostrarCandidaturas && candidaturasFiltradas.length > 0 ? 'mt-5' : 'mt-6'}`}>
-                  {badgesObtidosFiltrados.map(b => <CardObtido key={b.id_badge_atribuido} item={b} onAbrirModal={setModalBadgeId} />)}
+                  {badgesObtidosFiltrados.map(b => <CardObtido key={b.id_badge_atribuido} item={b} onAbrirModal={setModalBadgeId} podePublicar={podePublicar} podeLinkedin={podeLinkedin} />)}
                 </div>
               )}
               {candidaturasFiltradas.length === 0 && badgesObtidosFiltrados.length === 0 && (

@@ -60,6 +60,7 @@ export default function BadgeModal({ idBadge, onFechar }) {
   }
 
   const beneficios = parseList(badge?.beneficios);
+  const competencias = parseList(badge?.competencias_certificadas);
 
   return (
     /* Overlay */
@@ -155,39 +156,57 @@ export default function BadgeModal({ idBadge, onFechar }) {
                 </section>
               )}
 
-              {/* Verificação Pública */}
+              {/* Página completa do badge */}
               <section className="border-b border-dashed border-slate-200 pb-5">
-                <h3 className="text-sm font-bold text-slate-900">Verificação Pública</h3>
+                <h3 className="text-sm font-bold text-slate-900">Página do badge</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Este badge possui uma página pública de verificação onde qualquer pessoa pode confirmar a sua autenticidade.
+                  Vê todos os requisitos, benefícios e competências numa página dedicada antes de te candidatares.
                 </p>
                 <button
                   type="button"
-                  onClick={() => navigate(`/badges/${idBadge}`)}
+                  onClick={() => { onFechar(); navigate(`/badges/${idBadge}`); }}
                   className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
                 >
                   <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
-                  Ver Página Pública do Badge
+                  Ver página completa do badge
                 </button>
               </section>
 
-              {/* Competências Softinsa */}
-              {badge?.competencias_certificadas && (
-                <section className="pb-2">
-                  <h3 className="text-sm font-bold text-slate-900">Competências Softinsa</h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    Saiba mais sobre as competências técnicas relacionadas com este badge na plataforma Softinsa.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => window.open('https://www.softinsa.pt', '_blank')}
-                    className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
-                  >
-                    <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
-                    Ver competências relacionadas na Softinsa
-                  </button>
+              {/* Competências certificadas (req 27) */}
+              {(competencias.length > 0 || badge?.sobre_certificacao) && (
+                <section className="border-b border-dashed border-slate-200 pb-5">
+                  <h3 className="text-sm font-bold text-slate-900">Competências certificadas</h3>
+                  {competencias.length > 0 && (
+                    <ul className="mt-2 space-y-2">
+                      {competencias.map((c, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-slate-700">
+                          <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" strokeWidth={2} />
+                          <span>{c}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {badge?.sobre_certificacao && (
+                    <p className="mt-2 text-sm leading-6 text-slate-600">{badge.sobre_certificacao}</p>
+                  )}
                 </section>
               )}
+
+              {/* Integração Softinsa (req 28) — info geral da empresa, à parte */}
+              <section className="pb-2">
+                <h3 className="text-sm font-bold text-slate-900">Sobre a Softinsa</h3>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  Conhece mais sobre as competências e áreas de atuação da Softinsa no site oficial.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => window.open('https://www.softinsa.pt', '_blank')}
+                  className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
+                >
+                  <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
+                  Visitar softinsa.pt
+                </button>
+              </section>
             </>
           )}
         </div>

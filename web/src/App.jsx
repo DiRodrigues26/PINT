@@ -48,6 +48,10 @@ import CandidaturaDetalhe from './pages/consultor/CandidaturaDetalhe';
 import Conquistas from './pages/consultor/Conquistas';
 import Notificacoes from './pages/consultor/Notificacoes';
 import Perfil from './pages/consultor/Perfil';
+import BadgeDetalhe from './pages/consultor/BadgeDetalhe';
+import AssinaturaEmail from './pages/consultor/AssinaturaEmail';
+import VerificarBadge from './pages/publico/VerificarBadge';
+import PerfilPublico from './pages/publico/PerfilPublico';
 
 function PerfilEmDesenvolvimento() {
   const { utilizador } = useAuth();
@@ -95,6 +99,10 @@ function AdminPontosRoute() {
 export default function App() {
   return (
     <Routes>
+      {/* Páginas públicas (sem autenticação) */}
+      <Route path="/verificar/:token" element={<VerificarBadge />} />
+      <Route path="/perfil-publico/:slug" element={<PerfilPublico />} />
+
       <Route path="/login" element={<Login />} />
       <Route path="/registo" element={<Registo />} />
       <Route path="/verificar-email" element={<VerificarEmail />} />
@@ -135,11 +143,12 @@ export default function App() {
         <RotaProtegida perfis={['Consultor']}><ConsultorDashboard /></RotaProtegida>
       } />
       <Route path="/badges" element={<RotaProtegida perfis={['Consultor']}><CatalogoBadges /></RotaProtegida>} />
-      <Route path="/badges/:id" element={<RotaProtegida perfis={['Consultor']}><PerfilEmDesenvolvimento /></RotaProtegida>} />
+      <Route path="/badges/:id" element={<RotaProtegida perfis={['Consultor']}><BadgeDetalhe /></RotaProtegida>} />
       <Route path="/candidaturas" element={<RotaProtegida perfis={['Consultor']}><Candidaturas /></RotaProtegida>} />
+      <Route path="/candidaturas/nova" element={<Navigate to="/badges" replace />} />
       <Route path="/candidaturas/:id" element={<RotaProtegida perfis={['Consultor']}><CandidaturaDetalhe /></RotaProtegida>} />
-      <Route path="/candidaturas/nova" element={<RotaProtegida perfis={['Consultor']}><PerfilEmDesenvolvimento /></RotaProtegida>} />
       <Route path="/meus-badges" element={<RotaProtegida perfis={['Consultor']}><MeusBadges /></RotaProtegida>} />
+      <Route path="/assinatura-email" element={<RotaProtegida perfis={['Consultor']}><AssinaturaEmail /></RotaProtegida>} />
       <Route path="/conquistas" element={<RotaProtegida perfis={['Consultor']}><Conquistas /></RotaProtegida>} />
       <Route path="/notificacoes" element={<RotaProtegida perfis={['Consultor']}><Notificacoes /></RotaProtegida>} />
       <Route path="/perfil" element={<RotaProtegida perfis={['Consultor']}><Perfil /></RotaProtegida>} />
