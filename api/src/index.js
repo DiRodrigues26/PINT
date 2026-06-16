@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const cors    = require('cors');
 const { testConnection } = require('./db/connection');
@@ -44,9 +45,29 @@ app.use((req, res, next) => {
   return next();
 });
 
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true,
+// Origens permitidas para CORS — FRONTEND_URL aceita várias separadas por vírgula
+// (ex.: web de produção + web mobile + localhost). Apps móveis nativas não enviam
+// cabeçalho Origin, por isso são permitidas (origin undefined).
+const origensPermitidas = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
+function obterOrigemAtual(req) {
+  const protocolo = String(req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0].trim();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+  return host ? `${protocolo}://${host}`.replace(/\/+$/, '') : '';
+}
+
+app.use(cors((req, callback) => {
+  const origin = String(req.headers.origin || '').replace(/\/+$/, '');
+  if (!origin) return callback(null, { origin: false, credentials: true });
+
+  const origemAtual = obterOrigemAtual(req);
+  const permitido = origensPermitidas.includes(origin) || origin === origemAtual;
+
+  if (!permitido) return callback(new Error('Origem não permitida pelo CORS.'));
+  return callback(null, { origin: true, credentials: true });
 }));
 
 app.use(express.json());
@@ -89,6 +110,27 @@ app.use('/api/totp',            totpRoutes);
 // rotas públicas (sem auth) — acessíveis via /api/publico (frontend) e /publico (legado)
 app.use('/api/publico', publicRoutes);
 app.use('/publico', publicRoutes);
+
+// Servir o frontend (SPA) quando o build existe (web/dist) — modo "tudo num serviço".
+// Em desenvolvimento a web é servida pelo Vite (5173), por isso este bloco fica inativo.
+const webDist = path.join(__dirname, '..', '..', 'web', 'dist');
+const uploadPath = `/${process.env.UPLOAD_DIR || 'uploads'}`;
+if (fs.existsSync(webDist)) {
+  app.use(express.static(webDist));
+  // Fallback SPA (Express 5: usar middleware em vez de app.get('*')).
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+    if (
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/publico') ||
+      req.path.startsWith('/health') ||
+      req.path.startsWith(uploadPath)
+    ) {
+      return next();
+    }
+    res.sendFile(path.join(webDist, 'index.html'));
+  });
+}
 
 app.use((req, res) => {
   res.status(404).json({ erro: 'Rota não encontrada.' });
