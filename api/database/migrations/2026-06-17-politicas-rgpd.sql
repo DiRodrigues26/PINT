@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS `politica_rgpd` (
+  `id_politica` int unsigned NOT NULL AUTO_INCREMENT,
+  `tipo_politica` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'GERAL',
+  `versao` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `titulo` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `conteudo` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ativo` tinyint(1) NOT NULL DEFAULT '0',
+  `data_publicacao` datetime DEFAULT NULL,
+  `id_criador` int unsigned DEFAULT NULL,
+  `id_atualizador` int unsigned DEFAULT NULL,
+  `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id_politica`),
+  UNIQUE KEY `uq_politica_tipo_versao` (`tipo_politica`, `versao`),
+  KEY `idx_politica_tipo_ativo` (`tipo_politica`, `ativo`),
+  KEY `fk_politica_criador` (`id_criador`),
+  KEY `fk_politica_atualizador` (`id_atualizador`),
+  CONSTRAINT `fk_politica_criador` FOREIGN KEY (`id_criador`) REFERENCES `utilizador` (`id_utilizador`) ON DELETE SET NULL,
+  CONSTRAINT `fk_politica_atualizador` FOREIGN KEY (`id_atualizador`) REFERENCES `utilizador` (`id_utilizador`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

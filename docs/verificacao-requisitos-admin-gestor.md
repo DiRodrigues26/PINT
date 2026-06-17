@@ -1,6 +1,6 @@
 # Verificacao de Requisitos - Perfil Administrador/Gestor
 
-Data de referencia: 2026-06-16
+Data de referencia: 2026-06-17
 
 Legenda:
 
@@ -49,10 +49,9 @@ Notas:
   - `api/src/controllers/badgesController.js`
   - `api/src/routes/badgesRoutes.js`
 
-- [~] Frontend admin implementado.
+- [x] Frontend admin implementado.
   - `web/src/pages/admin/AdminBadges.jsx`
-  - Implementado: listagem, filtros, exportacao, detalhe, criar, editar, ativar/desativar e eliminar.
-  - Falta: upload real de imagem e refinamento do fluxo de criar requisito diretamente dentro do modal de Badge.
+  - Implementado: listagem, filtros, exportacao, detalhe, criar, editar, ativar/desativar, eliminar e upload real de imagem.
 
 Campos backend ja suportados:
 
@@ -92,18 +91,18 @@ Campos backend ja suportados:
 - [~] Eventos Especiais.
   - Backend: `eventosController.js`
   - Frontend: `AdminEventosEspeciais.jsx`
-  - Implementado: listagem, filtros, exportacao, criar, editar, ativar/desativar e eliminar.
-  - Falta: ligar upload real de imagem e CRUD completo de requisitos/badges especiais.
+  - Implementado: listagem, filtros, exportacao, criar, editar, ativar/desativar, eliminar e upload real de imagem.
+  - Em aberto: criação/edição completa de requisitos especiais diretamente no modal do evento.
 
-- [~] Requisitos.
+- [x] Requisitos.
   - Backend: `requisitosController.js`
   - Frontend: `AdminRequisitos.jsx`
   - Implementado: listagem, filtros, detalhe, criar, editar, ativar/desativar, eliminar e exportacao.
-  - Nota: `badge_requisito` e a fonte funcional para associar requisitos a badges. `requisito.id_nivel` fica apenas como compatibilidade tecnica enquanto o CRUD de Badges nao esta fechado.
+  - Nota: `badge_requisito` e a fonte funcional para associar requisitos a badges. `requisito.id_nivel` fica apenas como compatibilidade tecnica.
 
 ### 5. Exportacao de dados para Excel/PDF
 
-- [x] Implementado nos CRUDs ja feitos:
+- [x] Implementado nos CRUDs e hub de relatorios:
   - Utilizadores
   - Learning Paths
   - Service Lines
@@ -111,8 +110,6 @@ Campos backend ja suportados:
   - Niveis
   - Eventos Especiais
   - Requisitos
-
-- [~] Falta aplicar aos proximos ecras:
   - Badges
   - SLA
   - Avisos
@@ -130,82 +127,85 @@ Notas:
   - `badgesController.js` suporta pontos, expiracao e validade.
   - `badgeAtribuidoController.js` suporta badges atribuidos e proximos de expiracao.
 
-- [~] Frontend admin implementado.
+- [x] Frontend admin implementado.
   - `AdminBadges.jsx` suporta pontos, expiração, estado, requisitos associados e mudança de nível.
-  - Falta upload real de imagem.
+  - `AdminPontos.jsx` permite gerir pontuação de badges.
 
 ### 7. Configuracao de notificacoes
 
-- [~] Backend implementado para preferencias do utilizador.
+- [x] Backend implementado para preferencias do utilizador e configuração global.
   - `preferenciasController.js`
   - `notificacoesController.js`
+  - `configNotificacaoController.js`
 
-- [ ] Frontend admin de configuracao global ainda nao implementado.
-  - Existe item no menu `Notificacoes`.
-  - Falta ecran admin.
+- [x] Frontend admin de configuracao global implementado.
+  - `web/src/pages/admin/AdminNotificacoesDefinicoes.jsx`
 
 Notas:
 
 - Existem notificacoes internas na plataforma.
-- Preferencias atuais sao por utilizador, nao uma configuracao global admin completa.
+- Existem preferencias por utilizador e uma configuracao global admin com toggles de eventos/canais.
 
 ### 8. Configuracao de politicas RGPD
 
-- [~] Backend parcial.
+- [x] Backend implementado.
   - `rgpdController.js` lista e regista consentimentos.
   - `badgeAtribuidoController.js` verifica consentimento antes de publicar badge.
+  - `politica_rgpd` guarda politicas versionadas por tipo.
+  - `GET /api/rgpd/politica-ativa`
+  - `GET/POST/PUT/DELETE /api/rgpd/politicas`
 
-- [ ] Frontend admin ainda nao implementado.
-  - Existe item no menu `Configuracao RGPD`.
+- [x] Frontend admin implementado.
+  - `web/src/pages/admin/AdminRGPD.jsx`
 
 Notas:
 
-- Falta ecran para gerir textos/versoes de politicas RGPD.
-- A tabela atual regista consentimentos, mas nao parece existir tabela dedicada para configurar politicas globais/versionadas alem de `versao_politica` no consentimento.
+- Permite criar, editar, publicar/despublicar, eliminar versoes inativas, filtrar e exportar politicas.
+- Publicar uma politica desativa automaticamente a politica ativa do mesmo tipo.
+- O modal RGPD do consultor lê a politica ativa quando existe.
+- Migration incremental: `api/database/migrations/2026-06-17-politicas-rgpd.sql`.
 
 ### 9. Consultar e gerir todos os pedidos de badges
 
-- [~] Backend implementado.
+- [x] Backend implementado.
   - `candidaturasController.js`
   - Admin consegue listar candidaturas e avaliar.
   - Historico e avaliacoes sao auditaveis.
 
-- [~] Frontend parcial.
-  - Dashboard admin mostra pedidos recentes.
-  - Falta ecran admin completo para consultar, filtrar, abrir detalhe e gerir todos os pedidos.
+- [x] Frontend implementado.
+  - `AdminCandidaturas.jsx` permite consultar, filtrar, abrir detalhe, avaliar e ver auditoria.
 
 ### 12. Informacoes genericas e avisos ativos/inativos
 
-- [~] Backend implementado.
+- [x] Backend implementado.
   - `avisosController.js`
   - Permite listar ativos, listar todos, criar, atualizar e eliminar.
 
-- [~] Frontend parcial.
-  - Dashboard admin mostra avisos ativos/inativos.
-  - Falta CRUD admin completo para gerir avisos.
+- [x] Frontend implementado.
+  - `AdminAvisos.jsx` implementa CRUD, vigência, estado e exportação.
 
 ## Bonus Gestor
 
 ### 1. Notificar por email equipa de Talent ou Service Line caso SLA seja ultrapassado
 
-- [~] Backend parcial.
+- [x] Backend implementado.
   - `slaController.js` identifica candidaturas fora de SLA.
   - `email.js` suporta envio real via SMTP ou stub em desenvolvimento.
+  - `POST /api/sla/:id/notificar` notifica responsaveis conforme configuração.
 
-- [ ] Falta endpoint/acao especifica para notificar equipa quando SLA e ultrapassado.
-- [ ] Falta frontend para acionar notificacao por equipa.
+- [x] Frontend implementado.
+  - `AdminSLA.jsx` permite acionar notificacao por candidatura fora de SLA.
 
 ### 10. Definir e gerir SLA da equipa Talent e Service Line
 
-- [~] Backend implementado.
+- [x] Backend implementado.
   - `slaController.js`
   - `GET /api/sla`
   - `PUT /api/sla/:fase`
   - `GET /api/sla/fora-prazo`
 
-- [~] Frontend parcial.
-  - Dashboard mostra controlo SLA.
-  - Falta ecran CRUD/configuracao SLA completo.
+- [x] Frontend implementado.
+  - `AdminSLA.jsx`
 
 ### 11. Notificacao PUSH de SLA ultrapassados na plataforma
 
@@ -214,11 +214,11 @@ Notas:
   - Existe endpoint para listar/marcar notificacoes.
   - Existe endpoint para detectar candidaturas fora de SLA.
 
-- [ ] Falta automatismo/job para criar notificacoes quando SLA e ultrapassado.
+- [x] Existe job/automatismo para criar notificacoes internas quando SLA e ultrapassado.
 - [ ] Falta push real/browser push.
-- [ ] Falta frontend de notificacoes SLA no admin.
+- [x] Frontend admin mostra notificacoes e fora de prazo.
 
-## Resumo Executivo (rev. 2026-06-16)
+## Resumo Executivo (rev. 2026-06-17)
 
 Estado de cada requisito do Administrador/Gestor (PDF pag. 11):
 
@@ -231,7 +231,7 @@ Estado de cada requisito do Administrador/Gestor (PDF pag. 11):
 | 5 | Exportacao Excel/PDF | [x] Por CRUD + hub AdminRelatorios (11 entidades) |
 | 6 | Gestao de Badges (expiracao, pontos) | [x] AdminBadges + AdminPontos |
 | 7 | Configuracao de notificacoes | [x] AdminNotificacoesDefinicoes (toggles+canais) ligada ao envio real |
-| 8 | Configuracao de politicas RGPD | [ ] Unico requisito admin por implementar (precisa tabela + endpoints novos) |
+| 8 | Configuracao de politicas RGPD | [x] AdminRGPD + tabela `politica_rgpd` + endpoints de politicas versionadas |
 | 9 | Consultar e gerir todos os pedidos (curso, atribuidos) | [x] AdminCandidaturas (filtros incl. APPROVED, detalhe, avaliacao, auditoria) |
 | 12 | Informacoes Genericas e Avisos Ativos/Inativos | [x] AdminAvisos (CRUD + vigencia + export) |
 
@@ -243,4 +243,4 @@ Bonus Gestor:
 | 10 | Definir e gerir SLA | [x] AdminSLA |
 | 11 | Notificacao PUSH de SLA ultrapassados | [~] Cria notificacao interna na plataforma; falta push real de browser |
 
-Conclusao: todos os requisitos do admin estao funcionais exceto o #8 (RGPD configuravel). O bonus #11 esta parcial (notificacao interna sim, push de browser nao).
+Conclusao: todos os requisitos principais do admin estao funcionais. O bonus #11 continua parcial apenas no sentido de nao existir push real de browser; a plataforma cria notificacoes internas e emails conforme configuracao.

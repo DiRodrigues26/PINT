@@ -24,6 +24,7 @@ import AdminPerfil from './pages/admin/AdminPerfil';
 import AdminRelatorios from './pages/admin/AdminRelatorios';
 import AdminPontos from './pages/admin/AdminPontos';
 import AdminRequisitos from './pages/admin/AdminRequisitos';
+import AdminRGPD from './pages/admin/AdminRGPD';
 import AdminServiceLines from './pages/admin/AdminServiceLines';
 import AdminSLA from './pages/admin/AdminSLA';
 import AdminUtilizadores from './pages/admin/AdminUtilizadores';
@@ -146,7 +147,7 @@ export default function App() {
         <Route path="notificacoes/definicoes" element={<AdminNotificacoesDefinicoes />} />
         <Route path="relatorios" element={<AdminRelatorios />} />
         <Route path="avisos" element={<AdminAvisos />} />
-        <Route path="rgpd" element={<PerfilEmDesenvolvimento />} />
+        <Route path="rgpd" element={<AdminRGPD />} />
         <Route path="perfil" element={<AdminPerfil />} />
         <Route path="*" element={<Navigate to="/admin" replace />} />
       </Route>

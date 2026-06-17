@@ -1,6 +1,6 @@
 # Verificacao de Requisitos - Dashboard, Workflow, Relatorios e Seguranca
 
-Data de referencia: 2026-04-30
+Data de referencia: 2026-06-17
 
 ## Dashboard e Perfil Pessoal
 
@@ -17,9 +17,9 @@ Data de referencia: 2026-04-30
   - Navegacao mobile via barra inferior horizontal.
   - Conteudo principal ganha padding inferior para nao ficar escondido pela navegacao mobile.
 
-- [~] Perfil pessoal.
-  - O admin mostra nome, email, perfil e logout na sidebar.
-  - A pagina completa de perfil ainda nao esta implementada; o menu `Perfil` existe mas ainda nao tem CRUD/ecran proprio.
+- [x] Perfil pessoal.
+  - `web/src/pages/admin/AdminPerfil.jsx`
+  - Permite editar dados principais, alterar password e gerir 2FA/TOTP.
 
 ## Workflow de Aprovacao
 
@@ -74,6 +74,12 @@ Data de referencia: 2026-04-30
   - Backend: `api/src/controllers/rgpdController.js`
   - Rotas: `api/src/routes/rgpdRoutes.js`
   - Tabela: `consentimento_rgpd`
+
+- [x] Configuracao de politicas RGPD versionadas.
+  - Backend: `GET /api/rgpd/politica-ativa`
+  - Backend admin: `GET/POST/PUT/DELETE /api/rgpd/politicas`
+  - Frontend admin: `web/src/pages/admin/AdminRGPD.jsx`
+  - Tabela: `politica_rgpd`
 
 - [x] Publicacao de badges verifica consentimento RGPD.
   - Backend: `api/src/controllers/badgeAtribuidoController.js`

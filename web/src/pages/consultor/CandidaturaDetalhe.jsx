@@ -160,6 +160,12 @@ function CardRequisito({ req, evidencias, podeEditar, idCandidatura }) {
 
 /* ─── Modal Política RGPD ───────────────────────────────────────────────── */
 function ModalRGPD({ onFechar }) {
+  const politica = useQuery({
+    queryKey: ['rgpd', 'politica-ativa', 'GERAL'],
+    queryFn: async () => (await api.get('/api/rgpd/politica-ativa', { params: { tipo: 'GERAL' } })).data,
+  });
+  const politicaAtiva = politica.data?.politica;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4" onClick={onFechar}>
       <div
@@ -170,7 +176,10 @@ function ModalRGPD({ onFechar }) {
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-softinsa-600" strokeWidth={1.8} />
-            <h2 className="text-base font-bold text-slate-900">Política de Privacidade e RGPD</h2>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">{politicaAtiva?.titulo || 'Política de Privacidade e RGPD'}</h2>
+              {politicaAtiva?.versao && <p className="text-xs text-slate-500">Versão {politicaAtiva.versao}</p>}
+            </div>
           </div>
           <button type="button" onClick={onFechar} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition">
             <X className="h-5 w-5" strokeWidth={2} />
@@ -179,34 +188,42 @@ function ModalRGPD({ onFechar }) {
 
         {/* Conteúdo scrollável */}
         <div className="flex-1 overflow-y-auto px-6 py-5 text-sm text-slate-600 space-y-4 leading-6">
-          <p className="font-semibold text-slate-800">1. Responsável pelo Tratamento</p>
-          <p>A Softinsa, S.A. é a entidade responsável pelo tratamento dos dados pessoais recolhidos através desta plataforma de badges digitais.</p>
+          {politica.isLoading ? (
+            <p>A carregar política...</p>
+          ) : politicaAtiva ? (
+            <div className="whitespace-pre-wrap">{politicaAtiva.conteudo}</div>
+          ) : (
+            <>
+              <p className="font-semibold text-slate-800">1. Responsável pelo Tratamento</p>
+              <p>A Softinsa, S.A. é a entidade responsável pelo tratamento dos dados pessoais recolhidos através desta plataforma de badges digitais.</p>
 
-          <p className="font-semibold text-slate-800">2. Dados Recolhidos</p>
-          <p>Para emissão e publicação de badges, são recolhidos os seguintes dados: nome completo, endereço de email, área de competência, badges obtidos e evidências submetidas.</p>
+              <p className="font-semibold text-slate-800">2. Dados Recolhidos</p>
+              <p>Para emissão e publicação de badges, são recolhidos os seguintes dados: nome completo, endereço de email, área de competência, badges obtidos e evidências submetidas.</p>
 
-          <p className="font-semibold text-slate-800">3. Finalidade do Tratamento</p>
-          <ul className="space-y-1 pl-4">
-            <li>• Emissão e verificação de badges digitais de competências</li>
-            <li>• Publicação do perfil público de certificações</li>
-            <li>• Partilha em plataformas profissionais (ex: LinkedIn)</li>
-            <li>• Análise de progressão e competências internas</li>
-          </ul>
+              <p className="font-semibold text-slate-800">3. Finalidade do Tratamento</p>
+              <ul className="space-y-1 pl-4">
+                <li>• Emissão e verificação de badges digitais de competências</li>
+                <li>• Publicação do perfil público de certificações</li>
+                <li>• Partilha em plataformas profissionais (ex: LinkedIn)</li>
+                <li>• Análise de progressão e competências internas</li>
+              </ul>
 
-          <p className="font-semibold text-slate-800">4. Base Legal</p>
-          <p>O tratamento dos dados baseia-se no consentimento expresso do titular (Art. 6.º, n.º 1, al. a) do RGPD) e na execução de contrato de trabalho.</p>
+              <p className="font-semibold text-slate-800">4. Base Legal</p>
+              <p>O tratamento dos dados baseia-se no consentimento expresso do titular (Art. 6.º, n.º 1, al. a) do RGPD) e na execução de contrato de trabalho.</p>
 
-          <p className="font-semibold text-slate-800">5. Partilha de Dados</p>
-          <p>Os dados poderão ser partilhados com entidades parceiras da Softinsa para efeitos de verificação de competências, bem como tornados públicos através do perfil de badges, mediante consentimento.</p>
+              <p className="font-semibold text-slate-800">5. Partilha de Dados</p>
+              <p>Os dados poderão ser partilhados com entidades parceiras da Softinsa para efeitos de verificação de competências, bem como tornados públicos através do perfil de badges, mediante consentimento.</p>
 
-          <p className="font-semibold text-slate-800">6. Prazo de Conservação</p>
-          <p>Os dados são conservados durante a vigência do vínculo profissional e até 5 anos após a cessação do mesmo, salvo obrigação legal de conservação por prazo superior.</p>
+              <p className="font-semibold text-slate-800">6. Prazo de Conservação</p>
+              <p>Os dados são conservados durante a vigência do vínculo profissional e até 5 anos após a cessação do mesmo, salvo obrigação legal de conservação por prazo superior.</p>
 
-          <p className="font-semibold text-slate-800">7. Direitos do Titular</p>
-          <p>Pode exercer os seus direitos de acesso, retificação, apagamento, portabilidade e oposição contactando <span className="font-semibold text-softinsa-600">dpo@softinsa.pt</span>.</p>
+              <p className="font-semibold text-slate-800">7. Direitos do Titular</p>
+              <p>Pode exercer os seus direitos de acesso, retificação, apagamento, portabilidade e oposição contactando <span className="font-semibold text-softinsa-600">dpo@softinsa.pt</span>.</p>
 
-          <p className="font-semibold text-slate-800">8. Revogação do Consentimento</p>
-          <p>O consentimento pode ser revogado a qualquer momento, sem prejuízo da licitude do tratamento efetuado com base no consentimento previamente dado. A revogação pode ser feita nas definições do perfil.</p>
+              <p className="font-semibold text-slate-800">8. Revogação do Consentimento</p>
+              <p>O consentimento pode ser revogado a qualquer momento, sem prejuízo da licitude do tratamento efetuado com base no consentimento previamente dado. A revogação pode ser feita nas definições do perfil.</p>
+            </>
+          )}
         </div>
 
         {/* Footer */}
