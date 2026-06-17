@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ExternalLink, Download, FileText } from 'lucide-react';
+import { Search, X, ExternalLink, Download, FileText, RefreshCw } from 'lucide-react';
 import { api } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
@@ -17,6 +17,7 @@ function usePedidos() {
       return data.dados || [];
     },
     staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 }
 
@@ -157,7 +158,7 @@ function LinhaPedido({ c, slaInfo, navigate, ESTADO_CFG, labelRever }) {
 export default function ServiceLinePedidos() {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const { data: pedidos = [], isLoading } = usePedidos();
+  const { data: pedidos = [], isLoading, isFetching, refetch } = usePedidos();
   const { data: slaConfig = [] } = useSLA();
   const { data: areas = [] } = useAreasSL();
 
@@ -287,20 +288,29 @@ export default function ServiceLinePedidos() {
                   <span className="text-xs text-slate-500">
                     {t('sl_ped_mostrando').replace('{n}', filtrados.length).replace('{total}', pedidos.length)}
                   </span>
-                  {filtrados.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <button type="button"
-                        onClick={() => exportCSV(`pedidos_sl_${hoje}.csv`, CSV_HEADERS, pedidosParaLinhas(filtrados))}
-                        className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
-                        <Download className="h-3.5 w-3.5" strokeWidth={2} /> Excel (CSV)
-                      </button>
-                      <button type="button"
-                        onClick={() => exportPDF(`pedidos_sl_${hoje}.pdf`, t('sl_ped_subtitulo'), CSV_HEADERS, pedidosParaLinhas(filtrados))}
-                        className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition">
-                        <FileText className="h-3.5 w-3.5" strokeWidth={2} /> PDF
-                      </button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <button type="button"
+                      onClick={() => refetch()}
+                      disabled={isFetching}
+                      className="flex items-center gap-1.5 rounded-lg border border-softinsa-200 bg-softinsa-50 px-3 py-1.5 text-xs font-semibold text-softinsa-600 hover:bg-softinsa-100 disabled:opacity-60 transition">
+                      <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} strokeWidth={2} />
+                      {t('sl_ped_atualizar')}
+                    </button>
+                    {filtrados.length > 0 && (
+                      <>
+                        <button type="button"
+                          onClick={() => exportCSV(`pedidos_sl_${hoje}.csv`, CSV_HEADERS, pedidosParaLinhas(filtrados))}
+                          className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition">
+                          <Download className="h-3.5 w-3.5" strokeWidth={2} /> Excel (CSV)
+                        </button>
+                        <button type="button"
+                          onClick={() => exportPDF(`pedidos_sl_${hoje}.pdf`, t('sl_ped_subtitulo'), CSV_HEADERS, pedidosParaLinhas(filtrados))}
+                          className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-100 transition">
+                          <FileText className="h-3.5 w-3.5" strokeWidth={2} /> PDF
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">

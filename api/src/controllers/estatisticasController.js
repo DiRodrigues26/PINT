@@ -863,17 +863,23 @@ async function atividadeTalent(req, res, next) {
     const aprovacoes = Number(stats.aprovacoes) || 0;
     const taxa = total > 0 ? Math.round((aprovacoes / total) * 100) : 0;
 
+    const limite = Math.min(Math.max(parseInt(req.query.limite, 10) || 10, 1), 1000);
+
     const [atividade] = await pool.query(
       `SELECT av.decisao, av.comentario, av.data_avaliacao,
-              b.titulo AS badge_titulo, u.nome AS nome_consultor
+              b.titulo AS badge_titulo, u.nome AS nome_consultor,
+              a.nome AS nome_area, sl.nome AS nome_service_line
          FROM avaliacao_candidatura av
          JOIN candidatura_badge cb ON cb.id_candidatura = av.id_candidatura
          JOIN badge b              ON b.id_badge = cb.id_badge
+         JOIN nivel n              ON n.id_nivel = b.id_nivel
+         JOIN area a               ON a.id_area = n.id_area
+         JOIN service_line sl      ON sl.id_service_line = a.id_service_line
          JOIN utilizador u         ON u.id_utilizador = cb.id_consultor
         WHERE av.id_avaliador = ? AND av.tipo_avaliador = 'TALENT_MANAGER'
         ORDER BY av.data_avaliacao DESC
-        LIMIT 10`,
-      [idTM]
+        LIMIT ?`,
+      [idTM, limite]
     );
 
     res.json({

@@ -11,7 +11,7 @@ import { api, extrairErro } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { exportCSV } from '../../lib/exportUtils';
+import { exportCSV, exportPDF } from '../../lib/exportUtils';
 
 function formatarDataHora(d) {
   if (!d) return '—';
@@ -96,25 +96,44 @@ export default function TalentPerfil() {
     } catch { toast.error('Não foi possível copiar.'); }
   }
 
-  async function exportar(tipo) {
+  async function exportar(tipo, formato) {
     try {
+      let headers = [], rows = [];
       if (tipo === 'Candidaturas') {
         const { data } = await api.get('/api/candidaturas?por_pagina=200');
-        exportCSV('candidaturas.csv', ['Consultor', 'Badge', 'Área', 'Estado', 'Pontos'],
-          (data.dados || []).map(c => [c.nome_consultor, c.titulo_badge, c.nome_area, c.estado_atual, c.pontos]));
+        headers = ['Consultor', 'Badge', 'Área', 'Estado', 'Pontos'];
+        rows = (data.dados || []).map(c => [c.nome_consultor, c.titulo_badge, c.nome_area, c.estado_atual, c.pontos]);
       } else if (tipo === 'Badges') {
         const { data } = await api.get('/api/badges?ativo=1&por_pagina=200');
-        exportCSV('badges.csv', ['Badge', 'Service Line', 'Área', 'Nível', 'Pontos'],
-          (data.dados || []).map(b => [b.titulo, b.nome_service_line, b.nome_area, b.codigo_nivel, b.pontos]));
+        headers = ['Badge', 'Service Line', 'Área', 'Nível', 'Pontos'];
+        rows = (data.dados || []).map(b => [b.titulo, b.nome_service_line, b.nome_area, b.codigo_nivel, b.pontos]);
       } else if (tipo === 'Consultores') {
         const { data } = await api.get('/api/estatisticas/ranking?limite=100');
-        exportCSV('consultores.csv', ['Nome', 'Service Line', 'Área', 'Badges', 'Pontos'],
-          (data.dados || []).map(c => [c.nome, c.nome_service_line, c.nome_area, c.total_badges, c.pontos_totais]));
-      } else {
-        exportCSV('decisoes.csv', ['Badge', 'Consultor', 'Decisão', 'Data'],
-          atividade.map(a => [a.badge_titulo, a.nome_consultor, a.decisao, formatarDataHora(a.data_avaliacao)]));
+        headers = ['Nome', 'Service Line', 'Área', 'Badges', 'Pontos'];
+        rows = (data.dados || []).map(c => [c.nome, c.nome_service_line, c.nome_area, c.total_badges, c.pontos_totais]);
+      } else if (tipo === 'Aprovações' || tipo === 'Rejeições') {
+        const { data } = await api.get('/api/estatisticas/talent-atividade?limite=1000');
+        const alvo = tipo === 'Aprovações' ? 'CORRETO' : 'INCORRETO';
+        headers = ['Consultor', 'Badge', 'Área', 'Service Line', 'Data', 'Comentário'];
+        rows = (data.atividade || [])
+          .filter(a => a.decisao === alvo)
+          .map(a => [a.nome_consultor, a.badge_titulo, a.nome_area, a.nome_service_line, formatarDataHora(a.data_avaliacao), a.comentario || '']);
       }
-      toast.success(`${tipo} exportado.`);
+
+      if (rows.length === 0) { toast.error(`Sem dados de ${tipo} para exportar.`); return; }
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      const NOME_FICHEIRO = {
+        Candidaturas: 'candidaturas', Badges: 'badges', Consultores: 'consultores',
+        'Aprovações': 'aprovacoes', 'Rejeições': 'rejeicoes',
+      };
+      const base = NOME_FICHEIRO[tipo] || 'exportacao';
+      if (formato === 'pdf') {
+        exportPDF(`${base}_${stamp}.pdf`, tipo, headers, rows);
+      } else {
+        exportCSV(`${base}_${stamp}.csv`, headers, rows);
+      }
+      toast.success(`${tipo} exportado (${formato === 'pdf' ? 'PDF' : 'Excel'}).`);
     } catch (e) { toast.error(extrairErro(e)); }
   }
 
@@ -265,11 +284,30 @@ export default function TalentPerfil() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <h3 className="text-base font-bold text-slate-900">Acesso Rápido - Exportação</h3>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {[{ l: 'Candidaturas', i: FileText }, { l: 'Badges', i: Award }, { l: 'Consultores', i: Users }, { l: 'Decisões', i: ClipboardList }].map(({ l, i: Icon }) => (
-                  <button key={l} onClick={() => exportar(l)} className="flex flex-col items-center gap-2 rounded-xl border border-slate-200 py-5 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:bg-slate-50">
-                    <Icon className="h-5 w-5 text-softinsa-500" /> {l}
-                  </button>
+              <p className="mt-1 text-xs text-slate-400">Exporta cada conjunto de dados em Excel (CSV) ou PDF.</p>
+              <div className="mt-4 space-y-2.5">
+                {[
+                  { l: 'Candidaturas', i: FileText },
+                  { l: 'Badges', i: Award },
+                  { l: 'Consultores', i: Users },
+                  { l: 'Aprovações', i: CheckCircle },
+                  { l: 'Rejeições', i: XCircle },
+                ].map(({ l, i: Icon }) => (
+                  <div key={l} className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3">
+                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                      <Icon className="h-5 w-5 text-softinsa-500" /> {l}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => exportar(l, 'excel')}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+                        Excel
+                      </button>
+                      <button onClick={() => exportar(l, 'pdf')}
+                        className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-600 transition hover:bg-rose-100">
+                        PDF
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </section>
