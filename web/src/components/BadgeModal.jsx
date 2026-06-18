@@ -65,7 +65,7 @@ export default function BadgeModal({ idBadge, onFechar }) {
   return (
     /* Overlay */
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      className="fixed inset-x-0 -top-8 bottom-0 z-50 flex items-center justify-center bg-slate-950/85 px-4 pt-8"
       onClick={onFechar}
     >
       {/* Modal */}

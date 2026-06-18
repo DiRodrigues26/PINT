@@ -68,6 +68,28 @@ function dadosAreas(items) {
   return { headers, linhas };
 }
 
+function dependenciasArea(area) {
+  return {
+    niveis: Number(area?.total_niveis) || 0,
+    badges: Number(area?.total_badges) || 0,
+    consultores: Number(area?.total_consultores) || 0,
+  };
+}
+
+function areaTemDependencias(area) {
+  const deps = dependenciasArea(area);
+  return deps.niveis > 0 || deps.badges > 0 || deps.consultores > 0;
+}
+
+function textoDependenciasArea(area) {
+  const deps = dependenciasArea(area);
+  const partes = [];
+  if (deps.niveis) partes.push(`${deps.niveis} nível(eis)`);
+  if (deps.badges) partes.push(`${deps.badges} badge(s)`);
+  if (deps.consultores) partes.push(`${deps.consultores} consultor(es) associado(s)`);
+  return partes.join(', ');
+}
+
 function Modal({ titulo, children, onFechar, icon, iconTone = 'blue', size = 'md' }) {
   const sizeClass = size === 'sm' ? 'max-w-xl' : 'max-w-2xl';
   const iconClass = {
@@ -77,7 +99,7 @@ function Modal({ titulo, children, onFechar, icon, iconTone = 'blue', size = 'md
   }[iconTone];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+    <div className="fixed inset-x-0 -top-8 bottom-0 z-50 flex items-center justify-center bg-slate-950/85 px-4 pt-8">
       <div className={`w-full ${sizeClass} overflow-hidden rounded-[28px] bg-white shadow-xl`}>
         <div className="flex items-center justify-between border-b-4 border-slate-200 px-7 py-5">
           <div className="flex items-center gap-4">
@@ -538,6 +560,7 @@ export default function AdminAreas() {
             <div><div className="text-slate-500">Service Line</div><div className="font-semibold">{modal.area.nome_service_line}</div></div>
             <div><div className="text-slate-500">Níveis</div><div className="font-semibold">{modal.area.total_niveis || 0}</div></div>
             <div><div className="text-slate-500">Badges</div><div className="font-semibold">{modal.area.total_badges || 0}</div></div>
+            <div><div className="text-slate-500">Consultores associados</div><div className="font-semibold">{modal.area.total_consultores || 0}</div></div>
             <div><div className="text-slate-500">Data de Criação</div><div className="font-semibold">{formatarData(modal.area.created_at)}</div></div>
             <div><div className="text-slate-500">Estado</div><div className="font-semibold">{modal.area.ativo ? 'Ativo' : 'Inativo'}</div></div>
             <div className="md:col-span-2"><div className="text-slate-500">Descrição</div><div className="font-semibold">{modal.area.descricao || '—'}</div></div>
@@ -571,16 +594,42 @@ export default function AdminAreas() {
       {modal?.tipo === 'eliminar' && (
         <Modal titulo="Eliminar Área" icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
           <div className="space-y-4 px-7 py-6">
-            <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende eliminar a área “{modal.area.nome}”?
-            </p>
-            <p className="font-medium text-red-500">Esta ação não pode ser revertida!</p>
+            {areaTemDependencias(modal.area) ? (
+              <>
+                <p className="text-base leading-7 text-slate-600">
+                  Não é possível eliminar a área “{modal.area.nome}” porque ainda tem {textoDependenciasArea(modal.area)}.
+                </p>
+                <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                  Remove ou reassocia estas dependências primeiro. Se a área já não deve ser usada, o caminho seguro é desativá-la.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-base leading-7 text-slate-600">
+                  Tem a certeza que pretende eliminar a área “{modal.area.nome}”?
+                </p>
+                <p className="font-medium text-red-500">Esta ação não pode ser revertida!</p>
+              </>
+            )}
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
             <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
-            <button type="button" className="btn bg-red-600 px-7 text-white hover:bg-red-700" disabled={eliminar.isPending} onClick={() => eliminar.mutate()}>
+            {areaTemDependencias(modal.area) && modal.area.ativo ? (
+              <button
+                type="button"
+                className="btn bg-orange-500 px-7 text-white hover:bg-orange-600"
+                disabled={alternarEstado.isPending}
+                onClick={() => {
+                  alternarEstado.mutate(modal.area, { onSuccess: () => setModal(null) });
+                }}
+              >
+                {alternarEstado.isPending ? 'A desativar...' : 'Desativar Área'}
+              </button>
+            ) : (
+              <button type="button" className="btn bg-red-600 px-7 text-white hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400" disabled={eliminar.isPending || areaTemDependencias(modal.area)} onClick={() => eliminar.mutate()}>
               {eliminar.isPending ? 'A eliminar...' : 'Eliminar'}
-            </button>
+              </button>
+            )}
           </div>
         </Modal>
       )}

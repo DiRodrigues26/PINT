@@ -1,5 +1,38 @@
 const { pool } = require('../db/connection');
 
+async function contarDependenciasArea(idArea) {
+  const [[niveis]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM nivel WHERE id_area = ?',
+    [idArea]
+  );
+  const [[badges]] = await pool.query(
+    `SELECT COUNT(*) AS total
+       FROM badge b
+       JOIN nivel n ON n.id_nivel = b.id_nivel
+      WHERE n.id_area = ?`,
+    [idArea]
+  );
+  const [[consultores]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM consultor_area WHERE id_area = ?',
+    [idArea]
+  );
+
+  return {
+    niveis: Number(niveis.total) || 0,
+    badges: Number(badges.total) || 0,
+    consultores: Number(consultores.total) || 0,
+  };
+}
+
+function mensagemDependenciasArea(dependencias) {
+  const partes = [];
+  if (dependencias.niveis) partes.push(`${dependencias.niveis} nível(eis)`);
+  if (dependencias.badges) partes.push(`${dependencias.badges} badge(s)`);
+  if (dependencias.consultores) partes.push(`${dependencias.consultores} consultor(es) associado(s)`);
+
+  return `Não é possível eliminar esta área porque tem ${partes.join(', ')}. Desative a área ou remova/reassocie estas dependências primeiro.`;
+}
+
 async function listar(req, res, next) {
   try {
     const { id_learning_path, id_service_line, pesquisa, ativo, pagina, por_pagina } = req.query;
@@ -27,12 +60,14 @@ async function listar(req, res, next) {
     const [linhas] = await pool.query(
       `SELECT a.*, sl.nome AS nome_service_line, lp.id_learning_path, lp.nome AS nome_learning_path,
               COUNT(DISTINCT n.id_nivel) AS total_niveis,
-              COUNT(DISTINCT b.id_badge) AS total_badges
+              COUNT(DISTINCT b.id_badge) AS total_badges,
+              COUNT(DISTINCT ca.id_consultor_area) AS total_consultores
          FROM area a
          JOIN service_line sl ON sl.id_service_line = a.id_service_line
          JOIN learning_path lp ON lp.id_learning_path = sl.id_learning_path
          LEFT JOIN nivel n ON n.id_area = a.id_area
          LEFT JOIN badge b ON b.id_nivel = n.id_nivel
+         LEFT JOIN consultor_area ca ON ca.id_area = a.id_area
          ${whereSQL}
         GROUP BY a.id_area, a.id_service_line, a.nome, a.descricao, a.ativo,
                  a.created_at, a.updated_at, sl.nome, lp.id_learning_path, lp.nome
@@ -64,12 +99,14 @@ async function obter(req, res, next) {
     const [linhas] = await pool.query(
       `SELECT a.*, sl.nome AS nome_service_line, lp.id_learning_path, lp.nome AS nome_learning_path,
               COUNT(DISTINCT n.id_nivel) AS total_niveis,
-              COUNT(DISTINCT b.id_badge) AS total_badges
+              COUNT(DISTINCT b.id_badge) AS total_badges,
+              COUNT(DISTINCT ca.id_consultor_area) AS total_consultores
          FROM area a
          JOIN service_line sl ON sl.id_service_line = a.id_service_line
          JOIN learning_path lp ON lp.id_learning_path = sl.id_learning_path
          LEFT JOIN nivel n ON n.id_area = a.id_area
          LEFT JOIN badge b ON b.id_nivel = n.id_nivel
+         LEFT JOIN consultor_area ca ON ca.id_area = a.id_area
         WHERE a.id_area = ?
         GROUP BY a.id_area, a.id_service_line, a.nome, a.descricao, a.ativo,
                  a.created_at, a.updated_at, sl.nome, lp.id_learning_path, lp.nome`,
@@ -119,6 +156,17 @@ async function atualizar(req, res, next) {
 
 async function eliminar(req, res, next) {
   try {
+    const [area] = await pool.query('SELECT id_area FROM area WHERE id_area = ?', [req.params.id]);
+    if (area.length === 0) return res.status(404).json({ erro: 'Área não encontrada.' });
+
+    const dependencias = await contarDependenciasArea(req.params.id);
+    if (dependencias.niveis || dependencias.badges || dependencias.consultores) {
+      return res.status(409).json({
+        erro: mensagemDependenciasArea(dependencias),
+        dependencias,
+      });
+    }
+
     const [result] = await pool.query('DELETE FROM area WHERE id_area = ?', [req.params.id]);
     if (result.affectedRows === 0) return res.status(404).json({ erro: 'Área não encontrada.' });
     res.json({ mensagem: 'Área eliminada.' });

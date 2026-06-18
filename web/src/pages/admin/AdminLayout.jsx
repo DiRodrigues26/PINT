@@ -101,7 +101,7 @@ export default function AdminLayout() {
       </div>
 
       {mostrarLogout && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="fixed inset-x-0 -top-8 bottom-0 z-50 flex items-center justify-center bg-slate-950/85 px-4 pt-8">
           <section className="w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
               <h2 className="text-2xl font-bold text-slate-900">Terminar sessão</h2>

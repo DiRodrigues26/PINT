@@ -263,7 +263,7 @@ export default function AdminNotificacoes() {
       </section>
 
       {confirmar && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+        <div className="fixed inset-x-0 -top-8 bottom-0 z-50 flex items-center justify-center bg-slate-950/85 px-4 pt-8">
           <div className="w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-xl">
             <div className="flex items-center gap-4 border-b-4 border-slate-200 px-7 py-5">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-red-600">
