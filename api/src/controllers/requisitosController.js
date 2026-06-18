@@ -1,5 +1,20 @@
 const { pool } = require('../db/connection');
 
+async function contarDependenciasRequisito(idRequisito) {
+  const [[evidencias]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM evidencia WHERE id_requisito = ?',
+    [idRequisito]
+  );
+
+  return {
+    evidencias: Number(evidencias.total) || 0,
+  };
+}
+
+function mensagemDependenciasRequisito(dependencias) {
+  return `Não é possível eliminar este requisito porque tem ${dependencias.evidencias} evidência(s) submetida(s). Desative o requisito ou remova/reassocie estas dependências primeiro.`;
+}
+
 async function listar(req, res, next) {
   try {
     const { id_badge, id_nivel, codigo_nivel, tipo_evidencia, ativo, pesquisa, pagina, por_pagina } = req.query;
@@ -205,6 +220,17 @@ async function atualizar(req, res, next) {
 
 async function eliminar(req, res, next) {
   try {
+    const [requisito] = await pool.query('SELECT id_requisito FROM requisito WHERE id_requisito = ?', [req.params.id]);
+    if (requisito.length === 0) return res.status(404).json({ erro: 'Requisito não encontrado.' });
+
+    const dependencias = await contarDependenciasRequisito(req.params.id);
+    if (dependencias.evidencias) {
+      return res.status(409).json({
+        erro: mensagemDependenciasRequisito(dependencias),
+        dependencias,
+      });
+    }
+
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();

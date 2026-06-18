@@ -1,5 +1,29 @@
 const { pool } = require('../db/connection');
 
+async function contarDependenciasBadge(idBadge) {
+  const [[candidaturas]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM candidatura_badge WHERE id_badge = ?',
+    [idBadge]
+  );
+  const [[atribuidos]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM badge_atribuido WHERE id_badge = ?',
+    [idBadge]
+  );
+
+  return {
+    candidaturas: Number(candidaturas.total) || 0,
+    badges_atribuidos: Number(atribuidos.total) || 0,
+  };
+}
+
+function mensagemDependenciasBadge(dependencias) {
+  const partes = [];
+  if (dependencias.candidaturas) partes.push(`${dependencias.candidaturas} candidatura(s)`);
+  if (dependencias.badges_atribuidos) partes.push(`${dependencias.badges_atribuidos} badge(s) atribuído(s)`);
+
+  return `Não é possível eliminar este badge porque tem ${partes.join(', ')}. Desative o badge ou remova/reassocie estas dependências primeiro.`;
+}
+
 async function listar(req, res, next) {
   try {
     const {
@@ -249,6 +273,17 @@ async function atualizar(req, res, next) {
 
 async function eliminar(req, res, next) {
   try {
+    const [badge] = await pool.query('SELECT id_badge FROM badge WHERE id_badge = ?', [req.params.id]);
+    if (badge.length === 0) return res.status(404).json({ erro: 'Badge não encontrado.' });
+
+    const dependencias = await contarDependenciasBadge(req.params.id);
+    if (dependencias.candidaturas || dependencias.badges_atribuidos) {
+      return res.status(409).json({
+        erro: mensagemDependenciasBadge(dependencias),
+        dependencias,
+      });
+    }
+
     const [result] = await pool.query('DELETE FROM badge WHERE id_badge = ?', [req.params.id]);
     if (result.affectedRows === 0) return res.status(404).json({ erro: 'Badge não encontrado.' });
     res.json({ mensagem: 'Badge eliminado.' });

@@ -14,6 +14,7 @@ import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { formatarData } from '../../lib/formatar';
+import Paginacao from '../../components/admin/Paginacao';
 
 const POR_PAGINA = 8;
 
@@ -336,18 +337,14 @@ export default function AdminPontos({ onEditarBadge }) {
                 </tbody>
               </table>
             </div>
-            <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-6 py-4 text-sm text-slate-500 md:flex-row">
-              <span>Mostrando {lista.length} de {total} resultados</span>
-              <div className="flex items-center gap-3">
-                <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)} aria-label="Página anterior">
-                  &lt;
-                </button>
-                <span className="rounded-md bg-softinsa-600 px-4 py-2 font-semibold text-white">{pagina}</span>
-                <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)} aria-label="Página seguinte">
-                  &gt;
-                </button>
-              </div>
-            </footer>
+            <Paginacao
+              pagina={pagina}
+              totalPaginas={totalPaginas}
+              total={total}
+              porPagina={badges.data?.por_pagina || POR_PAGINA}
+              itensNaPagina={lista.length}
+              onMudarPagina={setPagina}
+            />
           </section>
         </div>
 

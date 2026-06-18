@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ChevronLeft,
-  ChevronRight,
   CalendarDays,
   Download,
   Eye,
@@ -21,6 +19,7 @@ import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
 import UploadImagemAdmin from '../../components/UploadImagemAdmin';
+import Paginacao from '../../components/admin/Paginacao';
 
 const ICONES = {
   calendar: CalendarDays,
@@ -28,10 +27,8 @@ const ICONES = {
   edit: Pencil,
   eye: Eye,
   file: FileText,
-  left: ChevronLeft,
   plus: Plus,
   power: Power,
-  right: ChevronRight,
   search: Search,
   trash: Trash2,
   warning: TriangleAlert,
@@ -710,35 +707,16 @@ function FormBadge({
                 )}
               </tbody>
             </table>
-            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 px-6 py-3 text-sm text-slate-500 md:flex-row">
-              <span>
-                A mostrar {requisitosFiltrados.length === 0 ? 0 : inicioRequisitos + 1}
-                {' '}a {Math.min(inicioRequisitos + requisitosVisiveis.length, requisitosFiltrados.length)}
-                {' '}de {requisitosFiltrados.length} resultados
-              </span>
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  className="btn-secondary h-10 w-10 px-0 disabled:opacity-40"
-                  disabled={paginaRequisitosAtual <= 1}
-                  onClick={() => mudarPaginaRequisitos(-1)}
-                  aria-label="Página anterior de requisitos"
-                >
-                  <Icon nome="left" className="h-5 w-5" />
-                </button>
-                <span className="font-semibold text-slate-700">
-                  Página {paginaRequisitosAtual} de {totalPaginasRequisitos}
-                </span>
-                <button
-                  type="button"
-                  className="btn-secondary h-10 w-10 px-0 disabled:opacity-40"
-                  disabled={paginaRequisitosAtual >= totalPaginasRequisitos}
-                  onClick={() => mudarPaginaRequisitos(1)}
-                  aria-label="Página seguinte de requisitos"
-                >
-                  <Icon nome="right" className="h-5 w-5" />
-                </button>
-              </div>
+            <Paginacao
+              as="div"
+              pagina={paginaRequisitosAtual}
+              totalPaginas={totalPaginasRequisitos}
+              total={requisitosFiltrados.length}
+              porPagina={requisitosPorPagina}
+              itensNaPagina={requisitosVisiveis.length}
+              onMudarPagina={(novaPagina) => mudarPaginaRequisitos(novaPagina - paginaRequisitosAtual)}
+              className="gap-3 px-6 py-3"
+            >
               <button
                 type="button"
                 className="btn-primary"
@@ -746,7 +724,7 @@ function FormBadge({
               >
                 <Icon nome="plus" className="h-4 w-4" /> Criar Requisito
               </button>
-            </div>
+            </Paginacao>
           </div>
 
           {form.novoRequisito.aberto && (
@@ -1231,18 +1209,14 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
             </tbody>
           </table>
         </div>
-        <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-6 py-4 text-sm text-slate-500 md:flex-row">
-          <span>Mostrando {lista.length} de {total} resultados</span>
-          <div className="flex items-center gap-3">
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)} aria-label="Página anterior">
-              <Icon nome="left" className="h-5 w-5" />
-            </button>
-            <span className="rounded-md bg-softinsa-600 px-4 py-2 font-semibold text-white">{pagina}</span>
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)} aria-label="Página seguinte">
-              <Icon nome="right" className="h-5 w-5" />
-            </button>
-          </div>
-        </footer>
+        <Paginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          total={total}
+          porPagina={porPagina}
+          itensNaPagina={lista.length}
+          onMudarPagina={setPagina}
+        />
       </section>
 
       {['criar', 'editar'].includes(modal?.tipo) && (

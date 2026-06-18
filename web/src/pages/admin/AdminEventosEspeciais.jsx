@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Calendar,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Eye,
   FileText,
@@ -20,6 +18,7 @@ import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
 import UploadImagemAdmin from '../../components/UploadImagemAdmin';
+import Paginacao from '../../components/admin/Paginacao';
 
 const NIVEIS = {
   A: 'Júnior',
@@ -51,10 +50,8 @@ const ICONES = {
   edit: Pencil,
   eye: Eye,
   file: FileText,
-  left: ChevronLeft,
   plus: Plus,
   power: Power,
-  right: ChevronRight,
   search: Search,
   trash: Trash2,
   warning: TriangleAlert,
@@ -392,17 +389,20 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
                 )}
               </tbody>
             </table>
-            <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-200 px-6 py-3 text-sm text-slate-500 md:flex-row">
-              <span>A mostrar {requisitosFiltrados.length} de {requisitos.length} resultados</span>
-              <div className="flex items-center gap-3">
-                <button type="button" className="btn-secondary h-10 w-10 px-0 opacity-40" disabled><Icon nome="left" className="h-5 w-5" /></button>
-                <span className="font-semibold text-slate-700">Página 1 de 1</span>
-                <button type="button" className="btn-secondary h-10 w-10 px-0 opacity-40" disabled><Icon nome="right" className="h-5 w-5" /></button>
-              </div>
+            <Paginacao
+              as="div"
+              pagina={1}
+              totalPaginas={1}
+              total={requisitosFiltrados.length}
+              porPagina={Math.max(1, requisitosFiltrados.length || 1)}
+              itensNaPagina={requisitosFiltrados.length}
+              onMudarPagina={() => {}}
+              className="gap-3 px-6 py-3"
+            >
               <button type="button" className="btn-primary" onClick={() => toast('Criação de requisitos especiais será implementada a seguir.')}>
                 <Icon nome="plus" className="h-4 w-4" /> Criar Requisito
               </button>
-            </div>
+            </Paginacao>
           </div>
         </div>
 
@@ -764,18 +764,14 @@ export default function AdminEventosEspeciais() {
             </tbody>
           </table>
         </div>
-        <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-6 py-4 text-sm text-slate-500 md:flex-row">
-          <span>A mostrar {lista.length} de {total} resultados</span>
-          <div className="flex items-center gap-3">
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)} aria-label="Página anterior">
-              <Icon nome="left" className="h-5 w-5" />
-            </button>
-            <span className="font-semibold text-slate-700">Página {pagina} de {totalPaginas}</span>
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)} aria-label="Página seguinte">
-              <Icon nome="right" className="h-5 w-5" />
-            </button>
-          </div>
-        </footer>
+        <Paginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          total={total}
+          porPagina={porPagina}
+          itensNaPagina={lista.length}
+          onMudarPagina={setPagina}
+        />
       </section>
 
       {['criar', 'editar'].includes(modal?.tipo) && (

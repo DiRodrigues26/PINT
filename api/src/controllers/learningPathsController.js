@@ -1,5 +1,53 @@
 const { pool } = require('../db/connection');
 
+async function contarDependenciasLearningPath(idLearningPath) {
+  const [[serviceLines]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM service_line WHERE id_learning_path = ?',
+    [idLearningPath]
+  );
+  const [[areas]] = await pool.query(
+    `SELECT COUNT(*) AS total
+       FROM area a
+       JOIN service_line sl ON sl.id_service_line = a.id_service_line
+      WHERE sl.id_learning_path = ?`,
+    [idLearningPath]
+  );
+  const [[niveis]] = await pool.query(
+    `SELECT COUNT(*) AS total
+       FROM nivel n
+       JOIN area a ON a.id_area = n.id_area
+       JOIN service_line sl ON sl.id_service_line = a.id_service_line
+      WHERE sl.id_learning_path = ?`,
+    [idLearningPath]
+  );
+  const [[badges]] = await pool.query(
+    `SELECT COUNT(*) AS total
+       FROM badge b
+       JOIN nivel n ON n.id_nivel = b.id_nivel
+       JOIN area a ON a.id_area = n.id_area
+       JOIN service_line sl ON sl.id_service_line = a.id_service_line
+      WHERE sl.id_learning_path = ?`,
+    [idLearningPath]
+  );
+
+  return {
+    service_lines: Number(serviceLines.total) || 0,
+    areas: Number(areas.total) || 0,
+    niveis: Number(niveis.total) || 0,
+    badges: Number(badges.total) || 0,
+  };
+}
+
+function mensagemDependenciasLearningPath(dependencias) {
+  const partes = [];
+  if (dependencias.service_lines) partes.push(`${dependencias.service_lines} service line(s)`);
+  if (dependencias.areas) partes.push(`${dependencias.areas} área(s)`);
+  if (dependencias.niveis) partes.push(`${dependencias.niveis} nível(eis)`);
+  if (dependencias.badges) partes.push(`${dependencias.badges} badge(s)`);
+
+  return `Não é possível eliminar este learning path porque tem ${partes.join(', ')}. Desative o learning path ou remova/reassocie estas dependências primeiro.`;
+}
+
 async function listar(req, res, next) {
   try {
     const { pesquisa, ativo, pagina = 1, por_pagina = 5 } = req.query;
@@ -105,6 +153,17 @@ async function atualizar(req, res, next) {
 
 async function eliminar(req, res, next) {
   try {
+    const [learningPath] = await pool.query('SELECT id_learning_path FROM learning_path WHERE id_learning_path = ?', [req.params.id]);
+    if (learningPath.length === 0) return res.status(404).json({ erro: 'Learning path não encontrado.' });
+
+    const dependencias = await contarDependenciasLearningPath(req.params.id);
+    if (dependencias.service_lines || dependencias.areas || dependencias.niveis || dependencias.badges) {
+      return res.status(409).json({
+        erro: mensagemDependenciasLearningPath(dependencias),
+        dependencias,
+      });
+    }
+
     const [result] = await pool.query(
       'DELETE FROM learning_path WHERE id_learning_path = ?',
       [req.params.id]

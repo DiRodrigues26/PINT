@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ChevronLeft,
-  ChevronRight,
   Download,
   Eye,
   FileText,
@@ -17,6 +15,7 @@ import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import UploadImagemAdmin from '../../components/UploadImagemAdmin';
+import Paginacao from '../../components/admin/Paginacao';
 
 const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Badge', 'Outro'];
 
@@ -44,9 +43,7 @@ const ICONES = {
   edit: Pencil,
   eye: Eye,
   file: FileText,
-  left: ChevronLeft,
   power: Power,
-  right: ChevronRight,
   search: Search,
   trash: Trash2,
   warning: TriangleAlert,
@@ -459,18 +456,14 @@ export default function AdminRequisitos() {
             </tbody>
           </table>
         </div>
-        <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-6 py-4 text-sm text-slate-500 md:flex-row">
-          <span>A mostrar {lista.length} de {total} resultados</span>
-          <div className="flex items-center gap-3">
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)} aria-label="Página anterior">
-              <Icon nome="left" className="h-5 w-5" />
-            </button>
-            <span className="font-semibold text-slate-700">Página {pagina} de {totalPaginas}</span>
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)} aria-label="Página seguinte">
-              <Icon nome="right" className="h-5 w-5" />
-            </button>
-          </div>
-        </footer>
+        <Paginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          total={total}
+          porPagina={porPagina}
+          itensNaPagina={lista.length}
+          onMudarPagina={setPagina}
+        />
       </section>
 
       {modal?.tipo === 'editar' && (

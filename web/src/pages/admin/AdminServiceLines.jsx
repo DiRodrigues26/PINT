@@ -1,8 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ChevronLeft,
-  ChevronRight,
   Download,
   Eye,
   FileText,
@@ -18,6 +16,7 @@ import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
+import Paginacao from '../../components/admin/Paginacao';
 
 const ESTADO_INICIAL = {
   nome: '',
@@ -37,8 +36,6 @@ const ICONES = {
   trash: Trash2,
   warning: TriangleAlert,
   plus: Plus,
-  left: ChevronLeft,
-  right: ChevronRight,
 };
 
 function Icon({ nome, className = 'h-5 w-5' }) {
@@ -405,18 +402,16 @@ export default function AdminServiceLines() {
         </div>
       </section>
 
-      <footer className="flex flex-col items-center justify-between gap-4 text-sm text-slate-500 md:flex-row">
-        <span>Página {pagina} de {totalPaginas}</span>
-        <div className="flex items-center gap-3">
-          <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)} aria-label="Página anterior">
-            <Icon nome="left" className="h-5 w-5" />
-          </button>
-          <span className="rounded-md bg-softinsa-600 px-4 py-2 font-semibold text-white">{pagina}</span>
-          <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)} aria-label="Página seguinte">
-            <Icon nome="right" className="h-5 w-5" />
-          </button>
-        </div>
-      </footer>
+      <Paginacao
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        total={total}
+        porPagina={porPagina}
+        itensNaPagina={lista.length}
+        onMudarPagina={setPagina}
+        className="px-0 py-0"
+        comBorda={false}
+      />
 
       {modal?.tipo === 'criar' && (
         <Modal titulo="Criar Service Line" onFechar={() => setModal(null)}>

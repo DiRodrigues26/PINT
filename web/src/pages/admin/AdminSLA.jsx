@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Bell,
-  ChevronLeft,
-  ChevronRight,
   Download,
   Eye,
   FileText,
@@ -14,6 +12,7 @@ import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { estadoCandidatura } from '../../lib/formatar';
 import { DetalheCandidatura, Modal } from './AdminCandidaturas';
+import Paginacao from '../../components/admin/Paginacao';
 
 const CONFIG_INICIAL = {
   TALENT_REVIEW: { limite: 48, unidade: 'horas', ativo: true },
@@ -38,8 +37,6 @@ const ICONES = {
   download: Download,
   eye: Eye,
   file: FileText,
-  left: ChevronLeft,
-  right: ChevronRight,
   save: Save,
 };
 
@@ -279,18 +276,14 @@ export default function AdminSLA() {
               </tbody>
             </table>
           </div>
-          <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-6 py-4 text-sm text-slate-500 md:flex-row">
-            <span>A mostrar {visiveis.length} de {itens.length} resultados</span>
-            <div className="flex items-center gap-3">
-              <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={paginaAtual <= 1} onClick={() => setPagina((p) => p - 1)} aria-label="Página anterior">
-                <Icon nome="left" className="h-5 w-5" />
-              </button>
-              <span className="font-semibold text-slate-700">Página {paginaAtual} de {totalPaginas}</span>
-              <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={paginaAtual >= totalPaginas} onClick={() => setPagina((p) => p + 1)} aria-label="Página seguinte">
-                <Icon nome="right" className="h-5 w-5" />
-              </button>
-            </div>
-          </footer>
+          <Paginacao
+            pagina={paginaAtual}
+            totalPaginas={totalPaginas}
+            total={itens.length}
+            porPagina={porPagina}
+            itensNaPagina={visiveis.length}
+            onMudarPagina={setPagina}
+          />
         </div>
       </section>
 

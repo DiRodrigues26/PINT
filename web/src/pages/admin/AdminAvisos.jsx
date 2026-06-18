@@ -1,8 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ChevronLeft,
-  ChevronRight,
   Eye,
   FileText,
   Pencil,
@@ -17,6 +15,7 @@ import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData, formatarDataHora } from '../../lib/formatar';
+import Paginacao from '../../components/admin/Paginacao';
 
 const ESTADO_INICIAL = {
   titulo: '',
@@ -45,8 +44,6 @@ const ICONES = {
   trash: Trash2,
   warning: TriangleAlert,
   plus: Plus,
-  left: ChevronLeft,
-  right: ChevronRight,
 };
 
 function Icon({ nome, className = 'h-5 w-5' }) {
@@ -420,18 +417,15 @@ export default function AdminAvisos() {
             </tbody>
           </table>
         </div>
-        <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-10 py-5 text-sm text-slate-500 md:flex-row">
-          <span>A mostrar {lista.length ? ((paginaAtual - 1) * POR_PAGINA) + 1 : 0} de {total} resultados</span>
-          <div className="flex items-center gap-3">
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={paginaAtual <= 1} onClick={() => setPagina((p) => p - 1)} aria-label="Página anterior">
-              <Icon nome="left" className="h-5 w-5" />
-            </button>
-            <span className="font-semibold text-slate-800">Página {paginaAtual} de {totalPaginas}</span>
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={paginaAtual >= totalPaginas} onClick={() => setPagina((p) => p + 1)} aria-label="Página seguinte">
-              <Icon nome="right" className="h-5 w-5" />
-            </button>
-          </div>
-        </footer>
+        <Paginacao
+          pagina={paginaAtual}
+          totalPaginas={totalPaginas}
+          total={total}
+          porPagina={POR_PAGINA}
+          itensNaPagina={lista.length}
+          onMudarPagina={setPagina}
+          className="px-10 py-5"
+        />
       </section>
 
       {modal?.tipo === 'criar' && (

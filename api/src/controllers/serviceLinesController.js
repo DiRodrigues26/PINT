@@ -1,5 +1,48 @@
 const { pool } = require('../db/connection');
 
+async function contarDependenciasServiceLine(idServiceLine) {
+  const [[areas]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM area WHERE id_service_line = ?',
+    [idServiceLine]
+  );
+  const [[niveis]] = await pool.query(
+    `SELECT COUNT(*) AS total
+       FROM nivel n
+       JOIN area a ON a.id_area = n.id_area
+      WHERE a.id_service_line = ?`,
+    [idServiceLine]
+  );
+  const [[badges]] = await pool.query(
+    `SELECT COUNT(*) AS total
+       FROM badge b
+       JOIN nivel n ON n.id_nivel = b.id_nivel
+       JOIN area a ON a.id_area = n.id_area
+      WHERE a.id_service_line = ?`,
+    [idServiceLine]
+  );
+  const [[responsaveis]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM service_line_responsavel WHERE id_service_line = ?',
+    [idServiceLine]
+  );
+
+  return {
+    areas: Number(areas.total) || 0,
+    niveis: Number(niveis.total) || 0,
+    badges: Number(badges.total) || 0,
+    responsaveis: Number(responsaveis.total) || 0,
+  };
+}
+
+function mensagemDependenciasServiceLine(dependencias) {
+  const partes = [];
+  if (dependencias.areas) partes.push(`${dependencias.areas} área(s)`);
+  if (dependencias.niveis) partes.push(`${dependencias.niveis} nível(eis)`);
+  if (dependencias.badges) partes.push(`${dependencias.badges} badge(s)`);
+  if (dependencias.responsaveis) partes.push(`${dependencias.responsaveis} responsável(eis) associado(s)`);
+
+  return `Não é possível eliminar esta service line porque tem ${partes.join(', ')}. Desative a service line ou remova/reassocie estas dependências primeiro.`;
+}
+
 async function listar(req, res, next) {
   try {
     const { id_learning_path, pesquisa, ativo, pagina, por_pagina } = req.query;
@@ -118,6 +161,17 @@ async function atualizar(req, res, next) {
 
 async function eliminar(req, res, next) {
   try {
+    const [serviceLine] = await pool.query('SELECT id_service_line FROM service_line WHERE id_service_line = ?', [req.params.id]);
+    if (serviceLine.length === 0) return res.status(404).json({ erro: 'Service line não encontrada.' });
+
+    const dependencias = await contarDependenciasServiceLine(req.params.id);
+    if (dependencias.areas || dependencias.niveis || dependencias.badges || dependencias.responsaveis) {
+      return res.status(409).json({
+        erro: mensagemDependenciasServiceLine(dependencias),
+        dependencias,
+      });
+    }
+
     const [result] = await pool.query(
       'DELETE FROM service_line WHERE id_service_line = ?',
       [req.params.id]

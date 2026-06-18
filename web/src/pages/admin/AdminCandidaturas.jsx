@@ -3,8 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CheckCircle,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   FileText,
   History,
@@ -18,6 +16,7 @@ import {
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { estadoCandidatura, formatarData, formatarDataHora } from '../../lib/formatar';
+import Paginacao from '../../components/admin/Paginacao';
 
 const ESTADOS = [
   ['OPEN', 'Em preparação'],
@@ -35,9 +34,7 @@ const ICONES = {
   eye: Eye,
   file: FileText,
   history: History,
-  left: ChevronLeft,
   message: MessageSquare,
-  right: ChevronRight,
   search: Search,
   send: Send,
   user: UserRound,
@@ -518,18 +515,15 @@ export default function AdminCandidaturas() {
             </tbody>
           </table>
         </div>
-        <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-6 py-4 text-sm text-slate-500 md:flex-row">
-          <span>A mostrar {lista.length} de {total} pedidos</span>
-          <div className="flex items-center gap-3">
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)} aria-label="Página anterior">
-              <Icon nome="left" className="h-5 w-5" />
-            </button>
-            <span className="rounded-md bg-softinsa-600 px-4 py-2 font-semibold text-white">{pagina}</span>
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)} aria-label="Página seguinte">
-              <Icon nome="right" className="h-5 w-5" />
-            </button>
-          </div>
-        </footer>
+        <Paginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          total={total}
+          porPagina={porPagina}
+          itensNaPagina={lista.length}
+          onMudarPagina={setPagina}
+          rotulo="pedidos"
+        />
       </section>
 
       {modal?.tipo === 'detalhe' && (

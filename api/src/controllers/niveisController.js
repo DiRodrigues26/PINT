@@ -1,5 +1,35 @@
 const { pool } = require('../db/connection');
 
+async function contarDependenciasNivel(idNivel) {
+  const [[badges]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM badge WHERE id_nivel = ?',
+    [idNivel]
+  );
+  const [[requisitos]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM requisito WHERE id_nivel = ?',
+    [idNivel]
+  );
+  const [[eventos]] = await pool.query(
+    'SELECT COUNT(*) AS total FROM evento_especial WHERE id_nivel = ?',
+    [idNivel]
+  );
+
+  return {
+    badges: Number(badges.total) || 0,
+    requisitos: Number(requisitos.total) || 0,
+    eventos_especiais: Number(eventos.total) || 0,
+  };
+}
+
+function mensagemDependenciasNivel(dependencias) {
+  const partes = [];
+  if (dependencias.badges) partes.push(`${dependencias.badges} badge(s)`);
+  if (dependencias.requisitos) partes.push(`${dependencias.requisitos} requisito(s)`);
+  if (dependencias.eventos_especiais) partes.push(`${dependencias.eventos_especiais} evento(s) especial(ais)`);
+
+  return `Não é possível eliminar este nível porque tem ${partes.join(', ')}. Desative o nível ou remova/reassocie estas dependências primeiro.`;
+}
+
 async function listar(req, res, next) {
   try {
     const { id_learning_path, id_service_line, id_area, pesquisa, ativo, pagina, por_pagina } = req.query;
@@ -145,6 +175,17 @@ async function atualizar(req, res, next) {
 
 async function eliminar(req, res, next) {
   try {
+    const [nivel] = await pool.query('SELECT id_nivel FROM nivel WHERE id_nivel = ?', [req.params.id]);
+    if (nivel.length === 0) return res.status(404).json({ erro: 'Nível não encontrado.' });
+
+    const dependencias = await contarDependenciasNivel(req.params.id);
+    if (dependencias.badges || dependencias.requisitos || dependencias.eventos_especiais) {
+      return res.status(409).json({
+        erro: mensagemDependenciasNivel(dependencias),
+        dependencias,
+      });
+    }
+
     const [result] = await pool.query('DELETE FROM nivel WHERE id_nivel = ?', [req.params.id]);
     if (result.affectedRows === 0) return res.status(404).json({ erro: 'Nível não encontrado.' });
     res.json({ mensagem: 'Nível eliminado.' });

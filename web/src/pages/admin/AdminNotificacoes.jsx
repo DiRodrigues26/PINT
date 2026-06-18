@@ -5,8 +5,6 @@ import {
   Archive,
   Bell,
   CheckCheck,
-  ChevronLeft,
-  ChevronRight,
   Eye,
   Search,
   Settings,
@@ -16,6 +14,7 @@ import {
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { formatarData } from '../../lib/formatar';
+import Paginacao from '../../components/admin/Paginacao';
 
 const POR_PAGINA = 8;
 const TOPBAR_NOTIFICACOES_QUERY_KEY = ['topbar-notificacoes-nao-lidas'];
@@ -248,18 +247,15 @@ export default function AdminNotificacoes() {
             </tbody>
           </table>
         </div>
-        <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-10 py-5 text-sm text-slate-500 md:flex-row">
-          <span>A mostrar {lista.length ? ((paginaAtual - 1) * POR_PAGINA) + 1 : 0} de {total} resultados</span>
-          <div className="flex items-center gap-3">
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={paginaAtual <= 1} onClick={() => setPagina((p) => p - 1)} aria-label="Página anterior">
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <span className="font-semibold text-slate-800">Página {paginaAtual} de {totalPaginas}</span>
-            <button className="btn-secondary h-10 w-10 px-0 disabled:opacity-40" disabled={paginaAtual >= totalPaginas} onClick={() => setPagina((p) => p + 1)} aria-label="Página seguinte">
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        </footer>
+        <Paginacao
+          pagina={paginaAtual}
+          totalPaginas={totalPaginas}
+          total={total}
+          porPagina={POR_PAGINA}
+          itensNaPagina={lista.length}
+          onMudarPagina={setPagina}
+          className="px-10 py-5"
+        />
       </section>
 
       {confirmar && (

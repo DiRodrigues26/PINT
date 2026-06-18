@@ -14,6 +14,7 @@ import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData, formatarDataHora } from '../../lib/formatar';
+import Paginacao from '../../components/admin/Paginacao';
 
 const PERFIS = ['Consultor', 'Talent Manager', 'Service Line', 'Administrador'];
 const ESTADO_INICIAL = {
@@ -445,14 +446,16 @@ export default function AdminUtilizadores() {
             </tbody>
           </table>
         </div>
-        <footer className="flex flex-col items-center justify-between gap-4 border-t border-slate-200 px-5 py-4 text-sm text-slate-500 md:flex-row">
-          <span>Mostrando {linhasMostradas ? ((pagina - 1) * porPagina) + 1 : 0} a {Math.min(pagina * porPagina, total)} de {total} utilizadores</span>
-          <div className="flex items-center gap-2">
-            <button className="btn-secondary disabled:opacity-50" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>Anterior</button>
-            <span className="rounded-md bg-softinsa-600 px-4 py-2 font-semibold text-white">{pagina}</span>
-            <button className="btn-secondary disabled:opacity-50" disabled={pagina >= totalPaginas} onClick={() => setPagina((p) => p + 1)}>Próxima</button>
-          </div>
-        </footer>
+        <Paginacao
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          total={total}
+          porPagina={porPagina}
+          itensNaPagina={linhasMostradas}
+          onMudarPagina={setPagina}
+          rotulo="utilizadores"
+          className="px-5"
+        />
       </section>
 
       {modal?.tipo === 'criar' && (
