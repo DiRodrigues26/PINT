@@ -24,6 +24,7 @@ const TIPO_ICON_BG = {
   SISTEMA:                 { icon: Bell,           bg: 'bg-slate-400'   },
   default:                 { icon: Bell,           bg: 'bg-slate-400'   },
 };
+const TOPBAR_NOTIFICACOES_QUERY_KEY = ['topbar-notificacoes-nao-lidas'];
 
 function getTipoConfig(t) {
   return {
@@ -142,7 +143,10 @@ export default function ServiceLineNotificacoes() {
 
   const mutLer = useMutation({
     mutationFn: (id) => api.post(`/api/notificacoes/${id}/ler`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sl-notificacoes'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sl-notificacoes'] });
+      queryClient.invalidateQueries({ queryKey: TOPBAR_NOTIFICACOES_QUERY_KEY });
+    },
     onError: (err) => toast.error(extrairErro(err)),
   });
 
@@ -151,13 +155,17 @@ export default function ServiceLineNotificacoes() {
     onSuccess: () => {
       toast.success(t('sl_notif_todas_lidas'));
       queryClient.invalidateQueries({ queryKey: ['sl-notificacoes'] });
+      queryClient.invalidateQueries({ queryKey: TOPBAR_NOTIFICACOES_QUERY_KEY });
     },
     onError: (err) => toast.error(extrairErro(err)),
   });
 
   const mutEliminar = useMutation({
     mutationFn: (id) => api.delete(`/api/notificacoes/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sl-notificacoes'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sl-notificacoes'] });
+      queryClient.invalidateQueries({ queryKey: TOPBAR_NOTIFICACOES_QUERY_KEY });
+    },
     onError: (err) => toast.error(extrairErro(err)),
   });
 

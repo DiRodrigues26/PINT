@@ -7,8 +7,10 @@ Fonte: tabela de feedback (19 pontos), organizada por prioridade.
 
 ### Feito em código
 - **P3** — Dashboard com estados de candidaturas em PT.
-- **P5** — Sino de notificações deixou de ter ponto fixo e passou a usar contagem real de não lidas.
+- **P4** — Dashboard com títulos/subtítulos mais explícitos nos KPIs e gráficos.
+- **P5** — Sino de notificações deixou de ter ponto fixo, passou a usar contagem real de não lidas e atualiza após ações de leitura/remoção.
 - **P6** — "Ver Processo" abre o detalhe da candidatura específica.
+- **P7** — Overlays dos modais admin normalizados para cobrir a shell com `z-50`.
 - **P8** — Filtro de estado em Pedidos de Badges uniformizado em PT.
 - **P14** — Botão/modal de utilizador usa "Desativar" em vez de "Eliminar".
 - **P16** — Opção inválida de badge especial removida do fluxo normal de criação de badges.
@@ -16,16 +18,14 @@ Fonte: tabela de feedback (19 pontos), organizada por prioridade.
 - **P18** — Campo Descrição adicionado ao formulário de Badge e enviado no payload.
 - **P19** — Select de Nível limitado à Área escolhida; escolher nível já não altera Área/Service Line.
 
-### Feito tecnicamente, a validar end-to-end
-- **P10** — Detalhe de candidatura já carrega evidências sem depender do estado; falta validar com processo fechado real.
-- **P11** — Admin já tem ações de decisão nos estados de validação e o backend autoriza Administrador; falta validar fluxo real.
-- **P15** — Endpoint de reset gera token e envia email de recuperação; falta validar stub/SMTP.
-- **P20** — Criação de utilizador envia email de confirmação quando configurado; falta validar stub/SMTP.
+### Validado end-to-end / API
+- **P10** — Validado com candidatura fechada real `#31` (`APPROVED`) com 3 evidências no detalhe.
+- **P11** — Validado que o Administrador passa autorização nos endpoints Talent e Service Line; teste não destrutivo devolveu `404` para candidatura inexistente em vez de `401/403`.
+- **P15** — Reset de password validado com utilizador temporário; token de recuperação gravado e email gerado em stub.
+- **P20** — Criação de utilizador validada com utilizador temporário; token de confirmação gravado e email gerado em stub.
 
 ### Em aberto
 - **P2** — Flags de idioma do admin.
-- **P4** — Títulos/subtítulos mais explícitos no dashboard.
-- **P7** — Auditoria/normalização de overlays de pop-ups.
 - **P9** — Filtros de Pedidos de Badges só com valores que devolvem candidaturas.
 - **P12** — Paginação partilhada/consistente nas tabelas admin.
 - **P13** — Filtros de Utilizadores só com valores que devolvem utilizadores.

@@ -77,7 +77,7 @@ function Modal({ titulo, children, onFechar, icon, iconTone = 'blue', size = 'md
   }[iconTone];
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className={`w-full ${sizeClass} overflow-hidden rounded-[28px] bg-white shadow-xl`}>
         <div className="flex items-center justify-between border-b-4 border-slate-200 px-7 py-5">
           <div className="flex items-center gap-4">

@@ -53,7 +53,7 @@ function Icon({ nome, className = 'h-5 w-5' }) {
 export function Modal({ titulo, children, onFechar, size = 'lg' }) {
   const sizeClass = size === 'xl' ? 'max-w-6xl' : 'max-w-4xl';
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className={`max-h-[96vh] w-full ${sizeClass} overflow-hidden rounded-[28px] bg-white shadow-xl`}>
         <div className="flex items-center justify-between border-b-4 border-slate-200 px-7 py-5">
           <h2 className="text-3xl font-bold tracking-tight text-slate-900">{titulo}</h2>

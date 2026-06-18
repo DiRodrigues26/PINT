@@ -222,6 +222,7 @@ export default function Notificacoes() {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [tabAtiva, setTabAtiva] = useState('');
+  const topbarNotificacoesQueryKey = ['topbar-notificacoes-nao-lidas'];
 
   const TABS = [
     { key: '',            label: t('tab_todas') },
@@ -246,13 +247,17 @@ export default function Notificacoes() {
 
   const marcarLida = useMutation({
     mutationFn: (id) => api.post(`/api/notificacoes/${id}/ler`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notificacoes'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notificacoes'] });
+      queryClient.invalidateQueries({ queryKey: topbarNotificacoesQueryKey });
+    },
   });
 
   const marcarTodas = useMutation({
     mutationFn: () => api.post('/api/notificacoes/ler-todas'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notificacoes'] });
+      queryClient.invalidateQueries({ queryKey: topbarNotificacoesQueryKey });
       toast.success('Todas as notificações marcadas como lidas.');
     },
   });

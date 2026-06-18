@@ -66,11 +66,14 @@ function formatarSlaRestante(candidatura, slas) {
   return `${restantes} dias`;
 }
 
-function StatCard({ titulo, valor, variacao, icon, children }) {
+function StatCard({ titulo, subtitulo, valor, variacao, icon, children }) {
   return (
     <section className="min-h-[176px] rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
-        <div className="text-sm font-semibold text-slate-500">{titulo}</div>
+        <div>
+          <div className="text-sm font-semibold text-slate-500">{titulo}</div>
+          {subtitulo && <div className="mt-1 text-xs leading-5 text-slate-400">{subtitulo}</div>}
+        </div>
         {icon && <ShellIcon nome={icon} className="h-5 w-5 text-softinsa-600" />}
       </div>
       {children || (
@@ -83,10 +86,11 @@ function StatCard({ titulo, valor, variacao, icon, children }) {
   );
 }
 
-function Painel({ titulo, children, className = '' }) {
+function Painel({ titulo, subtitulo, children, className = '' }) {
   return (
     <section className={`rounded-lg border border-slate-200 bg-white p-6 shadow-sm ${className}`}>
       <h2 className="text-base font-bold text-slate-800">{titulo}</h2>
+      {subtitulo && <p className="mt-1 text-sm leading-6 text-slate-500">{subtitulo}</p>}
       <div className="mt-5">{children}</div>
     </section>
   );
@@ -374,10 +378,10 @@ export default function AdminDashboard() {
       <section>
         <h2 className="mb-4 text-lg font-bold">KPIs Gerais</h2>
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-4">
-          <StatCard titulo="Total Utilizadores" valor={numero(dados.total_utilizadores)} variacao="+0%" icon="users" />
-          <StatCard titulo="Total Badges Atribuídos" valor={numero(dados.total_badges_atribuidos)} variacao="+0%" icon="badge" />
-          <StatCard titulo="% Badges Atribuídos" valor={`${kpis.percentagemAtribuidos}%`} icon="trend" />
-          <StatCard titulo="Candidaturas por Estado">
+          <StatCard titulo="Total Utilizadores" subtitulo="Contas registadas na plataforma." valor={numero(dados.total_utilizadores)} variacao="+0%" icon="users" />
+          <StatCard titulo="Total Badges Atribuídos" subtitulo="Badges emitidos a consultores." valor={numero(dados.total_badges_atribuidos)} variacao="+0%" icon="badge" />
+          <StatCard titulo="% Badges Atribuídos" subtitulo="Badges emitidos vs. badges ativos." valor={`${kpis.percentagemAtribuidos}%`} icon="trend" />
+          <StatCard titulo="Candidaturas por Estado" subtitulo="Distribuição atual dos processos.">
             <div className="mt-4 space-y-3">
               {estadosResumo.map((e) => (
                 <div key={e.chave} className="flex items-center justify-between text-sm">
@@ -393,20 +397,20 @@ export default function AdminDashboard() {
       <section>
         <h2 className="mb-4 text-lg font-bold">Estatísticas</h2>
         <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(520px,0.95fr)]">
-          <Painel titulo="Badges por Área" className="min-w-0">
+          <Painel titulo="Badges por Área" subtitulo="Badges ativos agrupados pela área da hierarquia." className="min-w-0">
             <BarChart dados={dados.badges_por_area || dados.badges_por_learning_path} />
           </Painel>
-          <Painel titulo="Badges por Nível (A-E)" className="min-w-0">
+          <Painel titulo="Badges por Nível (A-E)" subtitulo="Distribuição dos badges pelos níveis de proficiência." className="min-w-0">
             <PieChart dados={dados.badges_por_nivel} />
           </Painel>
         </div>
       </section>
 
-      <Painel titulo="Evolução Mensal">
+      <Painel titulo="Evolução Mensal" subtitulo="Badges atribuídos por mês nos últimos meses com dados.">
         <LineChart dados={dados.badges_por_mes} />
       </Painel>
 
-      <Painel titulo="Badges por Intervalo de Datas">
+      <Painel titulo="Badges por Intervalo de Datas" subtitulo="Badges atribuídos dentro do período selecionado.">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-wrap items-end gap-4">
             <label className="block">

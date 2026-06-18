@@ -61,7 +61,7 @@ function dadosExportacao(items) {
 
 function Modal({ titulo, children, onFechar, size = 'max-w-3xl' }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
       <div className={`max-h-[90vh] w-full ${size} overflow-hidden rounded-2xl bg-white shadow-xl`}>
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-3">

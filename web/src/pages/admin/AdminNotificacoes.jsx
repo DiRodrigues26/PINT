@@ -18,6 +18,7 @@ import { api, extrairErro } from '../../lib/api';
 import { formatarData } from '../../lib/formatar';
 
 const POR_PAGINA = 8;
+const TOPBAR_NOTIFICACOES_QUERY_KEY = ['topbar-notificacoes-nao-lidas'];
 
 const CATEGORIAS = {
   CANDIDATURA: { label: 'Candidatura', cor: 'bg-blue-100 text-blue-700' },
@@ -50,12 +51,16 @@ export default function AdminNotificacoes() {
     return () => {
       toast.success(mensagem);
       qc.invalidateQueries({ queryKey: ['admin', 'notificacoes'] });
+      qc.invalidateQueries({ queryKey: TOPBAR_NOTIFICACOES_QUERY_KEY });
     };
   }
 
   const marcarLida = useMutation({
     mutationFn: (id) => api.post(`/api/notificacoes/${id}/ler`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'notificacoes'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'notificacoes'] });
+      qc.invalidateQueries({ queryKey: TOPBAR_NOTIFICACOES_QUERY_KEY });
+    },
     onError: (err) => toast.error(extrairErro(err)),
   });
 
@@ -258,7 +263,7 @@ export default function AdminNotificacoes() {
       </section>
 
       {confirmar && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-xl">
             <div className="flex items-center gap-4 border-b-4 border-slate-200 px-7 py-5">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-100 text-red-600">

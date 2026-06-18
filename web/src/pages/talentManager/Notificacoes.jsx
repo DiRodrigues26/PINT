@@ -6,6 +6,8 @@ import { api } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
 
+const TOPBAR_NOTIFICACOES_QUERY_KEY = ['topbar-notificacoes-nao-lidas'];
+
 /* Mapeia o tipo da notificação para categoria visual */
 function tipoVisual(n) {
   const t = `${n.tipo || ''} ${n.categoria || ''}`.toUpperCase();
@@ -48,11 +50,20 @@ export default function TalentNotificacoes() {
 
   const marcarLida = useMutation({
     mutationFn: (id) => api.post(`/api/notificacoes/${id}/ler`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tm-notificacoes'] }); queryClient.invalidateQueries({ queryKey: ['tm-notif-nao-lidas'] }); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tm-notificacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['tm-notif-nao-lidas'] });
+      queryClient.invalidateQueries({ queryKey: TOPBAR_NOTIFICACOES_QUERY_KEY });
+    },
   });
   const marcarTodas = useMutation({
     mutationFn: () => api.post('/api/notificacoes/ler-todas'),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tm-notificacoes'] }); queryClient.invalidateQueries({ queryKey: ['tm-notif-nao-lidas'] }); toast.success('Todas marcadas como lidas.'); },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tm-notificacoes'] });
+      queryClient.invalidateQueries({ queryKey: ['tm-notif-nao-lidas'] });
+      queryClient.invalidateQueries({ queryKey: TOPBAR_NOTIFICACOES_QUERY_KEY });
+      toast.success('Todas marcadas como lidas.');
+    },
   });
 
   const todas = data?.dados ?? [];
