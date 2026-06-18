@@ -345,18 +345,18 @@ export default function AdminDashboard() {
   const estadosResumo = useMemo(() => {
     const mapa = new Map((dados.estados_candidatura || []).map((e) => [e.estado_atual, Number(e.total) || 0]));
     return [
-      { chave: 'OPEN', total: mapa.get('OPEN') || 0, label: 'Open', cor: 'text-slate-600' },
-      { chave: 'SUBMITTED', total: mapa.get('SUBMITTED') || 0, label: 'Submitted', cor: 'text-blue-600' },
+      { chave: 'OPEN', total: mapa.get('OPEN') || 0, label: 'Em preparação', cor: 'text-slate-600' },
+      { chave: 'SUBMITTED', total: mapa.get('SUBMITTED') || 0, label: 'Submetidas', cor: 'text-blue-600' },
       {
         chave: 'EM_VALIDACAO',
         total: (mapa.get('IN_TALENT_REVIEW') || 0) + (mapa.get('IN_SERVICE_LINE_REVIEW') || 0),
-        label: 'Em Validação',
+        label: 'Em validação',
         cor: 'text-amber-600',
       },
       {
         chave: 'FECHADO',
         total: (mapa.get('APPROVED') || 0) + (mapa.get('REJECTED') || 0) + (mapa.get('CLOSED') || 0),
-        label: 'Fechado',
+        label: 'Fechadas',
         cor: 'text-emerald-600',
       },
     ];
@@ -527,7 +527,7 @@ export default function AdminDashboard() {
                       <td className="px-4 py-4 text-slate-500">{formatarData(c.data_submissao || c.data_abertura)}</td>
                       <td className="px-4 py-4 text-slate-500">{formatarSlaRestante(c, listaSlas)}</td>
                       <td className="px-4 py-4">
-                        <Link to="/admin/candidaturas" className="font-medium text-softinsa-700 hover:underline">Ver Processo</Link>
+                        <Link to="/admin/candidaturas" state={{ abrirCandidaturaId: c.id_candidatura }} className="font-medium text-softinsa-700 hover:underline">Ver Processo</Link>
                       </td>
                     </tr>
                   );

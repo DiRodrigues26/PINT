@@ -44,13 +44,13 @@ const NIVEIS = {
   C: 'Sénior',
   D: 'Especialista',
   E: 'Líder de conhecimento',
-  Especial: 'Especial',
 };
 
 const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Badge', 'Outro'];
 
 const FORM_INICIAL = {
   titulo: '',
+  descricao: '',
   id_learning_path: '',
   id_service_line: '',
   id_area: '',
@@ -205,8 +205,6 @@ function descricaoCurta(texto) {
 }
 
 function encontrarNivelNoContexto({ codigo, nivelAtual, filtros, niveis }) {
-  if (codigo === 'Especial') return null;
-
   const porArea = nivelAtual?.id_area || filtros.id_area;
   if (porArea) {
     const nivel = niveis.find((item) => String(item.id_area) === String(porArea) && item.codigo_nivel === codigo);
@@ -228,19 +226,13 @@ function encontrarNivelNoContexto({ codigo, nivelAtual, filtros, niveis }) {
   return niveis.find((item) => item.codigo_nivel === codigo) || null;
 }
 
-function prepararPayload(form, niveis, filtros, badgeAtual = null) {
-  const nivelAtual = badgeAtual ? {
-    id_area: badgeAtual.id_area,
-    id_service_line: badgeAtual.id_service_line,
-    id_learning_path: badgeAtual.id_learning_path,
-  } : null;
-  const nivel = niveis.find((item) => String(item.id_nivel) === String(form.id_nivel))
-    || encontrarNivelNoContexto({ codigo: form.codigo_nivel, nivelAtual, filtros, niveis });
+function prepararPayload(form, niveis, badgeAtual = null) {
+  const nivel = form.id_nivel
+    ? niveis.find((item) => String(item.id_nivel) === String(form.id_nivel))
+    : null;
 
-  if (!nivel) {
-    throw new Error(form.codigo_nivel === 'Especial'
-      ? 'O nível Especial ainda não existe na hierarquia.'
-      : 'Seleciona o Learning Path, Service Line, Área e Nível onde este badge vai ficar.');
+  if (!form.id_area || !nivel || String(nivel.id_area) !== String(form.id_area)) {
+    throw new Error('Seleciona o Learning Path, Service Line, Área e Nível onde este badge vai ficar.');
   }
 
   if ((form.requisitos.length + form.requisitosNovos.length) === 0) {
@@ -250,6 +242,7 @@ function prepararPayload(form, niveis, filtros, badgeAtual = null) {
   return {
     id_nivel: Number(nivel.id_nivel),
     titulo: form.titulo.trim(),
+    descricao: form.descricao?.trim() || null,
     pontos: Number(form.pontos) || 0,
     imagem_url: form.imagem_url || null,
     tem_expiracao: form.tem_expiracao,
@@ -308,11 +301,9 @@ function FormBadge({
   }, [areas, form.id_learning_path, form.id_service_line]);
 
   const niveisDoForm = useMemo(() => {
-    if (form.id_area) return niveis.filter((nivel) => String(nivel.id_area) === String(form.id_area));
-    if (form.id_service_line) return niveis.filter((nivel) => String(nivel.id_service_line) === String(form.id_service_line));
-    if (form.id_learning_path) return niveis.filter((nivel) => String(nivel.id_learning_path) === String(form.id_learning_path));
-    return niveis;
-  }, [form.id_area, form.id_learning_path, form.id_service_line, niveis]);
+    if (!form.id_area) return [];
+    return niveis.filter((nivel) => String(nivel.id_area) === String(form.id_area));
+  }, [form.id_area, niveis]);
 
   const requisitosFiltrados = useMemo(() => {
     const pesquisa = form.pesquisaRequisito.trim().toLowerCase();
@@ -348,25 +339,7 @@ function FormBadge({
     });
   }
 
-  function atualizarNivel(codigo) {
-    const contexto = {
-      id_area: form.id_area,
-      id_service_line: form.id_service_line,
-      id_learning_path: form.id_learning_path,
-    };
-    const nivel = encontrarNivelNoContexto({ codigo, nivelAtual: contexto, filtros: contexto, niveis });
-    setForm((atual) => ({
-      ...atual,
-      codigo_nivel: codigo,
-      id_nivel: nivel ? String(nivel.id_nivel) : '',
-      id_learning_path: nivel?.id_learning_path ? String(nivel.id_learning_path) : atual.id_learning_path,
-      id_service_line: nivel?.id_service_line ? String(nivel.id_service_line) : atual.id_service_line,
-      id_area: nivel?.id_area ? String(nivel.id_area) : atual.id_area,
-    }));
-  }
-
   function escolherNivelDoContexto({ codigo = form.codigo_nivel, idArea, idServiceLine, idLearningPath }) {
-    if (codigo === 'Especial') return null;
     const candidatos = niveis.filter((nivel) => {
       if (idArea) return String(nivel.id_area) === String(idArea);
       if (idServiceLine) return String(nivel.id_service_line) === String(idServiceLine);
@@ -411,11 +384,10 @@ function FormBadge({
 
       if (campo === 'id_nivel') {
         const nivel = niveis.find((item) => String(item.id_nivel) === String(valor));
-        if (nivel) {
-          proximo.id_learning_path = String(nivel.id_learning_path);
-          proximo.id_service_line = String(nivel.id_service_line);
-          proximo.id_area = String(nivel.id_area);
+        if (nivel && String(nivel.id_area) === String(proximo.id_area)) {
           proximo.codigo_nivel = nivel.codigo_nivel;
+        } else {
+          proximo.id_nivel = '';
         }
       }
 
@@ -508,6 +480,16 @@ function FormBadge({
         </div>
 
         <div>
+          <label className="mb-2 block text-sm font-medium text-slate-900">Descrição</label>
+          <textarea
+            className="input min-h-24 resize-y"
+            placeholder="Descrição do badge (mostrada aos consultores no catálogo)"
+            value={form.descricao}
+            onChange={(e) => setForm((atual) => ({ ...atual, descricao: e.target.value }))}
+          />
+        </div>
+
+        <div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-900">
@@ -555,27 +537,17 @@ function FormBadge({
         </div>
 
         <div>
-          <div className="mb-3 text-sm font-medium text-slate-900">Nível</div>
-          <div className="flex flex-wrap gap-5 text-base text-slate-700">
-            {Object.keys(NIVEIS).map((codigo) => (
-              <label key={codigo} className="flex items-center gap-2">
-                <input
-                  type="radio"
-                  className="h-4 w-4 text-softinsa-600"
-                  checked={form.codigo_nivel === codigo}
-                  onChange={() => atualizarNivel(codigo)}
-                />
-                {codigo}
-              </label>
-            ))}
-          </div>
+          <label className="mb-2 block text-sm font-medium text-slate-900">
+            Nível<span className="text-red-600">*</span>
+          </label>
           <select
-            className="input mt-3"
+            className="input"
             required
+            disabled={!form.id_area}
             value={form.id_nivel}
             onChange={(e) => atualizarHierarquia('id_nivel', e.target.value)}
           >
-            <option value="">Selecione um nível da área escolhida</option>
+            <option value="">{form.id_area ? 'Selecione um nível da área escolhida' : 'Selecione primeiro uma Área'}</option>
             {niveisDoForm.map((nivel) => (
               <option key={nivel.id_nivel} value={nivel.id_nivel}>
                 {nivel.codigo_nivel} - {nivel.nome_nivel}
@@ -678,7 +650,7 @@ function FormBadge({
             </label>
             <select className="input" value={form.filtroNivelRequisito} onChange={(e) => atualizarFiltroRequisitos('filtroNivelRequisito', e.target.value)}>
               <option value="">Nível (Todos)</option>
-              {Object.keys(NIVEIS).filter((codigo) => codigo !== 'Especial').map((codigo) => <option key={codigo} value={codigo}>{codigo}</option>)}
+              {Object.keys(NIVEIS).map((codigo) => <option key={codigo} value={codigo}>{codigo}</option>)}
             </select>
             <select className="input" value={form.filtroTipoRequisito} onChange={(e) => atualizarFiltroRequisitos('filtroTipoRequisito', e.target.value)}>
               <option value="">Tipo evidência (Todos)</option>
@@ -909,7 +881,7 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
 
   const criar = useMutation({
     mutationFn: async () => {
-      const { dadosBadge, requisitosNovos } = separarPayloadBadge(prepararPayload(form, listaNiveis, filtros));
+      const { dadosBadge, requisitosNovos } = separarPayloadBadge(prepararPayload(form, listaNiveis));
       const criado = (await api.post('/api/badges', dadosBadge)).data;
       await Promise.all((requisitosNovos || []).map((req, idx) => api.post('/api/requisitos', {
         id_badge: criado.id_badge,
@@ -936,7 +908,7 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
 
   const atualizar = useMutation({
     mutationFn: async () => {
-      const { dadosBadge, requisitosNovos } = separarPayloadBadge(prepararPayload(form, listaNiveis, filtros, modal.badge));
+      const { dadosBadge, requisitosNovos } = separarPayloadBadge(prepararPayload(form, listaNiveis, modal.badge));
       const atualizado = (await api.put(`/api/badges/${modal.badge.id_badge}`, dadosBadge)).data;
       await Promise.all((requisitosNovos || []).map((req, idx) => api.post('/api/requisitos', {
         id_badge: modal.badge.id_badge,
@@ -1093,6 +1065,7 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
       setForm({
         ...FORM_INICIAL,
         titulo: item.titulo || '',
+        descricao: item.descricao || '',
         id_learning_path: item.id_learning_path ? String(item.id_learning_path) : '',
         id_service_line: item.id_service_line ? String(item.id_service_line) : '',
         id_area: item.id_area ? String(item.id_area) : '',

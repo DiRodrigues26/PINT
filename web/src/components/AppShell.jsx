@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../lib/api';
 import {
   Activity,
   Award,
@@ -138,6 +140,14 @@ export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoe
   const [aberto, setAberto] = useState(false);
   const perfis = utilizador?.perfis?.join(', ') || 'Utilizador';
 
+  const { data: notifData } = useQuery({
+    queryKey: ['topbar-notificacoes-nao-lidas'],
+    queryFn: async () => (await api.get('/api/notificacoes', { params: { por_pagina: 1 } })).data,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const naoLidas = notifData?.nao_lidas || 0;
+
   return (
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-[#dceefa]/95 backdrop-blur">
       <div className="flex h-[92px] items-center justify-between px-5 lg:px-10">
@@ -153,7 +163,11 @@ export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoe
           </div>
           <Link to={notificacoesTo} className="relative text-slate-700 hover:text-softinsa-700" aria-label="Notificações">
             <ShellIcon nome="bell" />
-            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
+            {naoLidas > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white">
+                {naoLidas > 9 ? '9+' : naoLidas}
+              </span>
+            )}
           </Link>
           <div className="relative">
             <button

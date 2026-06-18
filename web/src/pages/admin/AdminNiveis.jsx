@@ -134,60 +134,6 @@ function prepararPayload(form) {
   };
 }
 
-function expiracaoBadge(nivel) {
-  if (!nivel.id_badge) return 'n/a';
-  if (!nivel.tem_expiracao_badge) return 'Não tem';
-  return nivel.validade_dias_badge ? `${nivel.validade_dias_badge} dias` : 'Configurada';
-}
-
-function estadoBadge(nivel) {
-  if (!nivel.id_badge) return 'n/a';
-  return nivel.ativo_badge !== 0 ? 'Ativo' : 'Inativo';
-}
-
-function BadgeResumo({ nivel, modo }) {
-  const temBadge = Boolean(nivel?.id_badge);
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-200">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
-          <tr>
-            <th className="px-5 py-4 text-center">Nome do Badge</th>
-            <th className="px-5 py-4 text-center">Pontos</th>
-            <th className="px-5 py-4 text-center">Expiração</th>
-            <th className="px-5 py-4 text-center">Estado</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr className="border-t border-slate-200 text-slate-800">
-            <td className="px-5 py-6 text-center font-medium">{temBadge ? nivel.titulo_badge : 'n/a'}</td>
-            <td className="px-5 py-6 text-center font-medium">{temBadge ? nivel.pontos_badge || 0 : 'n/a'}</td>
-            <td className="px-5 py-6 text-center font-medium">{expiracaoBadge(nivel)}</td>
-            <td className="px-5 py-6 text-center">
-              {temBadge ? (
-                <span className={`badge-pill ${nivel.ativo_badge !== 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                  {estadoBadge(nivel)}
-                </span>
-              ) : 'n/a'}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <div className="flex justify-end border-t border-slate-200 px-6 py-4">
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => toast(temBadge ? 'Edição de badges será implementada no CRUD de Badges.' : 'Criação de badges será implementada no CRUD de Badges.')}
-        >
-          <Icon nome={temBadge ? 'edit' : 'plus'} className="h-4 w-4" />
-          {temBadge ? 'Editar Badge' : modo === 'criar' ? 'Criar Badge' : 'Criar Badge'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function dadosNiveis(items) {
   const headers = ['Dificuldade', 'Área', 'Service Line', 'Learning Path', 'Nº Requisitos', 'Badge', 'Data Criação', 'Estado'];
   const linhas = items.map((nivel) => [
@@ -330,18 +276,6 @@ function FormNivel({
           </select>
         </div>
 
-        <div>
-          <label className="mb-2 block text-sm font-medium text-slate-900">
-            Badge<span className="text-red-600">*</span>
-          </label>
-          {modo === 'criar' && (
-            <label className="relative mb-3 block">
-              <Icon nome="search" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <input className="input pl-11" placeholder="Pesquisar badge..." disabled />
-            </label>
-          )}
-          <BadgeResumo nivel={nivel} modo={modo} />
-        </div>
       </div>
 
       <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">

@@ -517,7 +517,7 @@ export default function AdminUtilizadores() {
       )}
 
       {modal?.tipo === 'desativar' && (
-        <Modal titulo="Desativar Utilizador" icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo="Desativar Utilizador" icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
           <div className="px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
               Tem a certeza que pretende desativar o utilizador “{modal.utilizador.nome}”?
@@ -527,13 +527,13 @@ export default function AdminUtilizadores() {
             <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
             <button
               type="button"
-              className="btn bg-red-600 px-7 text-white hover:bg-red-700"
+              className="btn bg-orange-500 px-7 text-white hover:bg-orange-600"
               disabled={alternarEstado.isPending}
               onClick={() => {
                 alternarEstado.mutate(modal.utilizador, { onSuccess: () => setModal(null) });
               }}
             >
-              {alternarEstado.isPending ? 'A eliminar...' : 'Eliminar'}
+              {alternarEstado.isPending ? 'A desativar...' : 'Desativar'}
             </button>
           </div>
         </Modal>

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   CheckCircle,
   ChevronLeft,
@@ -19,10 +20,10 @@ import { api, extrairErro } from '../../lib/api';
 import { estadoCandidatura, formatarData, formatarDataHora } from '../../lib/formatar';
 
 const ESTADOS = [
-  ['OPEN', 'Open'],
-  ['SUBMITTED', 'Submitted'],
-  ['IN_TALENT_REVIEW', 'Em revisão Talent'],
-  ['IN_SERVICE_LINE_REVIEW', 'Em validação Service Line'],
+  ['OPEN', 'Em preparação'],
+  ['SUBMITTED', 'Submetida'],
+  ['IN_TALENT_REVIEW', 'Em análise (Talent)'],
+  ['IN_SERVICE_LINE_REVIEW', 'Em análise (SL)'],
   ['SENT_BACK', 'Devolvida'],
   ['APPROVED', 'Aprovada'],
   ['REJECTED', 'Rejeitada'],
@@ -354,6 +355,18 @@ export default function AdminCandidaturas() {
   });
   const [pagina, setPagina] = useState(1);
   const [modal, setModal] = useState(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Abrir diretamente o detalhe de uma candidatura quando se navega com state
+  // (ex.: "Ver Processo" nos Pedidos Recentes do dashboard).
+  useEffect(() => {
+    const id = location.state?.abrirCandidaturaId;
+    if (id) {
+      setModal({ tipo: 'detalhe', id });
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.state, location.pathname, navigate]);
 
   const candidaturas = useQuery({
     queryKey: ['admin', 'candidaturas', filtros, pagina],
