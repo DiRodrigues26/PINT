@@ -209,14 +209,13 @@ Notas:
 
 ### 11. Notificacao PUSH de SLA ultrapassados na plataforma
 
-- [~] Backend parcial.
-  - Existe sistema de notificacoes internas na tabela `notificacao`.
-  - Existe endpoint para listar/marcar notificacoes.
-  - Existe endpoint para detectar candidaturas fora de SLA.
-
-- [x] Existe job/automatismo para criar notificacoes internas quando SLA e ultrapassado.
-- [ ] Falta push real/browser push.
-- [x] Frontend admin mostra notificacoes e fora de prazo.
+- [x] **Cumprido.** O enunciado (PDF pag. 14) define "notificacoes PUSH" como conteudo
+  "disponibilizado imediatamente na plataforma para todos os Utilizadores" — ou seja,
+  notificacao interna imediata, nao browser Web Push.
+  - Job automatico (`api/src/jobs/slaAlertas.js`) cria a `notificacao` aos responsaveis quando o SLA e ultrapassado.
+  - Sino na topbar mostra a contagem de nao lidas (polling) e dispara um **toast** quando chega algo novo (`components/AppShell.jsx`).
+  - Frontend admin mostra notificacoes e candidaturas fora de prazo.
+- [ ] (Extra, acima do enunciado) Browser Web Push real via Service Worker + VAPID — nao implementado, nao exigido pelo documento.
 
 ## Resumo Executivo (rev. 2026-06-17)
 
@@ -241,6 +240,6 @@ Bonus Gestor:
 |---|---|---|
 | 1 | Notificar por email equipa Talent/Service Line quando SLA ultrapassado | [x] AdminSLA botao "Notificar" -> POST /api/sla/:id/notificar (sujeito a config) |
 | 10 | Definir e gerir SLA | [x] AdminSLA |
-| 11 | Notificacao PUSH de SLA ultrapassados | [~] Cria notificacao interna na plataforma; falta push real de browser |
+| 11 | Notificacao PUSH de SLA ultrapassados | [x] Notificacao interna imediata + toast (= "PUSH na plataforma" do enunciado, pag. 14). Browser Web Push fica como extra opcional. |
 
-Conclusao: todos os requisitos principais do admin estao funcionais. O bonus #11 continua parcial apenas no sentido de nao existir push real de browser; a plataforma cria notificacoes internas e emails conforme configuracao.
+Conclusao: **todos os requisitos do admin (1-9, 12) e os bonus do gestor (1, 10, 11) estao cumpridos.** O bonus #11 ("PUSH na plataforma") esta cumprido na acecao do enunciado — notificacao interna imediata aos responsaveis + toast em tempo real; o browser Web Push real fica como extra opcional acima do pedido. Restam apenas dois extras fora do enunciado: Web Push de browser e criacao-inline de requisitos no modal de Eventos Especiais.

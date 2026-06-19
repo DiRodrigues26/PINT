@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { api } from '../lib/api';
 import { useLanguage } from '../context/LanguageContext';
 import {
@@ -150,6 +151,18 @@ export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoe
     refetchInterval: 60_000,
   });
   const naoLidas = notifData?.nao_lidas || 0;
+
+  // Notificação "push" na plataforma: avisa imediatamente quando chega algo novo
+  // (ex.: alerta de SLA criado pelo job). Não dispara na primeira carga.
+  const naoLidasRef = useRef(null);
+  useEffect(() => {
+    const atual = notifData?.nao_lidas;
+    if (atual == null) return;
+    if (naoLidasRef.current != null && atual > naoLidasRef.current) {
+      toast(t('admin_nova_notificacao'), { icon: '🔔' });
+    }
+    naoLidasRef.current = atual;
+  }, [notifData?.nao_lidas, t]);
 
   return (
     <header className="sticky top-0 z-10 border-b border-slate-200 bg-[#dceefa]/95 backdrop-blur">
