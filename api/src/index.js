@@ -59,12 +59,16 @@ function obterOrigemAtual(req) {
   return host ? `${protocolo}://${host}`.replace(/\/+$/, '') : '';
 }
 
+// Em desenvolvimento, qualquer localhost é permitido (o Vite pode usar 5173/5174/...)
+const ehLocalhostDev = (origin) =>
+  process.env.NODE_ENV !== 'production' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
 app.use(cors((req, callback) => {
   const origin = String(req.headers.origin || '').replace(/\/+$/, '');
   if (!origin) return callback(null, { origin: false, credentials: true });
 
   const origemAtual = obterOrigemAtual(req);
-  const permitido = origensPermitidas.includes(origin) || origin === origemAtual;
+  const permitido = origensPermitidas.includes(origin) || origin === origemAtual || ehLocalhostDev(origin);
 
   if (!permitido) return callback(new Error('Origem não permitida pelo CORS.'));
   return callback(null, { origin: true, credentials: true });

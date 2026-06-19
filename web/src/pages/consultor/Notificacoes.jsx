@@ -38,38 +38,25 @@ function getCfg(tipo) {
 }
 
 /* Botão de ação por tipo */
-function BotaoAcao({ tipo, entidade, navigate }) {
-  if (!entidade) return null;
-  if (tipo?.includes('CANDIDATURA') || tipo?.includes('EVIDENCIA')) {
+function BotaoAcao({ tipo, categoria, entidade, navigate }) {
+  const cat = String(categoria || '').toUpperCase();
+  const t = String(tipo || '').toUpperCase();
+  const baseCls = 'mt-3 flex items-center gap-1.5 rounded-lg bg-softinsa-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-softinsa-700 transition';
+
+  // Badge atribuído / confirmado / expiração → Os Meus Badges
+  if (cat === 'BADGE' || t === 'APPROVED' || t.includes('ATRIBUID') || t.includes('EXPIRA')) {
     return (
-      <button
-        type="button"
-        onClick={() => navigate(`/candidaturas/${entidade}`)}
-        className="mt-3 flex items-center gap-1.5 rounded-lg bg-softinsa-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-softinsa-700 transition"
-      >
+      <button type="button" onClick={() => navigate('/meus-badges')} className={baseCls}>
+        {t.includes('EXPIRA') ? 'Renovar Badge →' : 'Ver Badge →'}
+      </button>
+    );
+  }
+  // Candidatura → vai à candidatura específica se houver id, senão à lista
+  if (cat === 'CANDIDATURA' || t.includes('CANDIDATURA') || t.includes('TALENT') || t.includes('EVIDENCIA') || ['REJECTED', 'SENT_BACK'].includes(t)) {
+    const destino = /^\d+$/.test(String(entidade)) ? `/candidaturas/${entidade}` : '/candidaturas';
+    return (
+      <button type="button" onClick={() => navigate(destino)} className={baseCls}>
         Ver Candidatura →
-      </button>
-    );
-  }
-  if (tipo?.includes('BADGE')) {
-    return (
-      <button
-        type="button"
-        onClick={() => navigate('/meus-badges')}
-        className="mt-3 flex items-center gap-1.5 rounded-lg bg-softinsa-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-softinsa-700 transition"
-      >
-        Ver Badge →
-      </button>
-    );
-  }
-  if (tipo === 'BADGE_EXPIRACAO') {
-    return (
-      <button
-        type="button"
-        onClick={() => navigate('/meus-badges')}
-        className="mt-3 flex items-center gap-1.5 rounded-lg bg-softinsa-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-softinsa-700 transition"
-      >
-        Renovar Badge →
       </button>
     );
   }
@@ -114,7 +101,7 @@ function ItemNotificacao({ notif, onLer }) {
           </div>
         </div>
         {notif.mensagem && <p className="mt-0.5 text-xs text-slate-500">{notif.mensagem}</p>}
-        <BotaoAcao tipo={notif.tipo} entidade={notif.entidade_relacionada} navigate={navigate} />
+        <BotaoAcao tipo={notif.tipo} categoria={notif.categoria} entidade={notif.entidade_relacionada} navigate={navigate} />
       </div>
     </div>
   );
@@ -295,7 +282,7 @@ export default function Notificacoes() {
     <div className="min-h-screen bg-[#f3f6fa]">
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
-        <ConsultorTopbar subtitulo="Notificações" />
+        <ConsultorTopbar subtitulo={t('sub_notificacoes')} />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
           <div className="flex items-center justify-between gap-4">

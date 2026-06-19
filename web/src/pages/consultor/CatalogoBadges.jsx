@@ -207,7 +207,7 @@ export default function CatalogoBadges() {
       )}
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
-        <ConsultorTopbar subtitulo="Catálogo de Badges – Learning Path: Jornada Técnica" />
+        <ConsultorTopbar subtitulo={t('sub_catalogo')} />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
           <h2 className="text-2xl font-bold text-slate-900">{t('titulo_catalogo')}</h2>

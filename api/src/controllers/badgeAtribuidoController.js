@@ -277,7 +277,7 @@ async function perfilPublico(req, res, next) {
          JOIN badge b ON b.id_badge = ba.id_badge
          JOIN nivel n ON n.id_nivel = b.id_nivel
          JOIN area a  ON a.id_area  = n.id_area
-        WHERE ba.id_consultor = ? AND ba.publicado = 1
+        WHERE ba.id_consultor = ?
         ORDER BY ba.data_atribuicao DESC`,
       [u.id_utilizador]
     );

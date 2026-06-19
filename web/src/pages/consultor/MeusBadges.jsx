@@ -364,7 +364,7 @@ export default function MeusBadges() {
       {modalBadgeId && <BadgeModal idBadge={modalBadgeId} onFechar={() => setModalBadgeId(null)} />}
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
-        <ConsultorTopbar subtitulo="Os Meus Badges" />
+        <ConsultorTopbar subtitulo={t('sub_meus_badges')} />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -400,9 +400,8 @@ export default function MeusBadges() {
             <div className="mt-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
               <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" strokeWidth={2} />
               <p>
-                Os teus badges estão <strong>privados</strong>. Para os tornares públicos (galeria, link de
-                verificação e partilha no LinkedIn), ativa os consentimentos em{' '}
-                <Link to="/perfil" className="font-semibold underline">Perfil › Privacidade e RGPD</Link>.
+                <strong>{t('aviso_privados_titulo')}</strong> {t('aviso_privados_desc')}{' '}
+                <Link to="/perfil" className="font-semibold underline">{t('aviso_privados_link')}</Link>.
               </p>
             </div>
           )}

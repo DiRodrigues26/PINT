@@ -61,7 +61,7 @@ export default function BadgeDetalhe() {
       <div className="min-h-screen bg-[#f3f6fa]">
         <ConsultorSidebar />
         <div className="lg:pl-[260px]">
-          <ConsultorTopbar subtitulo="Detalhe do Badge" />
+          <ConsultorTopbar subtitulo={t('sub_badge_detalhe')} />
           <div className="flex min-h-[60vh] items-center justify-center"><Carregando /></div>
         </div>
       </div>
@@ -76,7 +76,7 @@ export default function BadgeDetalhe() {
       <div className="min-h-screen bg-[#f3f6fa]">
         <ConsultorSidebar />
         <div className="lg:pl-[260px]">
-          <ConsultorTopbar subtitulo="Detalhe do Badge" />
+          <ConsultorTopbar subtitulo={t('sub_badge_detalhe')} />
           <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-center">
             <TriangleAlert className="h-12 w-12 text-amber-400" />
             <p className="font-semibold text-slate-600">Badge não encontrado.</p>
@@ -98,7 +98,7 @@ export default function BadgeDetalhe() {
     <div className="min-h-screen bg-[#f3f6fa]">
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
-        <ConsultorTopbar subtitulo="Catálogo — Detalhe do Badge" />
+        <ConsultorTopbar subtitulo={t('sub_catalogo_detalhe')} />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
           <button onClick={() => navigate('/badges')}

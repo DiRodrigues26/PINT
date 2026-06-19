@@ -9,6 +9,7 @@ import { api, extrairErro } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../context/LanguageContext';
 
 const EDITAVEIS = ['OPEN', 'SENT_BACK'];
 
@@ -26,11 +27,20 @@ function indicePasso(estado) {
 }
 
 /* ─── Card de requisito ─────────────────────────────────────────────────── */
-function CardRequisito({ req, evidencias, podeEditar, idCandidatura }) {
+function CardRequisito({ req, evidencias, externo, podeEditar, idCandidatura }) {
   const fileRef = useRef(null);
   const queryClient = useQueryClient();
   const minhasEv = evidencias.filter(e => Number(e.id_requisito) === Number(req.id_requisito));
   const carregado = minhasEv.length > 0;
+
+  const reutilizar = useMutation({
+    mutationFn: () => api.post(`/api/candidaturas/${idCandidatura}/evidencias/reutilizar`, { id_evidencia_origem: externo?.id_evidencia }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['candidatura', idCandidatura] });
+      toast.success('Evidência reutilizada do outro badge.');
+    },
+    onError: (err) => toast.error(extrairErro(err, 'Erro ao reutilizar.')),
+  });
 
   const upload = useMutation({
     mutationFn: (file) => {
@@ -59,8 +69,22 @@ function CardRequisito({ req, evidencias, podeEditar, idCandidatura }) {
 
   function handleFile(e) {
     const file = e.target.files?.[0];
-    if (file) upload.mutate(file);
     e.target.value = '';
+    if (!file) return;
+
+    // Validação client-side (igual ao que o servidor aceita)
+    const EXT_OK = ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'zip', 'doc', 'docx'];
+    const MAX_MB = 10;
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (!EXT_OK.includes(ext)) {
+      toast.error(`Tipo de ficheiro não permitido (.${ext}). Aceites: ${EXT_OK.join(', ')}.`);
+      return;
+    }
+    if (file.size > MAX_MB * 1024 * 1024) {
+      toast.error(`Ficheiro demasiado grande (máx. ${MAX_MB} MB).`);
+      return;
+    }
+    upload.mutate(file);
   }
 
   /* Evidências necessárias: vem de tipo_evidencia ou parsed da descricao */
@@ -103,6 +127,26 @@ function CardRequisito({ req, evidencias, podeEditar, idCandidatura }) {
         </div>
       )}
 
+      {/* Requisito já cumprido noutro badge — reutilizar evidência */}
+      {podeEditar && !carregado && externo && (
+        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+          <p className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
+            <CheckCircle className="h-3.5 w-3.5" /> Já cumpriste este requisito no badge “{externo.badge_origem}”
+          </p>
+          <p className="mt-0.5 text-[11px] leading-4 text-emerald-700/80">
+            Não precisas de voltar a submeter — podes reutilizar a evidência “{externo.nome_ficheiro}”.
+          </p>
+          <button
+            type="button"
+            onClick={() => reutilizar.mutate()}
+            disabled={reutilizar.isPending}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          >
+            <Upload className="h-3.5 w-3.5" /> {reutilizar.isPending ? 'A reutilizar...' : 'Reutilizar evidência'}
+          </button>
+        </div>
+      )}
+
       {/* Upload zone */}
       {podeEditar && (
         <div
@@ -125,7 +169,7 @@ function CardRequisito({ req, evidencias, podeEditar, idCandidatura }) {
             ref={fileRef}
             type="file"
             className="hidden"
-            accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+            accept=".pdf,.png,.jpg,.jpeg,.webp,.zip,.doc,.docx"
             onChange={handleFile}
           />
         </div>
@@ -243,6 +287,7 @@ function ModalRGPD({ onFechar }) {
 
 /* ─── Página principal ──────────────────────────────────────────────────── */
 export default function CandidaturaDetalhe() {
+  const { t } = useLanguage();
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -312,7 +357,7 @@ export default function CandidaturaDetalhe() {
       <div className="min-h-screen bg-[#f3f6fa]">
         <ConsultorSidebar />
         <div className="lg:pl-[260px]">
-          <ConsultorTopbar subtitulo="Candidatura submetida" />
+          <ConsultorTopbar subtitulo={t('sub_cand_submetida')} />
           <main className="flex min-h-[calc(100vh-92px)] items-center justify-center px-4 pb-24 lg:pb-4">
             <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
               <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100">
@@ -450,6 +495,7 @@ export default function CandidaturaDetalhe() {
                         key={req.id_requisito}
                         req={req}
                         evidencias={evidencias}
+                        externo={(data?.requisitos_externos || {})[req.id_requisito]}
                         podeEditar={podeEditar}
                         idCandidatura={id}
                       />

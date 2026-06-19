@@ -31,10 +31,31 @@ async function autenticar(req, res, next) {
       [utilizador.id_utilizador]
     );
 
+    const nomesPerfis = perfis.map(p => p.nome_perfil);
+
+    // Área + Service Line do consultor (para o perfil e dashboards)
+    let areaInfo = {};
+    if (nomesPerfis.includes('Consultor')) {
+      const [areaRows] = await pool.query(
+        `SELECT a.id_area, a.nome AS nome_area, sl.id_service_line, sl.nome AS nome_service_line
+           FROM consultor_area ca
+           JOIN area a          ON a.id_area = ca.id_area
+           JOIN service_line sl ON sl.id_service_line = a.id_service_line
+          WHERE ca.id_utilizador = ? AND ca.ativo = 1
+          LIMIT 1`,
+        [utilizador.id_utilizador]
+      );
+      areaInfo = areaRows[0] || {};
+    }
+
     req.utilizador = {
       ...utilizador,
-      perfis: perfis.map(p => p.nome_perfil),
+      perfis: nomesPerfis,
       ids_perfis: perfis.map(p => p.id_perfil),
+      id_area: areaInfo.id_area || null,
+      nome_area: areaInfo.nome_area || null,
+      id_service_line: areaInfo.id_service_line || null,
+      nome_service_line: areaInfo.nome_service_line || null,
     };
 
     next();

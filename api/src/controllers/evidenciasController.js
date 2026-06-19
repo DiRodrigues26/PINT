@@ -96,4 +96,69 @@ async function remover(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listarPorCandidatura, carregar, remover };
+// Reutilizar uma evidência já submetida noutra candidatura (mesmo requisito)
+async function reutilizar(req, res, next) {
+  try {
+    const { id } = req.params; // candidatura destino
+    const { id_evidencia_origem } = req.body;
+    if (!id_evidencia_origem) return res.status(400).json({ erro: 'id_evidencia_origem é obrigatório.' });
+
+    const [cand] = await pool.query(
+      'SELECT id_consultor, estado_atual, id_badge FROM candidatura_badge WHERE id_candidatura = ?',
+      [id]
+    );
+    if (cand.length === 0) return res.status(404).json({ erro: 'Candidatura não encontrada.' });
+    if (cand[0].id_consultor !== req.utilizador.id_utilizador) {
+      return res.status(403).json({ erro: 'Apenas o dono da candidatura pode reutilizar evidências.' });
+    }
+    if (!['OPEN', 'SENT_BACK'].includes(cand[0].estado_atual)) {
+      return res.status(400).json({ erro: 'Não pode reutilizar evidências nesta fase.' });
+    }
+
+    const [origem] = await pool.query(
+      `SELECT e.*, cb.id_consultor
+         FROM evidencia e
+         JOIN candidatura_badge cb ON cb.id_candidatura = e.id_candidatura
+        WHERE e.id_evidencia = ?`,
+      [id_evidencia_origem]
+    );
+    if (origem.length === 0) return res.status(404).json({ erro: 'Evidência de origem não encontrada.' });
+    if (origem[0].id_consultor !== req.utilizador.id_utilizador) {
+      return res.status(403).json({ erro: 'Sem permissão para reutilizar esta evidência.' });
+    }
+
+    const idRequisito = origem[0].id_requisito;
+
+    const [reqOk] = await pool.query(
+      'SELECT 1 FROM badge_requisito WHERE id_requisito = ? AND id_badge = ?',
+      [idRequisito, cand[0].id_badge]
+    );
+    if (reqOk.length === 0) return res.status(400).json({ erro: 'Esse requisito não pertence a este badge.' });
+
+    const [jaTem] = await pool.query(
+      'SELECT 1 FROM evidencia WHERE id_candidatura = ? AND id_requisito = ?',
+      [id, idRequisito]
+    );
+    if (jaTem.length > 0) return res.status(409).json({ erro: 'Já existe evidência para este requisito.' });
+
+    // copiar o ficheiro físico para serem independentes (se falhar, referencia o original)
+    let novaUrl = origem[0].ficheiro_url;
+    try {
+      const srcPath = path.join(pastaUploads, path.basename(origem[0].ficheiro_url));
+      const ext = path.extname(origem[0].ficheiro_url);
+      const novoNome = `reuse-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+      fs.copyFileSync(srcPath, path.join(pastaUploads, novoNome));
+      novaUrl = `/${process.env.UPLOAD_DIR || 'uploads'}/${novoNome}`;
+    } catch (_) { /* mantém a referência original */ }
+
+    const [result] = await pool.query(
+      `INSERT INTO evidencia (id_candidatura, id_requisito, ficheiro_url, nome_ficheiro, tipo_ficheiro, descricao)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, idRequisito, novaUrl, origem[0].nome_ficheiro, origem[0].tipo_ficheiro, origem[0].descricao || 'Reutilizada de outro badge']
+    );
+
+    res.status(201).json({ mensagem: 'Evidência reutilizada.', id_evidencia: result.insertId, ficheiro_url: novaUrl });
+  } catch (err) { next(err); }
+}
+
+module.exports = { listarPorCandidatura, carregar, remover, reutilizar };

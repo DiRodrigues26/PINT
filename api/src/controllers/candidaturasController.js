@@ -192,11 +192,31 @@ async function obter(req, res, next) {
       [candidatura.id_badge]
     );
 
+    // Requisitos deste badge que o consultor já cumpriu noutras candidaturas (reutilizáveis)
+    const [externos] = await pool.query(
+      `SELECT e.id_requisito, e.id_evidencia, e.nome_ficheiro, e.ficheiro_url, e.uploaded_at,
+              b.titulo AS badge_origem, cb.id_candidatura AS id_candidatura_origem,
+              cb.estado_atual AS estado_origem
+         FROM evidencia e
+         JOIN candidatura_badge cb ON cb.id_candidatura = e.id_candidatura
+         JOIN badge b              ON b.id_badge = cb.id_badge
+        WHERE cb.id_consultor = ?
+          AND e.id_candidatura <> ?
+          AND e.id_requisito IN (SELECT br.id_requisito FROM badge_requisito br WHERE br.id_badge = ?)
+        ORDER BY (cb.estado_atual = 'APPROVED') DESC, e.uploaded_at DESC`,
+      [candidatura.id_consultor, req.params.id, candidatura.id_badge]
+    );
+    const requisitos_externos = {};
+    for (const ex of externos) {
+      if (!requisitos_externos[ex.id_requisito]) requisitos_externos[ex.id_requisito] = ex;
+    }
+
     res.json({
       candidatura,
       consultor: consultor[0],
       requisitos,
       evidencias,
+      requisitos_externos,
       avaliacoes,
       historico,
     });
@@ -211,6 +231,15 @@ async function criar(req, res, next) {
     const [badge] = await pool.query('SELECT id_badge, ativo FROM badge WHERE id_badge = ?', [id_badge]);
     if (badge.length === 0) return res.status(404).json({ erro: 'Badge não encontrado.' });
     if (!badge[0].ativo) return res.status(400).json({ erro: 'Badge inativo.' });
+
+    // impedir candidatar a um badge já obtido
+    const [jaTem] = await pool.query(
+      'SELECT id_badge_atribuido FROM badge_atribuido WHERE id_consultor = ? AND id_badge = ? LIMIT 1',
+      [req.utilizador.id_utilizador, id_badge]
+    );
+    if (jaTem.length > 0) {
+      return res.status(409).json({ erro: 'Já tens este badge atribuído.' });
+    }
 
     // impedir duplicar candidaturas abertas ao mesmo badge
     const [abertas] = await pool.query(

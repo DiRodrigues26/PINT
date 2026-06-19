@@ -127,7 +127,7 @@ export default function Conquistas() {
     <div className="min-h-screen bg-[#f3f6fa]">
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
-        <ConsultorTopbar subtitulo="Conquistas e reconhecimentos" />
+        <ConsultorTopbar subtitulo={t('sub_conquistas')} />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
           <h2 className="text-2xl font-bold text-slate-900">{t('titulo_conquistas')}</h2>

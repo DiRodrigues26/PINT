@@ -5,6 +5,7 @@ import { api } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import toast from 'react-hot-toast';
 
 const ORIGIN = window.location.origin;
@@ -17,6 +18,7 @@ function urlVerificar(b) {
 }
 
 export default function AssinaturaEmail() {
+  const { t } = useLanguage();
   const { utilizador } = useAuth();
   const previewRef = useRef(null);
   const [nome, setNome] = useState(utilizador?.nome || '');
@@ -77,7 +79,7 @@ export default function AssinaturaEmail() {
     <div className="min-h-screen bg-[#f3f6fa]">
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
-        <ConsultorTopbar subtitulo="Assinatura de Email" />
+        <ConsultorTopbar subtitulo={t('sub_assinatura')} />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
           <h2 className="text-2xl font-bold text-slate-900">Assinatura de email com badges</h2>

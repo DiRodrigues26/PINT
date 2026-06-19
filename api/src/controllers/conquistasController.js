@@ -80,8 +80,67 @@ async function eliminar(req, res, next) {
   } catch (err) { next(err); }
 }
 
+/* Valor atual do consultor para o critério de uma conquista */
+async function valorAtualConquista(idUtilizador, c) {
+  if (c.tipo_criterio === 'BADGES_TOTAL') {
+    const [[{ n }]] = await pool.query('SELECT COUNT(*) AS n FROM badge_atribuido WHERE id_consultor = ?', [idUtilizador]);
+    return Number(n) || 0;
+  }
+  if (c.tipo_criterio === 'BADGES_AREA') {
+    const [[{ n }]] = await pool.query(
+      `SELECT COUNT(*) AS n FROM badge_atribuido ba
+         JOIN badge b ON b.id_badge = ba.id_badge
+         JOIN nivel nv ON nv.id_nivel = b.id_nivel
+         JOIN area a ON a.id_area = nv.id_area
+        WHERE ba.id_consultor = ? AND a.nome = ?`,
+      [idUtilizador, c.entidade_referencia || '']
+    );
+    return Number(n) || 0;
+  }
+  if (c.tipo_criterio === 'PONTOS') {
+    const [[{ total }]] = await pool.query(
+      `SELECT COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS total
+         FROM badge_atribuido ba JOIN badge b ON b.id_badge = ba.id_badge
+        WHERE ba.id_consultor = ?`,
+      [idUtilizador]
+    );
+    return Number(total) || 0;
+  }
+  if (c.tipo_criterio === 'NIVEL') {
+    const [[{ max_ordem }]] = await pool.query(
+      `SELECT COALESCE(MAX(nv.ordem), 0) AS max_ordem
+         FROM badge_atribuido ba JOIN badge b ON b.id_badge = ba.id_badge JOIN nivel nv ON nv.id_nivel = b.id_nivel
+        WHERE ba.id_consultor = ?`,
+      [idUtilizador]
+    );
+    return Number(max_ordem) || 0;
+  }
+  return 0;
+}
+
+/* Verifica e desbloqueia automaticamente as conquistas cujo critério já foi cumprido */
+async function verificarEAtribuirConquistas(idUtilizador) {
+  const [conquistas] = await pool.query('SELECT * FROM conquista_especial WHERE ativo = 1');
+  for (const c of conquistas) {
+    if (!c.valor_objetivo) continue;
+    const [[{ ja }]] = await pool.query(
+      'SELECT COUNT(*) AS ja FROM utilizador_conquista WHERE id_utilizador = ? AND id_conquista = ?',
+      [idUtilizador, c.id_conquista]
+    );
+    if (ja > 0) continue;
+    const atual = await valorAtualConquista(idUtilizador, c);
+    if (atual >= Number(c.valor_objetivo)) {
+      await pool.query(
+        'INSERT IGNORE INTO utilizador_conquista (id_utilizador, id_conquista) VALUES (?, ?)',
+        [idUtilizador, c.id_conquista]
+      );
+    }
+  }
+}
+
 async function minhasConquistas(req, res, next) {
   try {
+    await verificarEAtribuirConquistas(req.utilizador.id_utilizador);
     const [linhas] = await pool.query(
       `SELECT uc.data_atribuicao, c.*
          FROM utilizador_conquista uc
@@ -97,6 +156,7 @@ async function minhasConquistas(req, res, next) {
 async function progresso(req, res, next) {
   try {
     const idUtilizador = req.utilizador.id_utilizador;
+    await verificarEAtribuirConquistas(idUtilizador);
     const [conquistas] = await pool.query(
       `SELECT c.*, uc.data_atribuicao IS NOT NULL AS obtida
          FROM conquista_especial c

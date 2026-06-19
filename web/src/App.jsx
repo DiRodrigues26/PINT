@@ -64,7 +64,14 @@ import TalentPedidos from './pages/talentManager/Pedidos';
 import TalentPedidoDetalhe from './pages/talentManager/PedidoDetalhe';
 
 function PerfilEmDesenvolvimento() {
-  const { utilizador } = useAuth();
+  const { utilizador, logout } = useAuth();
+  const navigate = useNavigate();
+  const semPerfil = !utilizador?.perfis?.length;
+
+  function terminarSessao() {
+    logout();
+    navigate('/login', { replace: true });
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f3f6fa] px-6 text-slate-900">
@@ -72,11 +79,21 @@ function PerfilEmDesenvolvimento() {
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-softinsa-600 text-lg font-bold text-white">
           S
         </div>
-        <h1 className="mt-5 text-2xl font-bold">Perfil em desenvolvimento</h1>
+        <h1 className="mt-5 text-2xl font-bold">
+          {semPerfil ? 'Conta sem perfil atribuído' : 'Perfil em desenvolvimento'}
+        </h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          A experiência para o perfil {utilizador?.perfis?.join(', ') || 'utilizador'} ainda está a ser construída.
-          Neste momento, o foco ativo é o perfil de Administrador.
+          {semPerfil
+            ? 'A tua conta ainda não tem um perfil (Consultor, Service Line, Talent Manager...). Termina sessão e completa o registo, ou pede ao administrador para te atribuir um perfil.'
+            : `A experiência para o perfil ${utilizador?.perfis?.join(', ')} ainda está a ser construída.`}
         </p>
+        <button
+          type="button"
+          onClick={terminarSessao}
+          className="mt-6 inline-flex items-center justify-center gap-2 rounded-lg bg-softinsa-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-700"
+        >
+          Terminar sessão
+        </button>
       </section>
     </div>
   );

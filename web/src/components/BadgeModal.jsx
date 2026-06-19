@@ -32,6 +32,22 @@ export default function BadgeModal({ idBadge, onFechar }) {
     staleTime: 120_000,
   });
 
+  /* Saber se o consultor já tem o badge ou uma candidatura ativa */
+  const { data: obtidosData } = useQuery({
+    queryKey: ['meus-badges-ids'],
+    queryFn: async () => { const { data } = await api.get('/api/badge-atribuido/meus'); return data; },
+    staleTime: 60_000,
+  });
+  const { data: candidaturasData } = useQuery({
+    queryKey: ['candidaturas-ativas'],
+    queryFn: async () => { const { data } = await api.get('/api/candidaturas?fechadas=0&por_pagina=100'); return data; },
+    staleTime: 60_000,
+  });
+  const jaObtido = (obtidosData?.dados ?? []).some(b => b.id_badge === idBadge);
+  const candidaturaAtiva = (candidaturasData?.dados ?? []).find(
+    c => c.id_badge === idBadge && !['APPROVED', 'REJECTED', 'CLOSED'].includes(c.estado_atual),
+  );
+
   const candidatar = useMutation({
     mutationFn: () => api.post('/api/candidaturas', { id_badge: idBadge }),
     onSuccess: ({ data }) => {
@@ -214,14 +230,32 @@ export default function BadgeModal({ idBadge, onFechar }) {
         {/* Rodapé fixo */}
         <div className="border-t border-slate-200 px-6 py-4">
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => candidatar.mutate()}
-              disabled={candidatar.isPending || isLoading}
-              className="flex-1 rounded-lg bg-softinsa-600 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-700 disabled:opacity-60"
-            >
-              {candidatar.isPending ? 'A criar...' : 'Candidatar-me'}
-            </button>
+            {jaObtido ? (
+              <button
+                type="button"
+                onClick={() => { onFechar(); navigate('/meus-badges'); }}
+                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              >
+                <CheckCircle className="h-4 w-4" /> Já tens este badge
+              </button>
+            ) : candidaturaAtiva ? (
+              <button
+                type="button"
+                onClick={() => { onFechar(); navigate(`/candidaturas/${candidaturaAtiva.id_candidatura}`); }}
+                className="flex-1 rounded-lg bg-softinsa-600 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-700"
+              >
+                Continuar candidatura
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => candidatar.mutate()}
+                disabled={candidatar.isPending || isLoading}
+                className="flex-1 rounded-lg bg-softinsa-600 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-700 disabled:opacity-60"
+              >
+                {candidatar.isPending ? 'A criar...' : 'Candidatar-me'}
+              </button>
+            )}
             <button
               type="button"
               onClick={onFechar}

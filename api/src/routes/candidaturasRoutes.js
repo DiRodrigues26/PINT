@@ -20,6 +20,7 @@ router.delete('/:id',          ctrl.cancelar);
 // Evidências
 router.get('/:id/evidencias',                    ev.listarPorCandidatura);
 router.post('/:id/evidencias', upload.single('ficheiro'), ev.carregar);
+router.post('/:id/evidencias/reutilizar',                ev.reutilizar);
 router.delete('/:id/evidencias/:idEvidencia',    ev.remover);
 
 // Avaliações
