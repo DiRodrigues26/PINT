@@ -9,6 +9,7 @@ import { api } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
 import { exportCSV, exportPDF } from '../../lib/exportUtils';
+import { useTM } from './i18n';
 
 const NIVEL_PILL = {
   A: 'bg-blue-100 text-blue-700', B: 'bg-violet-100 text-violet-700',
@@ -21,6 +22,7 @@ function formatarData(d) {
 }
 
 export default function TalentBadgeDetalhe() {
+  const tt = useTM();
   const { id } = useParams();
   const navigate = useNavigate();
   const [exportAberto, setExportAberto] = useState(false);
@@ -62,7 +64,7 @@ export default function TalentBadgeDetalhe() {
       <div className="min-h-screen bg-[#f3f6fa]">
         <TalentManagerSidebar />
         <div className="lg:pl-[240px]">
-          <TalentManagerTopbar titulo="Catálogo de Badges" />
+          <TalentManagerTopbar titulo={tt('badges_titulo')} />
           <div className="flex min-h-[60vh] items-center justify-center"><Carregando /></div>
         </div>
       </div>
@@ -74,11 +76,11 @@ export default function TalentBadgeDetalhe() {
       <div className="min-h-screen bg-[#f3f6fa]">
         <TalentManagerSidebar />
         <div className="lg:pl-[240px]">
-          <TalentManagerTopbar titulo="Catálogo de Badges" />
+          <TalentManagerTopbar titulo={tt('badges_titulo')} />
           <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3">
             <AlertTriangle className="h-12 w-12 text-amber-400" />
-            <p className="text-sm text-slate-500">Badge não encontrado.</p>
-            <button onClick={() => navigate('/tm/badges')} className="text-sm font-semibold text-softinsa-600 hover:underline">Voltar ao catálogo</button>
+            <p className="text-sm text-slate-500">{tt('badge_nao_encontrado')}</p>
+            <button onClick={() => navigate('/tm/badges')} className="text-sm font-semibold text-softinsa-600 hover:underline">{tt('voltar_catalogo')}</button>
           </div>
         </div>
       </div>
@@ -89,25 +91,25 @@ export default function TalentBadgeDetalhe() {
   const diasRestantes = expiraData ? Math.ceil((new Date(expiraData) - Date.now()) / 86_400_000) : null;
   const proximoExpiracao = diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 30;
   const politica = badge.tem_expiracao && badge.validade_dias
-    ? `Expira em ${Math.round(badge.validade_dias / 30)} meses` : 'Sem expiração';
+    ? `${tt('expira_em')} ${Math.round(badge.validade_dias / 30)} ${tt('meses')}` : tt('sem_expiracao_lbl');
 
   function exportarDetalhes(tipo) {
-    const headers = ['Campo', 'Valor'];
+    const headers = [tt('col_badge'), '—'];
     const rows = [
-      ['Badge', badge.titulo],
-      ['Learning Path', badge.nome_learning_path],
-      ['Service Line', badge.nome_service_line],
-      ['Área', badge.nome_area],
-      ['Nível', `${badge.codigo_nivel} · ${badge.nome_nivel}`],
-      ['Pontos', badge.pontos],
-      ['Política de expiração', politica],
-      ['Nº candidaturas', stats.total],
-      ['Taxa de aprovação', `${stats.taxa}%`],
-      ['Tempo médio de validação (dias)', stats.tempoMedio],
-      ['Consultores que obtiveram', stats.consultores],
+      [tt('col_badge'), badge.titulo],
+      [tt('learning_path'), badge.nome_learning_path],
+      [tt('col_service_line'), badge.nome_service_line],
+      [tt('col_area'), badge.nome_area],
+      [tt('nivel'), `${badge.codigo_nivel} · ${badge.nome_nivel}`],
+      [tt('col_pontos'), badge.pontos],
+      [tt('politica_expiracao'), politica],
+      [tt('nr_candidaturas_assoc'), stats.total],
+      [tt('taxa_aprovacao_pct'), `${stats.taxa}%`],
+      [tt('tempo_medio_validacao'), stats.tempoMedio],
+      [tt('consultores_obtiveram'), stats.consultores],
     ];
     const nome = `badge_${badge.titulo.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}`;
-    if (tipo === 'pdf') exportPDF(`${nome}.pdf`, `Detalhes do Badge — ${badge.titulo}`, headers, rows);
+    if (tipo === 'pdf') exportPDF(`${nome}.pdf`, `${tt('exportar_detalhes_badge')} — ${badge.titulo}`, headers, rows);
     else exportCSV(`${nome}.csv`, headers, rows);
     setExportAberto(false);
   }
@@ -116,12 +118,12 @@ export default function TalentBadgeDetalhe() {
     <div className="min-h-screen bg-[#f3f6fa]">
       <TalentManagerSidebar />
       <div className="lg:pl-[240px]">
-        <TalentManagerTopbar titulo="Catálogo de Badges" subtitulo="Detalhe do badge" />
+        <TalentManagerTopbar titulo={tt('badges_titulo')} subtitulo={tt('voltar_catalogo')} />
 
         <main className="px-5 py-8 lg:px-8 pb-24 lg:pb-10">
           <button onClick={() => navigate('/tm/badges')}
             className="mb-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-            <ArrowLeft className="h-4 w-4" /> Voltar ao Catálogo
+            <ArrowLeft className="h-4 w-4" /> {tt('voltar_catalogo')}
           </button>
 
           {/* Cartão principal */}
@@ -136,7 +138,7 @@ export default function TalentBadgeDetalhe() {
                   <div className="relative">
                     <button type="button" onClick={() => setExportAberto(v => !v)}
                       className="flex items-center gap-2 rounded-lg bg-softinsa-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700">
-                      <Download className="h-4 w-4" /> Exportar Detalhes do Badge <ChevronDown className="h-4 w-4" />
+                      <Download className="h-4 w-4" /> {tt('exportar_detalhes_badge')} <ChevronDown className="h-4 w-4" />
                     </button>
                     {exportAberto && (
                       <div className="absolute right-0 z-10 mt-1 w-40 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
@@ -148,47 +150,47 @@ export default function TalentBadgeDetalhe() {
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-                  <Campo label="Learning Path" valor={badge.nome_learning_path} />
-                  <Campo label="Service Line" valor={badge.nome_service_line} barra />
-                  <Campo label="Área">
+                  <Campo label={tt('learning_path')} valor={badge.nome_learning_path} />
+                  <Campo label={tt('col_service_line')} valor={badge.nome_service_line} barra />
+                  <Campo label={tt('col_area')}>
                     <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800"><Cloud className="h-4 w-4 text-slate-400" /> {badge.nome_area}</span>
                   </Campo>
-                  <Campo label="Nível">
+                  <Campo label={tt('nivel')}>
                     <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${NIVEL_PILL[badge.codigo_nivel] || 'bg-slate-100'}`}>
-                      Nível {badge.codigo_nivel} · {badge.nome_nivel}
+                      {tt('nivel')} {badge.codigo_nivel} · {badge.nome_nivel}
                     </span>
                   </Campo>
                 </div>
 
                 {/* Status */}
                 <div className="mt-5 rounded-xl bg-slate-50 p-4">
-                  <p className="text-xs font-semibold text-slate-500">Status do Badge</p>
+                  <p className="text-xs font-semibold text-slate-500">{tt('status_badge')}</p>
                   <div className="mt-2 flex flex-wrap items-center gap-3">
                     {proximoExpiracao ? (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 text-sm font-semibold text-amber-700">
-                        <AlertTriangle className="h-4 w-4" /> Próximo da expiração
+                        <AlertTriangle className="h-4 w-4" /> {tt('st_proximo_exp')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-1.5 text-sm font-semibold text-emerald-700">
-                        Ativo
+                        {tt('st_ativo')}
                       </span>
                     )}
                     {expiraData && (
                       <span className="flex items-center gap-1.5 text-sm text-slate-500">
-                        <Calendar className="h-4 w-4" /> Expira em: {formatarData(expiraData)}
-                        {diasRestantes !== null && <span className="font-semibold text-amber-600"> ({diasRestantes} dias restantes)</span>}
+                        <Calendar className="h-4 w-4" /> {tt('expira_em_data')} {formatarData(expiraData)}
+                        {diasRestantes !== null && <span className="font-semibold text-amber-600"> ({diasRestantes} {tt('dias_restantes')})</span>}
                       </span>
                     )}
                   </div>
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <Campo label="Pontos Atribuídos"><span className="text-lg font-bold text-slate-900">{badge.pontos} pontos</span></Campo>
-                  <Campo label="Política de Expiração" valor={politica} />
+                  <Campo label={tt('pontos_atribuidos')}><span className="text-lg font-bold text-slate-900">{badge.pontos} {tt('pontos')}</span></Campo>
+                  <Campo label={tt('politica_expiracao')} valor={politica} />
                 </div>
 
                 <div className="mt-4 flex items-center gap-2 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                  <Users className="h-4 w-4 text-softinsa-500" /> <strong className="text-slate-800">{stats.consultores}</strong> consultores obtiveram este badge
+                  <Users className="h-4 w-4 text-softinsa-500" /> <strong className="text-slate-800">{stats.consultores}</strong> {tt('consultores_obtiveram')}
                 </div>
               </div>
             </div>
@@ -196,17 +198,17 @@ export default function TalentBadgeDetalhe() {
 
           {/* Estatísticas */}
           <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-base font-bold text-slate-900">Estatísticas do Badge</h2>
+            <h2 className="text-base font-bold text-slate-900">{tt('estatisticas_badge')}</h2>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <EstatCard icon={FileText} valor={stats.total} label="Nº de candidaturas associadas" />
-              <EstatCard icon={TrendingUp} valor={`${stats.taxa}%`} label="Taxa de aprovação (%)" />
-              <EstatCard icon={Clock} valor={stats.tempoMedio} label="Tempo médio de validação (dias)" />
+              <EstatCard icon={FileText} valor={stats.total} label={tt('nr_candidaturas_assoc')} />
+              <EstatCard icon={TrendingUp} valor={`${stats.taxa}%`} label={tt('taxa_aprovacao_pct')} />
+              <EstatCard icon={Clock} valor={stats.tempoMedio} label={tt('tempo_medio_validacao')} />
             </div>
           </div>
 
           <button onClick={() => navigate('/tm/candidaturas', { state: { badge: badge.titulo } })}
             className="mt-6 inline-flex items-center gap-2 rounded-lg bg-softinsa-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-700">
-            <FileText className="h-4 w-4" /> Ver Candidaturas
+            <FileText className="h-4 w-4" /> {tt('ver_candidaturas')}
           </button>
         </main>
       </div>

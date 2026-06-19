@@ -5,6 +5,7 @@ import { Award, Users, Clock, Info, Search, Sparkles, Star, Trophy } from 'lucid
 import { api } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
+import { useTM } from './i18n';
 
 const EM_VALIDACAO = ['IN_TALENT_REVIEW', 'IN_SERVICE_LINE_REVIEW'];
 const CORES = [
@@ -22,26 +23,26 @@ const NIVEL_PILL = {
 function statusBadge(b) {
   if (b.data_expiracao_badge) {
     const dias = (new Date(b.data_expiracao_badge) - Date.now()) / 86_400_000;
-    if (dias < 0) return { label: 'Expirado', dot: 'bg-rose-500', text: 'text-rose-600' };
-    if (dias <= 30) return { label: 'Próximo da expiração', dot: 'bg-amber-500', text: 'text-amber-600' };
+    if (dias < 0) return { key: 'st_expirado', dot: 'bg-rose-500', text: 'text-rose-600' };
+    if (dias <= 30) return { key: 'st_proximo_exp', dot: 'bg-amber-500', text: 'text-amber-600' };
   }
-  return b.ativo ? { label: 'Ativo', dot: 'bg-emerald-500', text: 'text-emerald-600' }
-                 : { label: 'Inativo', dot: 'bg-slate-400', text: 'text-slate-500' };
+  return b.ativo ? { key: 'st_ativo', dot: 'bg-emerald-500', text: 'text-emerald-600' }
+                 : { key: 'st_inativo', dot: 'bg-slate-400', text: 'text-slate-500' };
 }
 function expiracaoMeses(b) {
   if (!b.tem_expiracao || !b.validade_dias) return null;
-  const meses = Math.round(b.validade_dias / 30);
-  return `Expira em ${meses} ${meses === 1 ? 'mês' : 'meses'}`;
+  return Math.round(b.validade_dias / 30);
 }
 
 function BadgeCard({ badge, idx, stats, onVerCandidaturas, onVerDetalhes }) {
+  const tt = useTM();
   const cor = CORES[idx % CORES.length];
   const st = statusBadge(badge);
   const exp = expiracaoMeses(badge);
 
   return (
     <div className="relative flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <button type="button" onClick={onVerDetalhes} className="absolute right-3 top-3 text-softinsa-400 hover:text-softinsa-600" title="Detalhes">
+      <button type="button" onClick={onVerDetalhes} className="absolute right-3 top-3 text-softinsa-400 hover:text-softinsa-600" title={tt('ver_detalhes')}>
         <Info className="h-5 w-5" />
       </button>
 
@@ -51,7 +52,7 @@ function BadgeCard({ badge, idx, stats, onVerCandidaturas, onVerDetalhes }) {
 
       <div className="mt-4 flex items-center gap-1.5">
         <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />
-        <span className={`text-[11px] font-semibold ${st.text}`}>{st.label}</span>
+        <span className={`text-[11px] font-semibold ${st.text}`}>{tt(st.key)}</span>
       </div>
       <h3 className="mt-1 text-sm font-bold text-slate-900 leading-snug">{badge.titulo}</h3>
 
@@ -61,25 +62,25 @@ function BadgeCard({ badge, idx, stats, onVerCandidaturas, onVerDetalhes }) {
       </div>
 
       <span className={`mt-2 inline-flex w-fit rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${NIVEL_PILL[badge.codigo_nivel] || 'bg-slate-100 text-slate-600'}`}>
-        Nível {badge.codigo_nivel} · {badge.nome_nivel}
+        {tt('nivel')} {badge.codigo_nivel} · {badge.nome_nivel}
       </span>
 
-      <p className="mt-3 text-sm font-bold text-slate-800">{badge.pontos} pontos</p>
-      {exp && <p className="mt-0.5 text-xs font-medium text-amber-600">{exp}</p>}
+      <p className="mt-3 text-sm font-bold text-slate-800">{badge.pontos} {tt('pontos')}</p>
+      {exp && <p className="mt-0.5 text-xs font-medium text-amber-600">{tt('expira_em')} {exp} {exp === 1 ? tt('mes') : tt('meses')}</p>}
 
       <div className="mt-3 space-y-1 text-xs text-slate-500">
-        <p className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {stats.total} candidatura{stats.total !== 1 ? 's' : ''}</p>
-        <p className="flex items-center gap-1.5 text-amber-600"><Clock className="h-3.5 w-3.5" /> {stats.validacao} em validação</p>
+        <p className="flex items-center gap-1.5"><Users className="h-3.5 w-3.5" /> {stats.total} {stats.total !== 1 ? tt('candidaturas_lbl') : tt('candidatura_lbl')}</p>
+        <p className="flex items-center gap-1.5 text-amber-600"><Clock className="h-3.5 w-3.5" /> {stats.validacao} {tt('em_validacao_lbl')}</p>
       </div>
 
       <div className="mt-4 space-y-2">
         <button type="button" onClick={onVerCandidaturas}
           className="w-full rounded-lg bg-softinsa-600 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700">
-          Ver Candidaturas
+          {tt('ver_candidaturas')}
         </button>
         <button type="button" onClick={onVerDetalhes}
           className="w-full rounded-lg border border-slate-200 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">
-          Ver Detalhes
+          {tt('ver_detalhes')}
         </button>
       </div>
     </div>
@@ -87,6 +88,7 @@ function BadgeCard({ badge, idx, stats, onVerCandidaturas, onVerDetalhes }) {
 }
 
 function ConquistasView() {
+  const tt = useTM();
   const { data, isLoading } = useQuery({
     queryKey: ['tm-conquistas'],
     queryFn: async () => { const { data } = await api.get('/api/conquistas'); return data; },
@@ -94,9 +96,9 @@ function ConquistasView() {
   });
   const conquistas = data?.dados ?? [];
 
-  const TIPO_LABEL = {
-    BADGES_TOTAL: 'Total de badges', BADGES_AREA: 'Badges numa área',
-    PONTOS: 'Pontos acumulados', NIVEL: 'Nível atingido',
+  const TIPO_KEY = {
+    BADGES_TOTAL: 'crit_badges_total', BADGES_AREA: 'crit_badges_area',
+    PONTOS: 'crit_pontos', NIVEL: 'crit_nivel',
   };
 
   if (isLoading) return <div className="flex min-h-[40vh] items-center justify-center"><Carregando /></div>;
@@ -104,7 +106,7 @@ function ConquistasView() {
     return (
       <div className="mt-16 flex flex-col items-center text-center">
         <Trophy className="h-14 w-14 text-slate-300" strokeWidth={1} />
-        <p className="mt-4 text-base font-semibold text-slate-600">Sem conquistas especiais definidas</p>
+        <p className="mt-4 text-base font-semibold text-slate-600">{tt('sem_conquistas_def')}</p>
       </div>
     );
   }
@@ -116,18 +118,18 @@ function ConquistasView() {
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-amber-50">
               <Sparkles className="h-6 w-6 text-amber-500" strokeWidth={1.6} />
             </div>
-            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">Conquista Especial</span>
+            <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">{tt('conquista_especial')}</span>
           </div>
           <h3 className="mt-3 text-sm font-bold text-slate-900">{c.nome}</h3>
           {c.descricao && <p className="mt-1 text-xs leading-5 text-slate-500">{c.descricao}</p>}
           <div className="mt-3 space-y-1 text-xs text-slate-500">
             {c.tipo_criterio && (
-              <p>Critério: <span className="font-semibold text-slate-700">{TIPO_LABEL[c.tipo_criterio] || c.tipo_criterio}</span>{c.valor_objetivo ? ` (${c.valor_objetivo})` : ''}{c.entidade_referencia ? ` — ${c.entidade_referencia}` : ''}</p>
+              <p>{tt('criterio')}: <span className="font-semibold text-slate-700">{TIPO_KEY[c.tipo_criterio] ? tt(TIPO_KEY[c.tipo_criterio]) : c.tipo_criterio}</span>{c.valor_objetivo ? ` (${c.valor_objetivo})` : ''}{c.entidade_referencia ? ` — ${c.entidade_referencia}` : ''}</p>
             )}
           </div>
           {Number(c.pontos_bonus) > 0 && (
             <p className="mt-2 flex items-center gap-1 text-sm font-bold text-amber-600">
-              <Star className="h-3.5 w-3.5 fill-current" /> +{c.pontos_bonus} pontos bónus
+              <Star className="h-3.5 w-3.5 fill-current" /> +{c.pontos_bonus} {tt('pontos_bonus')}
             </p>
           )}
         </div>
@@ -137,6 +139,7 @@ function ConquistasView() {
 }
 
 export default function TalentBadges() {
+  const tt = useTM();
   const navigate = useNavigate();
   const [vista, setVista] = useState('badges');
   const [fLP, setFLP] = useState('');
@@ -196,18 +199,18 @@ export default function TalentBadges() {
     <div className="min-h-screen bg-[#f3f6fa]">
       <TalentManagerSidebar />
       <div className="lg:pl-[240px]">
-        <TalentManagerTopbar titulo="Catálogo de Badges" subtitulo="Todos os badges da plataforma e o seu estado" />
+        <TalentManagerTopbar titulo={tt('badges_titulo')} subtitulo={tt('badges_sub')} />
 
         <main className="px-5 py-8 lg:px-8 pb-24 lg:pb-10">
           {/* Alternador Badges / Conquistas Especiais */}
           <div className="mb-6 inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
             <button type="button" onClick={() => setVista('badges')}
               className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold transition ${vista === 'badges' ? 'bg-softinsa-600 text-white' : 'text-slate-500 hover:text-slate-800'}`}>
-              <Award className="h-4 w-4" /> Badges
+              <Award className="h-4 w-4" /> {tt('aba_badges')}
             </button>
             <button type="button" onClick={() => setVista('conquistas')}
               className={`flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold transition ${vista === 'conquistas' ? 'bg-amber-500 text-white' : 'text-slate-500 hover:text-slate-800'}`}>
-              <Sparkles className="h-4 w-4" /> Conquistas Especiais
+              <Sparkles className="h-4 w-4" /> {tt('aba_conquistas')}
             </button>
           </div>
 
@@ -216,49 +219,49 @@ export default function TalentBadges() {
           {/* Filtros */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Campo label="Learning Path">
+              <Campo label={tt('learning_path')}>
                 <select value={fLP} onChange={e => setFLP(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
-                  <option value="">Todos</option>{learningPaths.map(x => <option key={x} value={x}>{x}</option>)}
+                  <option value="">{tt('todos')}</option>{learningPaths.map(x => <option key={x} value={x}>{x}</option>)}
                 </select>
               </Campo>
-              <Campo label="Service Line">
+              <Campo label={tt('col_service_line')}>
                 <select value={fSL} onChange={e => setFSL(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
-                  <option value="">Todas</option>{serviceLines.map(x => <option key={x} value={x}>{x}</option>)}
+                  <option value="">{tt('todas')}</option>{serviceLines.map(x => <option key={x} value={x}>{x}</option>)}
                 </select>
               </Campo>
-              <Campo label="Área">
+              <Campo label={tt('col_area')}>
                 <select value={fArea} onChange={e => setFArea(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
-                  <option value="">Todas</option>{areas.map(x => <option key={x} value={x}>{x}</option>)}
+                  <option value="">{tt('todas')}</option>{areas.map(x => <option key={x} value={x}>{x}</option>)}
                 </select>
               </Campo>
-              <Campo label="Nível">
+              <Campo label={tt('nivel')}>
                 <select value={fNivel} onChange={e => setFNivel(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
-                  <option value="">Todos</option>{['A', 'B', 'C', 'D', 'E'].map(n => <option key={n} value={n}>{n}</option>)}
+                  <option value="">{tt('todos')}</option>{['A', 'B', 'C', 'D', 'E'].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </Campo>
             </div>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Campo label="Pontos">
+              <Campo label={tt('col_pontos')}>
                 <select value={fPontos} onChange={e => setFPontos(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
-                  <option value="">Todos</option><option value="com">Com pontos</option><option value="sem">Sem pontos</option>
+                  <option value="">{tt('todos')}</option><option value="com">{tt('com_pontos')}</option><option value="sem">{tt('sem_pontos')}</option>
                 </select>
               </Campo>
-              <Campo label="Expiração">
+              <Campo label={tt('expiracao')}>
                 <select value={fExp} onChange={e => setFExp(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
-                  <option value="">Todos</option><option value="com">Com expiração</option><option value="sem">Sem expiração</option>
+                  <option value="">{tt('todos')}</option><option value="com">{tt('com_expiracao')}</option><option value="sem">{tt('sem_expiracao')}</option>
                 </select>
               </Campo>
-              <Campo label="Pesquisar">
+              <Campo label={tt('pesquisar')}>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                  <input value={pesquisa} onChange={e => setPesquisa(e.target.value)} placeholder="Nome do Badge"
+                  <input value={pesquisa} onChange={e => setPesquisa(e.target.value)} placeholder={tt('nome_badge')}
                     className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-softinsa-400" />
                 </div>
               </Campo>
               <div className="flex items-end">
                 <button type="button" onClick={limpar}
                   className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                  Limpar Filtros
+                  {tt('limpar_filtros_btn')}
                 </button>
               </div>
             </div>
@@ -270,7 +273,7 @@ export default function TalentBadges() {
           ) : lista.length === 0 ? (
             <div className="mt-16 flex flex-col items-center text-center">
               <Award className="h-14 w-14 text-slate-300" strokeWidth={1} />
-              <p className="mt-4 text-base font-semibold text-slate-600">Sem badges para estes filtros</p>
+              <p className="mt-4 text-base font-semibold text-slate-600">{tt('sem_badges_filtros')}</p>
             </div>
           ) : (
             <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

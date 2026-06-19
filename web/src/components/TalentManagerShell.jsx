@@ -6,16 +6,17 @@ import { useLanguage } from '../context/LanguageContext';
 import { api } from '../lib/api';
 
 const MENU = [
-  { label: 'Dashboard',    to: '/tm/dashboard',    icon: LayoutDashboard },
-  { label: 'Candidaturas', to: '/tm/candidaturas', icon: FileText },
-  { label: 'Badges',       to: '/tm/badges',       icon: Award },
-  { label: 'Relatórios',   to: '/tm/relatorios',   icon: BarChart3 },
-  { label: 'Notificações', to: '/tm/notificacoes', icon: Bell },
-  { label: 'Perfil',       to: '/tm/perfil',       icon: User },
+  { key: 'dashboard',     to: '/tm/dashboard',    icon: LayoutDashboard },
+  { key: 'candidaturas',  to: '/tm/candidaturas', icon: FileText },
+  { key: 'tm_badges',     to: '/tm/badges',       icon: Award },
+  { key: 'tm_relatorios', to: '/tm/relatorios',   icon: BarChart3 },
+  { key: 'notificacoes',  to: '/tm/notificacoes', icon: Bell },
+  { key: 'perfil',        to: '/tm/perfil',       icon: User },
 ];
 
 export function TalentManagerSidebar() {
   const { utilizador, logout } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -37,7 +38,7 @@ export function TalentManagerSidebar() {
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <div className="space-y-1">
-            {MENU.map(({ label, to, icon: Icon }) => (
+            {MENU.map(({ key, to, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -50,7 +51,7 @@ export function TalentManagerSidebar() {
                 }
               >
                 <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
-                <span>{label}</span>
+                <span>{t(key)}</span>
               </NavLink>
             ))}
           </div>
@@ -65,7 +66,7 @@ export function TalentManagerSidebar() {
             className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-400 transition hover:text-rose-500"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
-            Terminar Sessão
+            {t('terminar_sessao')}
           </button>
         </div>
       </aside>
@@ -73,7 +74,7 @@ export function TalentManagerSidebar() {
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
         <div className="flex gap-1 overflow-x-auto pb-1">
-          {MENU.map(({ label, to, icon: Icon }) => (
+          {MENU.map(({ key, to, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -84,7 +85,7 @@ export function TalentManagerSidebar() {
               }
             >
               <Icon className="h-5 w-5 shrink-0" strokeWidth={1.8} />
-              <span className="line-clamp-1 max-w-[60px] text-center">{label}</span>
+              <span className="line-clamp-1 max-w-[60px] text-center">{t(key)}</span>
             </NavLink>
           ))}
         </div>

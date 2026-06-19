@@ -11,21 +11,26 @@ import {
 import { api } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
+import { useTM } from './i18n';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 const EM_VALIDACAO = ['IN_TALENT_REVIEW', 'IN_SERVICE_LINE_REVIEW'];
 
 function grupoEstado(e) {
-  if (['OPEN', 'SENT_BACK'].includes(e)) return 'Aberto';
-  if (e === 'SUBMITTED') return 'Submetido';
-  if (EM_VALIDACAO.includes(e)) return 'Em Validação';
-  if (e === 'APPROVED') return 'Aprovado';
-  if (e === 'REJECTED') return 'Rejeitado';
-  return 'Outro';
+  if (['OPEN', 'SENT_BACK'].includes(e)) return 'aberto';
+  if (e === 'SUBMITTED') return 'submetido';
+  if (EM_VALIDACAO.includes(e)) return 'validacao';
+  if (e === 'APPROVED') return 'aprovado';
+  if (e === 'REJECTED') return 'rejeitado';
+  return 'outro';
 }
 const COR_ESTADO = {
-  Aberto: '#94a3b8', Submetido: '#3b82f6', 'Em Validação': '#64748b',
-  Aprovado: '#10b981', Rejeitado: '#ef4444',
+  aberto: '#94a3b8', submetido: '#3b82f6', validacao: '#64748b',
+  aprovado: '#10b981', rejeitado: '#ef4444', outro: '#cbd5e1',
+};
+const ESTADO_KEY = {
+  aberto: 'est_aberto', submetido: 'est_submetido', validacao: 'est_em_validacao',
+  aprovado: 'est_aprovado', rejeitado: 'est_rejeitado',
 };
 
 function dataDe(c) { return new Date(c.data_submissao || c.data_abertura); }
@@ -42,7 +47,7 @@ function calcTrend(cands, filtro) {
   return { pct: Math.abs(pct), up: pct >= 0 };
 }
 
-function Kpi({ icon: Icon, valor, label, trend, cor }) {
+function Kpi({ icon: Icon, valor, label, trend, cor, vsLabel }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between">
@@ -57,12 +62,13 @@ function Kpi({ icon: Icon, valor, label, trend, cor }) {
       </div>
       <p className="mt-3 text-3xl font-bold text-slate-900">{valor}</p>
       <p className="mt-1 text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-[11px] text-slate-300">vs período anterior</p>
+      <p className="mt-1 text-[11px] text-slate-300">{vsLabel}</p>
     </div>
   );
 }
 
 export default function TalentRelatorios() {
+  const tt = useTM();
   const [sl, setSl] = useState('');
   const [area, setArea] = useState('');
   const [dataIni, setDataIni] = useState('');
@@ -110,8 +116,12 @@ export default function TalentRelatorios() {
     const m = new Map();
     for (const c of cands) { const g = grupoEstado(c.estado_atual); m.set(g, (m.get(g) || 0) + 1); }
     const total = cands.length || 1;
-    return [...m.entries()].map(([estado, valor]) => ({ estado, valor, pct: Math.round((valor / total) * 100) }));
-  }, [cands]);
+    return [...m.entries()].map(([estado, valor]) => ({
+      estado,
+      label: ESTADO_KEY[estado] ? tt(ESTADO_KEY[estado]) : estado,
+      valor, pct: Math.round((valor / total) * 100),
+    }));
+  }, [cands, tt]);
 
   const evolucao = useMemo(() => {
     const m = new Map();
@@ -145,7 +155,7 @@ export default function TalentRelatorios() {
     <div className="min-h-screen bg-[#f3f6fa]">
       <TalentManagerSidebar />
       <div className="lg:pl-[240px]">
-        <TalentManagerTopbar titulo="Relatórios & Analytics" subtitulo="Análise de desempenho e validação de candidaturas" />
+        <TalentManagerTopbar titulo={tt('rel_titulo')} subtitulo={tt('rel_sub')} />
 
         <main className="px-5 py-8 lg:px-8 pb-24 lg:pb-10">
           {isLoading ? (
@@ -154,48 +164,48 @@ export default function TalentRelatorios() {
             <>
               {/* Filtros */}
               <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <div className="flex items-center gap-2 text-sm font-bold text-slate-700"><Filter className="h-4 w-4 text-slate-500" /> Filtros</div>
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-700"><Filter className="h-4 w-4 text-slate-500" /> {tt('filtros')}</div>
                 <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-500">Service Line</label>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">{tt('col_service_line')}</label>
                     <select value={sl} onChange={e => setSl(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
-                      <option value="">Todas</option>{serviceLines.map(x => <option key={x} value={x}>{x}</option>)}
+                      <option value="">{tt('todas')}</option>{serviceLines.map(x => <option key={x} value={x}>{x}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-500">Área</label>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">{tt('col_area')}</label>
                     <select value={area} onChange={e => setArea(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
-                      <option value="">Todas</option>{areas.map(x => <option key={x} value={x}>{x}</option>)}
+                      <option value="">{tt('todas')}</option>{areas.map(x => <option key={x} value={x}>{x}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-500">Data Início</label>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">{tt('data_inicio')}</label>
                     <input type="date" value={dataIni} onChange={e => setDataIni(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-softinsa-400" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-slate-500">Data Fim</label>
+                    <label className="mb-1 block text-xs font-medium text-slate-500">{tt('data_fim')}</label>
                     <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-softinsa-400" />
                   </div>
                 </div>
                 <div className="mt-4 flex gap-3">
-                  <button type="button" onClick={aplicar} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">Aplicar filtros</button>
-                  <button type="button" onClick={limpar} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"><X className="h-4 w-4" /> Limpar filtros</button>
+                  <button type="button" onClick={aplicar} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">{tt('aplicar_filtros')}</button>
+                  <button type="button" onClick={limpar} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"><X className="h-4 w-4" /> {tt('limpar_filtros')}</button>
                 </div>
               </div>
 
               {/* KPIs */}
               <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-6">
-                <Kpi icon={FileText} valor={kpis.total} label="Total Candidaturas" cor={{ bg: 'bg-blue-50', text: 'text-blue-500' }} trend={calcTrend(cands, () => true)} />
-                <Kpi icon={CheckCircle} valor={kpis.aprov} label="Candidaturas Aprovadas" cor={{ bg: 'bg-emerald-50', text: 'text-emerald-500' }} trend={calcTrend(cands, c => c.estado_atual === 'APPROVED')} />
-                <Kpi icon={XCircle} valor={kpis.rej} label="Candidaturas Rejeitadas" cor={{ bg: 'bg-rose-50', text: 'text-rose-500' }} trend={calcTrend(cands, c => c.estado_atual === 'REJECTED')} />
-                <Kpi icon={TrendingUp} valor={`${kpis.taxa}%`} label="Taxa de Aprovação" cor={{ bg: 'bg-violet-50', text: 'text-violet-500' }} />
-                <Kpi icon={Clock} valor={`${kpis.tempoMedio}d`} label="Tempo Médio Validação" cor={{ bg: 'bg-amber-50', text: 'text-amber-500' }} />
-                <Kpi icon={AlertCircle} valor={kpis.emVal} label="Candidaturas em Validação" cor={{ bg: 'bg-amber-50', text: 'text-amber-600' }} trend={calcTrend(cands, c => EM_VALIDACAO.includes(c.estado_atual))} />
+                <Kpi icon={FileText} valor={kpis.total} label={tt('rkpi_total')} vsLabel={tt('vs_periodo')} cor={{ bg: 'bg-blue-50', text: 'text-blue-500' }} trend={calcTrend(cands, () => true)} />
+                <Kpi icon={CheckCircle} valor={kpis.aprov} label={tt('rkpi_aprovadas')} vsLabel={tt('vs_periodo')} cor={{ bg: 'bg-emerald-50', text: 'text-emerald-500' }} trend={calcTrend(cands, c => c.estado_atual === 'APPROVED')} />
+                <Kpi icon={XCircle} valor={kpis.rej} label={tt('rkpi_rejeitadas')} vsLabel={tt('vs_periodo')} cor={{ bg: 'bg-rose-50', text: 'text-rose-500' }} trend={calcTrend(cands, c => c.estado_atual === 'REJECTED')} />
+                <Kpi icon={TrendingUp} valor={`${kpis.taxa}%`} label={tt('rkpi_taxa')} vsLabel={tt('vs_periodo')} cor={{ bg: 'bg-violet-50', text: 'text-violet-500' }} />
+                <Kpi icon={Clock} valor={`${kpis.tempoMedio}d`} label={tt('rkpi_tempo')} vsLabel={tt('vs_periodo')} cor={{ bg: 'bg-amber-50', text: 'text-amber-500' }} />
+                <Kpi icon={AlertCircle} valor={kpis.emVal} label={tt('rkpi_em_validacao')} vsLabel={tt('vs_periodo')} cor={{ bg: 'bg-amber-50', text: 'text-amber-600' }} trend={calcTrend(cands, c => EM_VALIDACAO.includes(c.estado_atual))} />
               </div>
 
               {/* Gráficos linha 1 */}
               <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <Grafico titulo="Candidaturas por Área">
+                <Grafico titulo={tt('graf_por_area')}>
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={porArea}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
@@ -207,11 +217,11 @@ export default function TalentRelatorios() {
                   </ResponsiveContainer>
                 </Grafico>
 
-                <Grafico titulo="Distribuição por Estado">
+                <Grafico titulo={tt('graf_dist_estado')}>
                   <ResponsiveContainer width="100%" height={280}>
                     <PieChart>
-                      <Pie data={distEstado} dataKey="valor" nameKey="estado" cx="50%" cy="50%" outerRadius={90}
-                        label={({ estado, pct }) => `${estado} (${pct}%)`} labelLine fontSize={11}>
+                      <Pie data={distEstado} dataKey="valor" nameKey="label" cx="50%" cy="50%" outerRadius={90}
+                        label={({ label, pct }) => `${label} (${pct}%)`} labelLine fontSize={11}>
                         {distEstado.map(d => <Cell key={d.estado} fill={COR_ESTADO[d.estado] || '#cbd5e1'} />)}
                       </Pie>
                       <Tooltip />
@@ -222,7 +232,7 @@ export default function TalentRelatorios() {
 
               {/* Gráficos linha 2 */}
               <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <Grafico titulo="Evolução de Submissões">
+                <Grafico titulo={tt('graf_evolucao')}>
                   <ResponsiveContainer width="100%" height={280}>
                     <LineChart data={evolucao}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
@@ -234,7 +244,7 @@ export default function TalentRelatorios() {
                   </ResponsiveContainer>
                 </Grafico>
 
-                <Grafico titulo="Aprovações vs Rejeições por Área">
+                <Grafico titulo={tt('graf_aprov_rej')}>
                   <ResponsiveContainer width="100%" height={280}>
                     <BarChart data={aprovVsRej}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
@@ -242,8 +252,8 @@ export default function TalentRelatorios() {
                       <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="aprovadas" name="aprovadas" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
-                      <Bar dataKey="rejeitadas" name="rejeitadas" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                      <Bar dataKey="aprovadas" name={tt('aprovadas')} fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={28} />
+                      <Bar dataKey="rejeitadas" name={tt('rejeitadas')} fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={28} />
                     </BarChart>
                   </ResponsiveContainer>
                 </Grafico>

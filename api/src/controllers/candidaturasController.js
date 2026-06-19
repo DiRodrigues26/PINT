@@ -352,7 +352,7 @@ async function submeter(req, res, next) {
             categoria: 'CANDIDATURA',
             titulo: `Nova submissão: ${candidatura.titulo_badge}`,
             mensagem: `Candidatura #${req.params.id} aguarda validação de evidências.`,
-            entidade_relacionada: 'Consultor',
+            entidade_relacionada: String(req.params.id),
           });
         }
       }
@@ -447,7 +447,7 @@ async function avaliarTalent(req, res, next) {
           ? `Evidências validadas pelo Talent Manager`
           : `Evidências devolvidas para retificação`,
         mensagem: `Badge: ${candidatura.titulo_badge}. ${comentario || ''}`,
-        entidade_relacionada: 'Talent Manager',
+        entidade_relacionada: String(req.params.id),
       });
 
       // se correto, notificar service line leader(s) dessa service line
@@ -465,7 +465,7 @@ async function avaliarTalent(req, res, next) {
             categoria: 'CANDIDATURA',
             titulo: `Validação final pendente: ${candidatura.titulo_badge}`,
             mensagem: `Candidatura #${req.params.id} aguarda a sua decisão.`,
-            entidade_relacionada: 'Talent Manager',
+            entidade_relacionada: String(req.params.id),
           });
         }
       }
@@ -596,7 +596,7 @@ async function avaliarServiceLine(req, res, next) {
           categoria: novoEstado === 'APPROVED' ? 'BADGE' : 'CANDIDATURA',
           titulo: titulosNotif[novoEstado],
           mensagem: comentario || null,
-          entidade_relacionada: 'Service Line',
+          entidade_relacionada: String(req.params.id),
         });
       }
 

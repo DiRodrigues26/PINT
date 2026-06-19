@@ -8,47 +8,42 @@ import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/Tale
 import Carregando from '../../components/Carregando';
 import ConsultorPerfilModal from './ConsultorPerfilModal';
 import CandidaturaDetalheModal from './CandidaturaDetalheModal';
+import { useTM } from './i18n';
 
-/* ─── Helpers de estado / prioridade / prazo ─────────────────────────── */
 const ESTADO_LABEL = {
-  OPEN: { label: 'Aberto', cls: 'bg-blue-100 text-blue-700' },
-  SUBMITTED: { label: 'Submetido', cls: 'bg-amber-100 text-amber-700' },
-  IN_TALENT_REVIEW: { label: 'Em Validação', cls: 'bg-amber-100 text-amber-700' },
-  IN_SERVICE_LINE_REVIEW: { label: 'Em Validação', cls: 'bg-orange-100 text-orange-700' },
-  APPROVED: { label: 'Fechado', cls: 'bg-emerald-100 text-emerald-700' },
-  REJECTED: { label: 'Rejeitado', cls: 'bg-rose-100 text-rose-700' },
-  SENT_BACK: { label: 'Devolvido', cls: 'bg-orange-100 text-orange-600' },
-  CLOSED: { label: 'Fechado', cls: 'bg-emerald-100 text-emerald-700' },
+  OPEN: { key: 'est_aberto', cls: 'bg-blue-100 text-blue-700' },
+  SUBMITTED: { key: 'est_submetido', cls: 'bg-amber-100 text-amber-700' },
+  IN_TALENT_REVIEW: { key: 'est_em_validacao', cls: 'bg-amber-100 text-amber-700' },
+  IN_SERVICE_LINE_REVIEW: { key: 'est_em_validacao', cls: 'bg-orange-100 text-orange-700' },
+  APPROVED: { key: 'est_fechado', cls: 'bg-emerald-100 text-emerald-700' },
+  REJECTED: { key: 'est_rejeitado', cls: 'bg-rose-100 text-rose-700' },
+  SENT_BACK: { key: 'est_devolvido', cls: 'bg-orange-100 text-orange-600' },
+  CLOSED: { key: 'est_fechado', cls: 'bg-emerald-100 text-emerald-700' },
 };
 const FECHADOS = ['APPROVED', 'REJECTED', 'CLOSED'];
 const EM_VALIDACAO = ['IN_TALENT_REVIEW', 'IN_SERVICE_LINE_REVIEW'];
 
 function prioridade(pontos) {
   const p = Number(pontos) || 0;
-  if (p >= 350) return { label: 'Alta', cls: 'bg-rose-100 text-rose-600' };
-  if (p >= 250) return { label: 'Média', cls: 'bg-amber-100 text-amber-700' };
-  return { label: 'Baixa', cls: 'bg-slate-100 text-slate-600' };
+  if (p >= 350) return { key: 'prio_alta', cls: 'bg-rose-100 text-rose-600' };
+  if (p >= 250) return { key: 'prio_media', cls: 'bg-amber-100 text-amber-700' };
+  return { key: 'prio_baixa', cls: 'bg-slate-100 text-slate-600' };
 }
-
 function prazo(c) {
-  if (FECHADOS.includes(c.estado_atual)) return { label: 'Concluído', cls: 'text-slate-400' };
+  if (FECHADOS.includes(c.estado_atual)) return { key: 'prazo_concluido', cls: 'text-slate-400' };
   const base = c.data_submissao || c.data_abertura;
-  if (!base) return { label: '—', cls: 'text-slate-300' };
+  if (!base) return { key: null, cls: 'text-slate-300' };
   const dias = (Date.now() - new Date(base).getTime()) / 86_400_000;
-  if (dias > 14) return { label: 'Atrasado', cls: 'text-rose-600 font-semibold', critico: true };
-  if (dias > 7) return { label: 'Próximo', cls: 'text-amber-600 font-semibold', critico: true };
-  return { label: 'No prazo', cls: 'text-emerald-600' };
+  if (dias > 14) return { key: 'prazo_atrasado', cls: 'text-rose-600 font-semibold', critico: true };
+  if (dias > 7) return { key: 'prazo_proximo', cls: 'text-amber-600 font-semibold', critico: true };
+  return { key: 'prazo_no_prazo', cls: 'text-emerald-600' };
 }
-
 function formatarData(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
-
 function exportarCSV(nome, cabecalho, linhas) {
-  const csv = [cabecalho, ...linhas]
-    .map(l => l.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(','))
-    .join('\n');
+  const csv = [cabecalho, ...linhas].map(l => l.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -56,7 +51,6 @@ function exportarCSV(nome, cabecalho, linhas) {
   a.click();
 }
 
-/* ─── KPI ─────────────────────────────────────────────────────────────── */
 function Kpi({ icon: Icon, label, valor, cor }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -71,25 +65,25 @@ function Kpi({ icon: Icon, label, valor, cor }) {
   );
 }
 
-const TABS = [
-  { key: 'TODOS', label: 'Todos' },
-  { key: 'OPEN', label: 'Open' },
-  { key: 'SUBMITTED', label: 'Submitted' },
-  { key: 'VALIDACAO', label: 'Em Validação' },
-  { key: 'FECHADO', label: 'Fechado' },
-];
-
 export default function TalentDashboard() {
+  const tt = useTM();
   const [tab, setTab] = useState('TODOS');
   const [pesquisa, setPesquisa] = useState('');
   const [modalConsultor, setModalConsultor] = useState(null);
   const [modalCandidatura, setModalCandidatura] = useState(null);
 
+  const TABS = [
+    { key: 'TODOS', label: tt('tab_todos') },
+    { key: 'OPEN', label: 'Open' },
+    { key: 'SUBMITTED', label: 'Submitted' },
+    { key: 'VALIDACAO', label: tt('est_em_validacao') },
+    { key: 'FECHADO', label: tt('tab_fechado') },
+  ];
+
   const { data: candData, isLoading: loadCand } = useQuery({
     queryKey: ['tm-candidaturas'],
     queryFn: async () => { const { data } = await api.get('/api/candidaturas?por_pagina=200'); return data; },
-    staleTime: 20_000,
-    refetchInterval: 20_000,
+    staleTime: 20_000, refetchInterval: 20_000,
   });
   const { data: rankData, isLoading: loadRank } = useQuery({
     queryKey: ['tm-ranking'],
@@ -125,25 +119,22 @@ export default function TalentDashboard() {
   }, [candidaturas, tab, pesquisa]);
 
   const topConsultores = useMemo(() => consultores.slice(0, 3), [consultores]);
-
   const badgesRecentes = useMemo(
-    () => candidaturas
-      .filter(c => c.estado_atual === 'APPROVED')
-      .sort((a, b) => new Date(b.data_fecho || b.data_submissao) - new Date(a.data_fecho || a.data_submissao))
-      .slice(0, 3),
+    () => candidaturas.filter(c => c.estado_atual === 'APPROVED')
+      .sort((a, b) => new Date(b.data_fecho || b.data_submissao) - new Date(a.data_fecho || a.data_submissao)).slice(0, 3),
     [candidaturas],
   );
 
   function exportarCandidaturas() {
     exportarCSV('candidaturas',
-      ['Consultor', 'Badge', 'Área', 'Estado', 'Evidências', 'Data Submissão', 'Pontos'],
+      [tt('col_consultor'), tt('col_badge'), tt('col_area'), tt('col_estado'), tt('col_evidencias'), tt('col_data_sub'), tt('col_pontos')],
       tabela.map(c => [c.nome_consultor, c.titulo_badge, c.nome_area,
-        ESTADO_LABEL[c.estado_atual]?.label, `${c.evidencias_count}/${c.total_requisitos}`,
+        tt(ESTADO_LABEL[c.estado_atual]?.key), `${c.evidencias_count}/${c.total_requisitos}`,
         formatarData(c.data_submissao || c.data_abertura), c.pontos]));
   }
   function exportarConsultores() {
     exportarCSV('consultores',
-      ['Nome', 'Service Line', 'Área', 'Badges Obtidos', 'Pontos Totais'],
+      [tt('col_nome'), tt('col_service_line'), tt('col_area'), tt('col_badges_obtidos'), tt('col_pontos_totais')],
       consultores.map(c => [c.nome, c.nome_service_line, c.nome_area, c.total_badges, c.pontos_totais]));
   }
 
@@ -156,102 +147,92 @@ export default function TalentDashboard() {
 
       <TalentManagerSidebar />
       <div className="lg:pl-[240px]">
-        <TalentManagerTopbar titulo="Dashboard Talent Manager" subtitulo="Monitorização global de badges e consultores" />
+        <TalentManagerTopbar titulo={tt('dash_titulo')} subtitulo={tt('dash_sub')} />
 
         <main className="px-5 py-8 lg:px-8 pb-24 lg:pb-10">
           {isLoading ? (
             <div className="flex min-h-[60vh] items-center justify-center"><Carregando /></div>
           ) : (
             <>
-              {/* KPIs */}
               <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-                <Kpi icon={FileText} label="Total de Candidaturas" valor={kpis.total} cor={{ bg: 'bg-blue-50', text: 'text-blue-500' }} />
-                <Kpi icon={AlertCircle} label="Candidaturas em Validação" valor={kpis.validacao} cor={{ bg: 'bg-amber-50', text: 'text-amber-500' }} />
-                <Kpi icon={Award} label="Badges Aprovados" valor={kpis.aprovados} cor={{ bg: 'bg-emerald-50', text: 'text-emerald-500' }} />
-                <Kpi icon={Clock} label="Candidaturas Pendentes" valor={kpis.pendentes} cor={{ bg: 'bg-amber-50', text: 'text-amber-600' }} />
-                <Kpi icon={AlertTriangle} label="Candidaturas com Prazo Crítico" valor={kpis.critico} cor={{ bg: 'bg-rose-50', text: 'text-rose-500' }} />
+                <Kpi icon={FileText} label={tt('kpi_total')} valor={kpis.total} cor={{ bg: 'bg-blue-50', text: 'text-blue-500' }} />
+                <Kpi icon={AlertCircle} label={tt('kpi_validacao')} valor={kpis.validacao} cor={{ bg: 'bg-amber-50', text: 'text-amber-500' }} />
+                <Kpi icon={Award} label={tt('kpi_aprovados')} valor={kpis.aprovados} cor={{ bg: 'bg-emerald-50', text: 'text-emerald-500' }} />
+                <Kpi icon={Clock} label={tt('kpi_pendentes')} valor={kpis.pendentes} cor={{ bg: 'bg-amber-50', text: 'text-amber-600' }} />
+                <Kpi icon={AlertTriangle} label={tt('kpi_critico')} valor={kpis.critico} cor={{ bg: 'bg-rose-50', text: 'text-rose-500' }} />
               </div>
 
-              {/* Estado das candidaturas em tempo real */}
               <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-base font-bold text-slate-900">Estado das Candidaturas em Tempo Real</h2>
+                    <h2 className="text-base font-bold text-slate-900">{tt('estado_tempo_real')}</h2>
                     <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Atualizado em tempo real
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {tt('atualizado_tempo_real')}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
-                      <input value={pesquisa} onChange={e => setPesquisa(e.target.value)} placeholder="Pesquisar..."
+                      <input value={pesquisa} onChange={e => setPesquisa(e.target.value)} placeholder={tt('pesquisar')}
                         className="rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-softinsa-400" />
                     </div>
                     <button type="button" onClick={exportarCandidaturas}
                       className="flex items-center gap-2 rounded-lg bg-softinsa-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700">
-                      <Download className="h-4 w-4" /> Exportar
+                      <Download className="h-4 w-4" /> {tt('exportar')}
                     </button>
                   </div>
                 </div>
 
-                {/* Tabs */}
                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold text-slate-400">Estado:</span>
+                  <span className="text-xs font-semibold text-slate-400">{tt('col_estado')}:</span>
                   {TABS.map(tb => (
                     <button key={tb.key} type="button" onClick={() => setTab(tb.key)}
-                      className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${
-                        tab === tb.key ? 'bg-softinsa-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}>
+                      className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${tab === tb.key ? 'bg-softinsa-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
                       {tb.label}
                     </button>
                   ))}
                 </div>
 
-                {/* Tabela */}
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100 text-xs font-semibold text-slate-400">
-                        <th className="px-3 py-3 text-left">Consultor</th>
-                        <th className="px-3 py-3 text-left">Badge</th>
-                        <th className="px-3 py-3 text-left">Prioridade</th>
-                        <th className="px-3 py-3 text-left">Estado</th>
-                        <th className="px-3 py-3 text-left">Evidências</th>
-                        <th className="px-3 py-3 text-left">Prazo</th>
-                        <th className="px-3 py-3 text-left">Data Submissão</th>
-                        <th className="px-3 py-3 text-left">Pontos</th>
-                        <th className="px-3 py-3 text-left">Ação</th>
+                        <th className="px-3 py-3 text-left">{tt('col_consultor')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_badge')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_prioridade')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_estado')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_evidencias')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_prazo')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_data_sub')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_pontos')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_acao')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {tabela.length === 0 ? (
-                        <tr><td colSpan={9} className="py-10 text-center text-sm text-slate-400">Sem candidaturas neste estado.</td></tr>
+                        <tr><td colSpan={9} className="py-10 text-center text-sm text-slate-400">{tt('sem_candidaturas_estado')}</td></tr>
                       ) : tabela.map(c => {
-                        const est = ESTADO_LABEL[c.estado_atual] || { label: c.estado_atual, cls: 'bg-slate-100 text-slate-600' };
+                        const est = ESTADO_LABEL[c.estado_atual] || { key: null, cls: 'bg-slate-100 text-slate-600' };
                         const prio = prioridade(c.pontos);
                         const pz = prazo(c);
                         return (
                           <tr key={c.id_candidatura} className="hover:bg-slate-50/60">
                             <td className="px-3 py-3.5 font-medium text-slate-800">{c.nome_consultor}</td>
                             <td className="px-3 py-3.5 text-slate-600">{c.titulo_badge}</td>
-                            <td className="px-3 py-3.5">
-                              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${prio.cls}`}>{prio.label}</span>
-                            </td>
-                            <td className="px-3 py-3.5">
-                              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${est.cls}`}>{est.label}</span>
-                            </td>
+                            <td className="px-3 py-3.5"><span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${prio.cls}`}>{tt(prio.key)}</span></td>
+                            <td className="px-3 py-3.5"><span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${est.cls}`}>{est.key ? tt(est.key) : c.estado_atual}</span></td>
                             <td className="px-3 py-3.5">
                               {c.evidencias_count > 0
-                                ? <span className="text-softinsa-600">{c.evidencias_count} ficheiro{c.evidencias_count > 1 ? 's' : ''}</span>
-                                : <span className="text-slate-300">Sem evidências</span>}
+                                ? <span className="text-softinsa-600">{c.evidencias_count} {c.evidencias_count > 1 ? tt('ficheiros') : tt('ficheiro')}</span>
+                                : <span className="text-slate-300">{tt('sem_evidencias')}</span>}
                             </td>
-                            <td className={`px-3 py-3.5 text-xs ${pz.cls}`}>{pz.label}</td>
+                            <td className={`px-3 py-3.5 text-xs ${pz.cls}`}>{pz.key ? tt(pz.key) : '—'}</td>
                             <td className="px-3 py-3.5 text-slate-600">{formatarData(c.data_submissao || c.data_abertura)}</td>
                             <td className="px-3 py-3.5 font-semibold text-softinsa-600">{c.pontos || 0}</td>
                             <td className="px-3 py-3.5">
                               <button type="button" onClick={() => setModalCandidatura(c.id_candidatura)}
                                 className="flex items-center gap-1.5 text-sm font-medium text-softinsa-600 hover:underline">
-                                <Eye className="h-4 w-4" /> Ver Detalhes
+                                <Eye className="h-4 w-4" /> {tt('ver_detalhes')}
                               </button>
                             </td>
                           </tr>
@@ -262,45 +243,39 @@ export default function TalentDashboard() {
                 </div>
               </section>
 
-              {/* Progresso dos consultores */}
               <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-base font-bold text-slate-900">Progresso dos Consultores</h2>
+                  <h2 className="text-base font-bold text-slate-900">{tt('progresso_consultores')}</h2>
                   <button type="button" onClick={exportarConsultores}
                     className="flex items-center gap-2 rounded-lg bg-softinsa-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700">
-                    <Download className="h-4 w-4" /> Exportar
+                    <Download className="h-4 w-4" /> {tt('exportar')}
                   </button>
                 </div>
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-slate-100 text-xs font-semibold text-slate-400">
-                        <th className="px-3 py-3 text-left">Nome</th>
-                        <th className="px-3 py-3 text-left">Service Line</th>
-                        <th className="px-3 py-3 text-left">Área</th>
-                        <th className="px-3 py-3 text-left">Badges Obtidos</th>
-                        <th className="px-3 py-3 text-left">Pontos Totais</th>
-                        <th className="px-3 py-3 text-left">Ação</th>
+                        <th className="px-3 py-3 text-left">{tt('col_nome')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_service_line')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_area')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_badges_obtidos')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_pontos_totais')}</th>
+                        <th className="px-3 py-3 text-left">{tt('col_acao')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
                       {consultores.length === 0 ? (
-                        <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-400">Sem consultores com badges.</td></tr>
+                        <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-400">{tt('sem_consultores')}</td></tr>
                       ) : consultores.map(c => (
                         <tr key={c.id_utilizador} className="hover:bg-slate-50/60">
                           <td className="px-3 py-3.5 font-medium text-slate-800">{c.nome}</td>
                           <td className="px-3 py-3.5 text-slate-600">{c.nome_service_line || '—'}</td>
                           <td className="px-3 py-3.5 text-slate-600">{c.nome_area || '—'}</td>
-                          <td className="px-3 py-3.5">
-                            <span className="inline-flex items-center gap-1.5 text-slate-700">
-                              <Award className="h-4 w-4 text-softinsa-500" /> {c.total_badges}
-                            </span>
-                          </td>
+                          <td className="px-3 py-3.5"><span className="inline-flex items-center gap-1.5 text-slate-700"><Award className="h-4 w-4 text-softinsa-500" /> {c.total_badges}</span></td>
                           <td className="px-3 py-3.5 font-semibold text-softinsa-600">{Number(c.pontos_totais).toLocaleString('pt-PT')}</td>
                           <td className="px-3 py-3.5">
-                            <button type="button" onClick={() => setModalConsultor(c)}
-                              className="flex items-center gap-1.5 text-sm font-medium text-softinsa-600 hover:underline">
-                              <Eye className="h-4 w-4" /> Ver Perfil
+                            <button type="button" onClick={() => setModalConsultor(c)} className="flex items-center gap-1.5 text-sm font-medium text-softinsa-600 hover:underline">
+                              <Eye className="h-4 w-4" /> {tt('ver_perfil')}
                             </button>
                           </td>
                         </tr>
@@ -310,26 +285,21 @@ export default function TalentDashboard() {
                 </div>
               </section>
 
-              {/* Top consultores + badges recentes */}
               <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
-                    <Trophy className="h-5 w-5 text-amber-500" /> Top Consultores por Pontos
-                  </h2>
+                  <h2 className="flex items-center gap-2 text-base font-bold text-slate-900"><Trophy className="h-5 w-5 text-amber-500" /> {tt('top_consultores')}</h2>
                   <div className="mt-4 space-y-3">
                     {topConsultores.length === 0 ? (
-                      <p className="text-sm text-slate-400">Sem dados.</p>
+                      <p className="text-sm text-slate-400">—</p>
                     ) : topConsultores.map((c, i) => (
                       <div key={c.id_utilizador} className="flex items-center gap-4 rounded-xl bg-slate-50 px-4 py-3">
-                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white ${
-                          i === 0 ? 'bg-amber-400' : i === 1 ? 'bg-slate-400' : 'bg-orange-400'
-                        }`}>{i + 1}</div>
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold text-white ${i === 0 ? 'bg-amber-400' : i === 1 ? 'bg-slate-400' : 'bg-orange-400'}`}>{i + 1}</div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-bold text-slate-800">{c.nome}</p>
                           <p className="text-xs text-slate-500">
-                            <Trophy className="mr-1 inline h-3 w-3 text-amber-500" />{Number(c.pontos_totais).toLocaleString('pt-PT')} pontos
+                            <Trophy className="mr-1 inline h-3 w-3 text-amber-500" />{Number(c.pontos_totais).toLocaleString('pt-PT')} {tt('pontos')}
                             <span className="mx-1">·</span>
-                            <Award className="mr-1 inline h-3 w-3 text-softinsa-500" />{c.total_badges} badges
+                            <Award className="mr-1 inline h-3 w-3 text-softinsa-500" />{c.total_badges} {tt('badges')}
                           </p>
                         </div>
                       </div>
@@ -338,15 +308,13 @@ export default function TalentDashboard() {
                 </section>
 
                 <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                  <h2 className="text-base font-bold text-slate-900">Badges Especiais Recentes</h2>
+                  <h2 className="text-base font-bold text-slate-900">{tt('badges_recentes')}</h2>
                   <div className="mt-4 space-y-3">
                     {badgesRecentes.length === 0 ? (
-                      <p className="text-sm text-slate-400">Ainda não há badges aprovados.</p>
+                      <p className="text-sm text-slate-400">—</p>
                     ) : badgesRecentes.map(c => (
                       <div key={c.id_candidatura} className="flex items-center gap-3 rounded-xl border border-slate-100 px-4 py-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-500">
-                          <Award className="h-5 w-5" strokeWidth={1.8} />
-                        </div>
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-500"><Award className="h-5 w-5" strokeWidth={1.8} /></div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-semibold text-slate-800">{c.titulo_badge}</p>
                           <p className="text-xs text-softinsa-600">{c.nome_consultor}</p>
