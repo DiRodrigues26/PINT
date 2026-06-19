@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   FileText, TriangleAlert, CheckCircle, XCircle, Bell,
-  CheckCheck, Trash2, Mail, Filter, X,
+  CheckCheck, Trash2, Mail, Filter, X, ArrowRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
@@ -50,7 +51,7 @@ function formatarDataHora(dataStr) {
 }
 
 /* ─── Item de notificação ───────────────────────────────────────────── */
-function ItemNotificacao({ notif, onLer, onEliminar }) {
+function ItemNotificacao({ notif, onLer, onEliminar, onAbrir, temLink }) {
   const { t } = useLanguage();
   const TIPO_CONFIG = getTipoConfig(t);
   const cfg = TIPO_CONFIG[notif.tipo] || TIPO_CONFIG.default;
@@ -64,8 +65,12 @@ function ItemNotificacao({ notif, onLer, onEliminar }) {
       </div>
 
       {/* Conteúdo */}
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm ${!notif.lida ? 'font-semibold text-slate-900' : 'font-medium text-slate-700'}`}>
+      <div
+        className={`flex-1 min-w-0 ${temLink ? 'cursor-pointer' : ''}`}
+        onClick={temLink ? () => onAbrir(notif) : undefined}
+        role={temLink ? 'button' : undefined}
+      >
+        <p className={`text-sm ${temLink ? 'hover:text-softinsa-600 transition' : ''} ${!notif.lida ? 'font-semibold text-slate-900' : 'font-medium text-slate-700'}`}>
           {notif.titulo}
         </p>
         <p className="mt-0.5 text-xs text-slate-500 leading-relaxed">{notif.mensagem}</p>
@@ -74,6 +79,11 @@ function ItemNotificacao({ notif, onLer, onEliminar }) {
           {!notif.lida && (
             <span className="inline-flex items-center rounded-full bg-softinsa-50 px-2 py-0.5 text-[10px] font-semibold text-softinsa-600">
               {t('sl_notif_nao_lida')}
+            </span>
+          )}
+          {temLink && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-softinsa-600">
+              {t('sl_notif_ver_detalhe')} <ArrowRight className="h-3 w-3" strokeWidth={2} />
             </span>
           )}
         </div>
@@ -86,7 +96,7 @@ function ItemNotificacao({ notif, onLer, onEliminar }) {
             type="button"
             onClick={() => onLer(notif.id_notificacao)}
             className="h-2.5 w-2.5 rounded-full bg-softinsa-500 hover:bg-softinsa-700 transition"
-            title={t('sl_notif_marcar_todas')}
+            title={t('sl_notif_marcar_lida')}
           />
         )}
         <button
@@ -102,8 +112,18 @@ function ItemNotificacao({ notif, onLer, onEliminar }) {
 }
 
 /* ─── Página principal ──────────────────────────────────────────────── */
+/* Determina o destino de uma notificação (deep-link para o conteúdo) */
+function destinoNotif(n) {
+  if (n.categoria === 'CANDIDATURA') {
+    const m = `${n.mensagem || ''} ${n.titulo || ''}`.match(/#(\d+)/);
+    if (m) return `/sl/pedidos/${m[1]}`;
+  }
+  return null;
+}
+
 export default function ServiceLineNotificacoes() {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [filtroCategoria, setFiltroCategoria] = useState('');
   const [filtroDataInicio, setFiltroDataInicio] = useState('');
@@ -168,6 +188,12 @@ export default function ServiceLineNotificacoes() {
     },
     onError: (err) => toast.error(extrairErro(err)),
   });
+
+  function abrirNotif(n) {
+    const destino = destinoNotif(n);
+    if (!n.lida) mutLer.mutate(n.id_notificacao);
+    if (destino) navigate(destino);
+  }
 
   function limparFiltros() {
     setFiltroCategoria('');
@@ -254,6 +280,13 @@ export default function ServiceLineNotificacoes() {
             <p className="flex items-center gap-1.5 text-xs text-slate-400">
               <Mail className="h-3.5 w-3.5" strokeWidth={1.8} />
               {t('sl_notif_email_info')}
+              <button
+                type="button"
+                onClick={() => navigate('/sl/perfil#preferencias-notificacao')}
+                className="font-semibold text-softinsa-600 hover:underline"
+              >
+                {t('sl_notif_gerir_prefs')}
+              </button>
             </p>
           </div>
 
@@ -287,6 +320,8 @@ export default function ServiceLineNotificacoes() {
                   notif={n}
                   onLer={(id) => mutLer.mutate(id)}
                   onEliminar={(id) => mutEliminar.mutate(id)}
+                  onAbrir={abrirNotif}
+                  temLink={!!destinoNotif(n)}
                 />
               ))
             )}

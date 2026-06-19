@@ -147,23 +147,6 @@ export default function ServiceLineConquistas() {
                 ))}
               </div>
 
-              {/* Grid de conquistas */}
-              {conquistas.length === 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
-                  <Star className="mx-auto h-10 w-10 text-slate-200 mb-3" strokeWidth={1.5} />
-                  <p className="text-sm font-medium text-slate-400">{t('sl_conq_sem_conf')}</p>
-                </div>
-              ) : (
-                <div>
-                  <h2 className="mb-3 text-base font-bold text-slate-900">{t('sl_conq_todas')}</h2>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {conquistas.map(c => (
-                      <CartaoConquista key={c.id_conquista} c={c} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Últimas atribuições */}
               {atribuicoes.length > 0 && (
                 <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
@@ -202,6 +185,23 @@ export default function ServiceLineConquistas() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Grid de conquistas */}
+              {conquistas.length === 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+                  <Star className="mx-auto h-10 w-10 text-slate-200 mb-3" strokeWidth={1.5} />
+                  <p className="text-sm font-medium text-slate-400">{t('sl_conq_sem_conf')}</p>
+                </div>
+              ) : (
+                <div>
+                  <h2 className="mb-3 text-base font-bold text-slate-900">{t('sl_conq_todas')}</h2>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {conquistas.map(c => (
+                      <CartaoConquista key={c.id_conquista} c={c} />
+                    ))}
                   </div>
                 </div>
               )}

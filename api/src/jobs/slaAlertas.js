@@ -60,8 +60,22 @@ async function executarVerificacaoSLA() {
         }
 
         if (email) {
+          // Respeitar a preferência individual de email de cada responsável:
+          // só envia a quem tem 'email_aprovacao_badge' ativo (default 1 se não houver registo).
+          const idsResp = responsaveis.map((r) => r.id_utilizador);
+          const [prefsRows] = await pool.query(
+            `SELECT id_utilizador, email_aprovacao_badge
+               FROM preferencia_notificacao
+              WHERE id_utilizador IN (${idsResp.map(() => '?').join(',')})`,
+            idsResp
+          );
+          const emailDesativado = new Set(
+            prefsRows.filter((p) => !p.email_aprovacao_badge).map((p) => p.id_utilizador)
+          );
+          const destinatarios = responsaveis.filter((r) => !emailDesativado.has(r.id_utilizador));
+
           // O envio de email é best-effort e não deve impedir a contagem nem o tick.
-          await Promise.all(responsaveis.map((r) => enviarEmail({
+          await Promise.all(destinatarios.map((r) => enviarEmail({
             para: r.email,
             assunto: titulo,
             texto: `${mensagem}\n\nConsultor: ${c.nome_consultor}\nBadge: ${c.titulo_badge}`,

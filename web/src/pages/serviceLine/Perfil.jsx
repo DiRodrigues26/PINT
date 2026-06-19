@@ -190,10 +190,97 @@ function SecçãoSegurança() {
   );
 }
 
+/* ─── Toggle ────────────────────────────────────────────────────────── */
+function Toggle({ ativo, onToggle, disabled }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      disabled={disabled}
+      role="switch"
+      aria-checked={ativo}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-50 ${ativo ? 'bg-softinsa-600' : 'bg-slate-300'}`}
+    >
+      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${ativo ? 'translate-x-6' : 'translate-x-1'}`} />
+    </button>
+  );
+}
+
+/* ─── Secção Preferências de Notificação ────────────────────────────── */
+function SecçãoNotificacoes() {
+  const { t } = useLanguage();
+  const queryClient = useQueryClient();
+
+  const { data: prefs, isLoading } = useQuery({
+    queryKey: ['sl-preferencias'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/preferencias');
+      return data.preferencias;
+    },
+  });
+
+  const mutation = useMutation({
+    mutationFn: (patch) => api.put('/api/preferencias', patch),
+    onMutate: async (patch) => {
+      await queryClient.cancelQueries({ queryKey: ['sl-preferencias'] });
+      const anterior = queryClient.getQueryData(['sl-preferencias']);
+      queryClient.setQueryData(['sl-preferencias'], (old) => ({ ...old, ...patch }));
+      return { anterior };
+    },
+    onError: (err, _patch, ctx) => {
+      if (ctx?.anterior) queryClient.setQueryData(['sl-preferencias'], ctx.anterior);
+      toast.error(extrairErro(err));
+    },
+    onSuccess: () => toast.success(t('sl_perfil_notif_toast_ok')),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['sl-preferencias'] }),
+  });
+
+  function toggle(campo) {
+    if (!prefs) return;
+    mutation.mutate({ [campo]: prefs[campo] ? 0 : 1 });
+  }
+
+  const linhas = [
+    { campo: 'email_aprovacao_badge', titulo: t('sl_perfil_notif_email_badge'),  desc: t('sl_perfil_notif_email_badge_desc') },
+    { campo: 'notif_expiracao',       titulo: t('sl_perfil_notif_expiracao'),    desc: t('sl_perfil_notif_expiracao_desc') },
+    { campo: 'notif_recomendacoes',   titulo: t('sl_perfil_notif_recomendacoes'), desc: t('sl_perfil_notif_recomendacoes_desc') },
+  ];
+
+  return (
+    <div id="preferencias-notificacao" className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm scroll-mt-24">
+      <h2 className="text-base font-semibold text-slate-800">{t('sl_perfil_notif_titulo')}</h2>
+      <p className="mt-1 text-sm text-slate-500">{t('sl_perfil_notif_desc')}</p>
+
+      {isLoading ? (
+        <div className="mt-5"><Carregando /></div>
+      ) : (
+        <div className="mt-5 divide-y divide-slate-100">
+          {linhas.map(l => (
+            <div key={l.campo} className="flex items-center justify-between py-3.5">
+              <div className="pr-4">
+                <p className="text-sm font-medium text-slate-800">{l.titulo}</p>
+                <p className="text-xs text-slate-500">{l.desc}</p>
+              </div>
+              <Toggle ativo={!!prefs?.[l.campo]} onToggle={() => toggle(l.campo)} disabled={mutation.isPending} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Página principal ──────────────────────────────────────────────── */
 export default function ServiceLinePerfil() {
   const { t } = useLanguage();
   const { data: utilizador, isLoading } = usePerfil();
+
+  useEffect(() => {
+    if (window.location.hash === '#preferencias-notificacao') {
+      const el = document.getElementById('preferencias-notificacao');
+      if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+    }
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-[#f3f6fa]">
@@ -204,6 +291,7 @@ export default function ServiceLinePerfil() {
 
         <main className="flex-1 px-5 py-6 lg:px-8 pb-24 lg:pb-8 space-y-6 max-w-3xl">
           <SecçãoInformacoes utilizador={utilizador} isLoading={isLoading} />
+          <SecçãoNotificacoes />
           <SecçãoSegurança />
         </main>
       </div>
