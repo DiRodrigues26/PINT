@@ -1,15 +1,67 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ShellIcon } from '../../components/AppShell';
+import {
+  Activity,
+  AlertCircle,
+  Award,
+  Bell,
+  CheckCircle,
+  Clock,
+  FileText,
+  TrendingUp,
+  Trophy,
+  Users,
+  X,
+} from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import Carregando from '../../components/Carregando';
+import { useLanguage } from '../../context/LanguageContext';
 import { api } from '../../lib/api';
-import { estadoCandidatura, formatarData } from '../../lib/formatar';
 
-const CORES_NIVEL = ['#3f68a2', '#5d84c0', '#7fa0d5', '#9bb6eb', '#c5d7ff'];
+const CORES_NIVEL = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
+const CORES_ESTADO = {
+  OPEN: '#94a3b8',
+  SUBMITTED: '#3b82f6',
+  EM_VALIDACAO: '#f59e0b',
+  FECHADO: '#10b981',
+};
+const CLASSES_ESTADO = {
+  OPEN: 'bg-slate-100 text-slate-700',
+  SUBMITTED: 'bg-blue-100 text-blue-700',
+  IN_TALENT_REVIEW: 'bg-amber-100 text-amber-800',
+  IN_SERVICE_LINE_REVIEW: 'bg-amber-100 text-amber-800',
+  SENT_BACK: 'bg-orange-100 text-orange-700',
+  APPROVED: 'bg-emerald-100 text-emerald-700',
+  REJECTED: 'bg-rose-100 text-rose-700',
+  CLOSED: 'bg-slate-200 text-slate-700',
+};
+const LOCALES = {
+  pt: 'pt-PT',
+  en: 'en-GB',
+  es: 'es-ES',
+};
 
-function numero(valor) {
-  return new Intl.NumberFormat('pt-PT').format(Number(valor) || 0);
+function localeDe(idioma) {
+  return LOCALES[idioma] || LOCALES.pt;
+}
+
+function numero(valor, idioma) {
+  return new Intl.NumberFormat(localeDe(idioma)).format(Number(valor) || 0);
 }
 
 function percentagem(parte, total) {
@@ -17,33 +69,26 @@ function percentagem(parte, total) {
   return Math.round((Number(parte) / Number(total)) * 100);
 }
 
-function mesCurto(valor) {
+function formatarDataIdioma(valor, idioma) {
+  if (!valor) return '-';
+  const data = new Date(valor);
+  if (Number.isNaN(data.getTime())) return '-';
+  return data.toLocaleDateString(localeDe(idioma), { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function mesCurto(valor, idioma) {
   if (!valor) return '';
   const data = new Date(`${valor}-01T00:00:00`);
   if (Number.isNaN(data.getTime())) return valor;
-  return data.toLocaleDateString('pt-PT', { month: 'short' }).replace('.', '');
+  return data.toLocaleDateString(localeDe(idioma), { month: 'short' }).replace('.', '');
 }
 
-function quebrarLabel(texto, max = 16) {
-  const palavras = String(texto || '').split(/\s+/).filter(Boolean);
-  const linhas = [];
-  let atual = '';
-
-  for (const palavra of palavras) {
-    const candidato = atual ? `${atual} ${palavra}` : palavra;
-    if (candidato.length <= max || !atual) {
-      atual = candidato;
-    } else {
-      linhas.push(atual);
-      atual = palavra;
-    }
-  }
-
-  if (atual) linhas.push(atual);
-  return linhas.slice(0, 3);
+function textoCurto(valor, max = 18) {
+  const texto = String(valor || '');
+  return texto.length > max ? `${texto.slice(0, max - 1)}…` : texto;
 }
 
-function formatarSlaRestante(candidatura, slas) {
+function formatarSlaRestante(candidatura, slas, t) {
   if (!candidatura?.data_submissao) return '-';
 
   const fase = ['SUBMITTED', 'IN_TALENT_REVIEW'].includes(candidatura.estado_atual)
@@ -61,239 +106,122 @@ function formatarSlaRestante(candidatura, slas) {
   const decorridas = (Date.now() - new Date(candidatura.data_submissao).getTime()) / 36e5;
   const restantes = Math.ceil((limiteHoras - decorridas) / 24);
 
-  if (restantes < 0) return 'Ultrapassado';
-  if (restantes === 0) return 'Hoje';
-  return `${restantes} dias`;
+  if (restantes < 0) return t('admin_dash_sla_overdue_short');
+  if (restantes === 0) return t('admin_dash_sla_today');
+  return t(restantes === 1 ? 'admin_dash_sla_day' : 'admin_dash_sla_days').replace('{n}', restantes);
 }
 
-function StatCard({ titulo, subtitulo, valor, variacao, icon, children }) {
+function formatarLimiteSla(sla, t) {
+  if (!sla) return '-';
+  const limite = Number(sla.limite) || 0;
+  const unidade = sla.unidade === 'horas'
+    ? (limite === 1 ? 'admin_dash_unit_hour' : 'admin_dash_unit_hours')
+    : (limite === 1 ? 'admin_dash_unit_day' : 'admin_dash_unit_days');
+
+  return t(unidade).replace('{n}', limite);
+}
+
+function estadoCandidaturaAdmin(estado, t) {
+  const labels = {
+    OPEN: t('admin_dash_state_open'),
+    SUBMITTED: t('admin_dash_state_submitted'),
+    IN_TALENT_REVIEW: t('admin_dash_state_validation'),
+    IN_SERVICE_LINE_REVIEW: t('admin_dash_state_validation'),
+    SENT_BACK: t('admin_dash_state_sent_back'),
+    APPROVED: t('admin_dash_state_approved'),
+    REJECTED: t('admin_dash_state_rejected'),
+    CLOSED: t('admin_dash_state_closed'),
+  };
+
+  return {
+    label: labels[estado] || estado || '-',
+    cor: CLASSES_ESTADO[estado] || 'bg-slate-100 text-slate-700',
+  };
+}
+
+function TooltipGrafico({ active, payload, label, idioma }) {
+  if (!active || !payload?.length) return null;
+
   return (
-    <section className="min-h-[176px] rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-md">
+      <p className="mb-1 max-w-[240px] font-semibold text-slate-800">{label || payload[0]?.name}</p>
+      {payload.map((item) => (
+        <p key={item.dataKey || item.name} className="flex items-center justify-between gap-4 text-slate-500">
+          <span>{item.name}</span>
+          <span className="font-bold text-slate-900">{numero(item.value, idioma)}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function KpiCard({ icon: Icon, valor, label, detalhe, cor }) {
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="text-sm font-semibold text-slate-500">{titulo}</div>
-          {subtitulo && <div className="mt-1 text-xs leading-5 text-slate-400">{subtitulo}</div>}
+        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${cor.bg}`}>
+          <Icon className={`h-5 w-5 ${cor.text}`} strokeWidth={1.8} />
         </div>
-        {icon && <ShellIcon nome={icon} className="h-5 w-5 text-softinsa-600" />}
+        {detalhe && (
+          <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${cor.badge}`}>
+            {detalhe}
+          </span>
+        )}
       </div>
-      {children || (
-        <div className="mt-6 flex items-end justify-between gap-3">
-          <div className="text-4xl font-bold tracking-tight text-slate-900">{valor}</div>
-          {variacao && <div className="text-sm font-semibold text-emerald-600">{variacao}</div>}
-        </div>
-      )}
+      <p className="mt-4 text-3xl font-bold tracking-tight text-slate-900">{valor}</p>
+      <p className="mt-1 text-xs font-medium text-slate-500">{label}</p>
     </section>
   );
 }
 
-function Painel({ titulo, subtitulo, children, className = '' }) {
+function Grafico({ titulo, subtitulo, children, className = '' }) {
   return (
-    <section className={`rounded-lg border border-slate-200 bg-white p-6 shadow-sm ${className}`}>
-      <h2 className="text-base font-bold text-slate-800">{titulo}</h2>
-      {subtitulo && <p className="mt-1 text-sm leading-6 text-slate-500">{subtitulo}</p>}
+    <section className={`rounded-2xl border border-slate-200 bg-white p-6 shadow-sm ${className}`}>
+      <div>
+        <h2 className="text-base font-bold text-slate-900">{titulo}</h2>
+        {subtitulo && <p className="mt-1 text-sm leading-6 text-slate-500">{subtitulo}</p>}
+      </div>
       <div className="mt-5">{children}</div>
     </section>
   );
 }
 
-function BarChart({ dados }) {
-  const [hovered, setHovered] = useState(null);
-  const items = (dados || []).slice(0, 6);
-  const max = Math.max(...items.map((i) => Number(i.total) || 0), 1);
-  const largura = 900;
-  const altura = 282;
-  const margem = { top: 34, right: 24, bottom: 92, left: 46 };
-  const plotW = largura - margem.left - margem.right;
-  const plotH = altura - margem.top - margem.bottom;
-  const barW = items.length ? Math.max(plotW / items.length - 32, 42) : 0;
+function SemDados({ altura = 'h-[280px]', texto }) {
+  return (
+    <div className={`flex ${altura} items-center justify-center rounded-xl bg-slate-50 text-sm font-medium text-slate-400`}>
+      {texto}
+    </div>
+  );
+}
+
+function RankingCard({ ranking, t, idioma }) {
+  const medalhas = ['bg-amber-400', 'bg-slate-400', 'bg-orange-400'];
 
   return (
-    <div>
-      <svg viewBox={`0 0 ${largura} ${altura}`} className="h-[320px] w-full">
-        {[0, 0.25, 0.5, 0.75, 1].map((p) => {
-          const y = margem.top + plotH - plotH * p;
-          return (
-            <g key={p}>
-              <line x1={margem.left} y1={y} x2={largura - margem.right} y2={y} stroke="#e7ebf0" strokeDasharray="4 4" />
-              <text x={margem.left - 10} y={y + 4} textAnchor="end" fontSize="12" fill="#64748b">
-                {Math.round(max * p)}
-              </text>
-            </g>
-          );
-        })}
-        <line x1={margem.left} y1={margem.top + plotH} x2={largura - margem.right} y2={margem.top + plotH} stroke="#9ca3af" />
-        {items.map((item, idx) => {
-          const valor = Number(item.total) || 0;
-          const ativo = hovered === idx;
-          const x = margem.left + idx * (plotW / items.length) + 16;
-          const h = (valor / max) * (plotH - 8);
-          const y = margem.top + plotH - h;
-          const centro = x + barW / 2;
-
-          return (
-            <g
-              key={item.id_area || item.id_learning_path || item.nome || idx}
-              onMouseEnter={() => setHovered(idx)}
-              onMouseLeave={() => setHovered(null)}
-              className="cursor-default"
+    <Grafico titulo={t('admin_dash_global_gamification')} subtitulo={t('admin_dash_global_gamification_desc')}>
+      <div className="space-y-3">
+        {(ranking || []).map((r, index) => (
+          <div key={r.id_utilizador} className="flex items-center gap-4 rounded-xl bg-slate-50 px-4 py-3">
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
+              medalhas[index] || 'bg-softinsa-100 text-softinsa-700'
+            } ${index < 3 ? 'text-white' : ''}`}
             >
-              <rect x={x} y={y} width={barW} height={h} rx="8" fill={ativo ? '#315f9f' : '#3f68a2'} />
-              <text
-                x={centro}
-                y={Math.max(y - 10, 18)}
-                textAnchor="middle"
-                fontSize="14"
-                fontWeight="700"
-                fill="#315f9f"
-                opacity={ativo ? 1 : 0}
-              >
-                {numero(valor)} badges
-              </text>
-              <text x={centro} y={altura - 62} textAnchor="middle" fontSize="12" fill="#64748b">
-                {quebrarLabel(item.nome || 'Sem nome', 17).map((linha, linhaIdx) => (
-                  <tspan key={`${linha}-${linhaIdx}`} x={centro} dy={linhaIdx === 0 ? 0 : 15}>
-                    {linha}
-                  </tspan>
-                ))}
-              </text>
-            </g>
-          );
-        })}
-        {items.length === 0 && <text x="50%" y="50%" textAnchor="middle" fill="#94a3b8">Sem dados</text>}
-      </svg>
-
-      <div className="mt-2 grid grid-cols-1 gap-2 text-xs text-slate-500 sm:grid-cols-2 xl:grid-cols-3">
-        {items.map((item) => (
-          <div key={item.id_area || item.id_learning_path || item.nome} className="flex items-center justify-between gap-2 rounded-md bg-slate-50 px-3 py-2">
-            <span>{item.nome || 'Sem nome'}</span>
-            <span className="shrink-0 font-bold text-softinsa-700">{numero(item.total)}</span>
+              {index + 1}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold text-slate-800">{r.nome}</p>
+              <p className="text-xs text-slate-500">{numero(r.pontos_totais, idioma)} {t('admin_dash_points_abbr')}</p>
+            </div>
           </div>
         ))}
+        {(ranking || []).length === 0 && <p className="py-6 text-center text-sm text-slate-400">{t('admin_dash_no_ranking')}</p>}
       </div>
-    </div>
-  );
-}
-
-function PieChart({ dados }) {
-  const [hovered, setHovered] = useState(null);
-  const items = (dados || []).filter((i) => Number(i.total) > 0);
-  const total = items.reduce((s, i) => s + Number(i.total || 0), 0);
-  const r = 84;
-  const cx = 128;
-  const cy = 108;
-  let acumulado = 0;
-
-  function ponto(angulo) {
-    const rad = (angulo - 90) * Math.PI / 180;
-    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
-  }
-
-  return (
-    <div className="grid min-h-[300px] gap-6 lg:grid-cols-[minmax(280px,1fr)_240px]">
-      <div className="flex items-center justify-center">
-        <svg viewBox="0 0 300 240" className="h-[280px] w-full max-w-md">
-          {total === 0 ? (
-            <text x="50%" y="50%" textAnchor="middle" fill="#94a3b8">Sem dados</text>
-          ) : items.map((item, idx) => {
-            const valor = Number(item.total) || 0;
-            const ativo = hovered === idx;
-            const inicio = (acumulado / total) * 360;
-            acumulado += valor;
-            const fim = (acumulado / total) * 360;
-            const [x1, y1] = ponto(inicio);
-            const [x2, y2] = ponto(fim);
-            const grande = fim - inicio > 180 ? 1 : 0;
-            const cor = CORES_NIVEL[idx % CORES_NIVEL.length];
-
-            return (
-              <path
-                key={`${item.codigo_nivel}-${idx}`}
-                d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${grande} 1 ${x2} ${y2} Z`}
-                fill={cor}
-                stroke="#fff"
-                strokeWidth={ativo ? '4' : '2'}
-                opacity={hovered === null || ativo ? 1 : 0.45}
-                onMouseEnter={() => setHovered(idx)}
-                onMouseLeave={() => setHovered(null)}
-                className="cursor-default"
-              />
-            );
-          })}
-          {hovered !== null && items[hovered] && (
-            <g>
-              <rect x="82" y="92" width="92" height="34" rx="17" fill="#ffffff" stroke="#dbe3ef" />
-              <text x="128" y="114" textAnchor="middle" fontSize="13" fontWeight="700" fill="#1e293b">
-                {items[hovered].codigo_nivel}: {numero(items[hovered].total)}
-              </text>
-            </g>
-          )}
-        </svg>
-      </div>
-      <div className="flex flex-col justify-center gap-2">
-        {(dados || []).slice(0, 5).map((item, idx) => {
-          const ativo = hovered === idx;
-          return (
-            <button
-              key={item.codigo_nivel || idx}
-              type="button"
-              onMouseEnter={() => setHovered(idx)}
-              onMouseLeave={() => setHovered(null)}
-              className={`flex items-center justify-between rounded-md px-3 py-2 text-left text-sm transition ${ativo ? 'bg-[#eaf3ff]' : 'bg-slate-50 hover:bg-slate-100'}`}
-            >
-              <span className="flex items-center gap-2 text-slate-600">
-                <span className="h-3 w-3 rounded-sm" style={{ backgroundColor: CORES_NIVEL[idx % CORES_NIVEL.length] }} />
-                Nível {item.codigo_nivel}
-              </span>
-              <span className="font-bold text-softinsa-700">{numero(item.total)} badges</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function LineChart({ dados }) {
-  const items = (dados || []).slice(-6);
-  const max = Math.max(...items.map((i) => Number(i.total) || 0), 1);
-  const largura = 980;
-  const altura = 230;
-  const margem = { top: 12, right: 20, bottom: 32, left: 42 };
-  const plotW = largura - margem.left - margem.right;
-  const plotH = altura - margem.top - margem.bottom;
-  const pontos = items.map((item, idx) => {
-    const x = margem.left + (items.length === 1 ? 0 : idx * (plotW / (items.length - 1)));
-    const y = margem.top + plotH - ((Number(item.total) || 0) / max) * (plotH - 8);
-    return { x, y, item };
-  });
-
-  return (
-    <svg viewBox={`0 0 ${largura} ${altura}`} className="h-64 w-full">
-      {[0, 0.25, 0.5, 0.75, 1].map((p) => {
-        const y = margem.top + plotH - plotH * p;
-        return (
-          <g key={p}>
-            <line x1={margem.left} y1={y} x2={largura - margem.right} y2={y} stroke="#e7ebf0" strokeDasharray="4 4" />
-            <text x={margem.left - 10} y={y + 4} textAnchor="end" fontSize="12" fill="#64748b">{Math.round(max * p)}</text>
-          </g>
-        );
-      })}
-      <line x1={margem.left} y1={margem.top + plotH} x2={largura - margem.right} y2={margem.top + plotH} stroke="#9ca3af" />
-      {pontos.length > 0 && (
-        <polyline points={pontos.map((p) => `${p.x},${p.y}`).join(' ')} fill="none" stroke="#315f9f" strokeWidth="2.5" />
-      )}
-      {pontos.map((p) => (
-        <g key={p.item.mes}>
-          <circle cx={p.x} cy={p.y} r="4" fill="#fff" stroke="#315f9f" strokeWidth="2" />
-          <text x={p.x} y={altura - 10} textAnchor="middle" fontSize="12" fill="#64748b">{mesCurto(p.item.mes)}</text>
-        </g>
-      ))}
-      {pontos.length === 0 && <text x="50%" y="50%" textAnchor="middle" fill="#94a3b8">Sem dados</text>}
-    </svg>
+    </Grafico>
   );
 }
 
 export default function AdminDashboard() {
+  const { idioma, t } = useLanguage();
   const [intervalo, setIntervalo] = useState({ data_inicio: '', data_fim: '' });
 
   const estatisticas = useQuery({
@@ -341,247 +269,400 @@ export default function AdminDashboard() {
   const listaSlas = slas.data?.dados || [];
   const recentes = candidaturas.data?.dados || [];
   const listaAvisos = avisos.data?.dados || [];
+  const foraPrazo = foraSla.data?.dados || [];
 
-  const kpis = useMemo(() => ({
-    percentagemAtribuidos: percentagem(dados.total_badges_atribuidos, dados.total_badges_ativos),
-  }), [dados.total_badges_atribuidos, dados.total_badges_ativos]);
+  const taxaAtribuicao = useMemo(
+    () => percentagem(dados.total_badges_atribuidos, dados.total_badges_ativos),
+    [dados.total_badges_atribuidos, dados.total_badges_ativos],
+  );
 
   const estadosResumo = useMemo(() => {
     const mapa = new Map((dados.estados_candidatura || []).map((e) => [e.estado_atual, Number(e.total) || 0]));
     return [
-      { chave: 'OPEN', total: mapa.get('OPEN') || 0, label: 'Em preparação', cor: 'text-slate-600' },
-      { chave: 'SUBMITTED', total: mapa.get('SUBMITTED') || 0, label: 'Submetidas', cor: 'text-blue-600' },
+      { chave: 'OPEN', total: mapa.get('OPEN') || 0, label: t('admin_dash_state_open'), cor: 'text-slate-600' },
+      { chave: 'SUBMITTED', total: mapa.get('SUBMITTED') || 0, label: t('admin_dash_state_submitted'), cor: 'text-blue-600' },
       {
         chave: 'EM_VALIDACAO',
         total: (mapa.get('IN_TALENT_REVIEW') || 0) + (mapa.get('IN_SERVICE_LINE_REVIEW') || 0),
-        label: 'Em validação',
+        label: t('admin_dash_state_validation'),
         cor: 'text-amber-600',
       },
       {
         chave: 'FECHADO',
         total: (mapa.get('APPROVED') || 0) + (mapa.get('REJECTED') || 0) + (mapa.get('CLOSED') || 0),
-        label: 'Fechadas',
+        label: t('admin_dash_state_closed'),
         cor: 'text-emerald-600',
       },
     ];
-  }, [dados.estados_candidatura]);
+  }, [dados.estados_candidatura, t]);
+
+  const badgesPorArea = useMemo(
+    () => (dados.badges_por_area || dados.badges_por_learning_path || [])
+      .slice(0, 8)
+      .map((item) => ({
+        nome: item.nome || t('admin_dash_unnamed'),
+        total: Number(item.total) || 0,
+      })),
+    [dados.badges_por_area, dados.badges_por_learning_path, t],
+  );
+
+  const badgesPorNivel = useMemo(
+    () => {
+      const porCodigo = new Map();
+      for (const item of dados.badges_por_nivel || []) {
+        const codigo = item.codigo_nivel || '-';
+        const atual = porCodigo.get(codigo) || { nivel: `${t('admin_dash_level')} ${codigo}`, codigo, total: 0 };
+        atual.total += Number(item.total) || 0;
+        porCodigo.set(codigo, atual);
+      }
+      return Array.from(porCodigo.values())
+        .filter((item) => item.total > 0)
+        .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+    },
+    [dados.badges_por_nivel, t],
+  );
+
+  const evolucaoMensal = useMemo(
+    () => (dados.badges_por_mes || [])
+      .slice(-8)
+      .map((item) => ({
+        mes: mesCurto(item.mes, idioma),
+        total: Number(item.total) || 0,
+      })),
+    [dados.badges_por_mes, idioma],
+  );
+
+  const estadosChart = useMemo(
+    () => estadosResumo.map((item) => ({
+      estado: item.label,
+      total: item.total,
+      cor: CORES_ESTADO[item.chave] || '#94a3b8',
+    })),
+    [estadosResumo],
+  );
 
   const slaTalent = listaSlas.find((s) => s.fase === 'TALENT_REVIEW');
   const slaService = listaSlas.find((s) => s.fase === 'SERVICE_LINE_REVIEW');
+  const valorIntervalo = (intervalo.data_inicio || intervalo.data_fim)
+    ? dados.badges_no_intervalo
+    : dados.total_badges_atribuidos;
 
   if (carregando) {
     return <div className="flex min-h-[60vh] items-center justify-center"><Carregando /></div>;
   }
 
   return (
-    <div className="space-y-8">
-      <section>
-        <h2 className="mb-4 text-lg font-bold">KPIs Gerais</h2>
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-4">
-          <StatCard titulo="Total Utilizadores" subtitulo="Contas registadas na plataforma." valor={numero(dados.total_utilizadores)} variacao="+0%" icon="users" />
-          <StatCard titulo="Total Badges Atribuídos" subtitulo="Badges emitidos a consultores." valor={numero(dados.total_badges_atribuidos)} variacao="+0%" icon="badge" />
-          <StatCard titulo="% Badges Atribuídos" subtitulo="Badges emitidos vs. badges ativos." valor={`${kpis.percentagemAtribuidos}%`} icon="trend" />
-          <StatCard titulo="Candidaturas por Estado" subtitulo="Distribuição atual dos processos.">
-            <div className="mt-4 space-y-3">
-              {estadosResumo.map((e) => (
-                <div key={e.chave} className="flex items-center justify-between text-sm">
-                  <span className="text-slate-500">{e.label}</span>
-                  <span className={`font-bold ${e.cor}`}>{numero(e.total)}</span>
-                </div>
-              ))}
-            </div>
-          </StatCard>
-        </div>
-      </section>
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
+        <KpiCard
+          icon={Users}
+          valor={numero(dados.total_utilizadores, idioma)}
+          label={t('admin_dash_total_users')}
+          detalhe={t('admin_dash_platform')}
+          cor={{ bg: 'bg-blue-50', text: 'text-blue-500', badge: 'bg-blue-50 text-blue-600' }}
+        />
+        <KpiCard
+          icon={Award}
+          valor={numero(dados.total_badges_atribuidos, idioma)}
+          label={t('admin_dash_awarded_badges')}
+          detalhe={t('admin_dash_issued')}
+          cor={{ bg: 'bg-emerald-50', text: 'text-emerald-500', badge: 'bg-emerald-50 text-emerald-600' }}
+        />
+        <KpiCard
+          icon={TrendingUp}
+          valor={`${taxaAtribuicao}%`}
+          label={t('admin_dash_award_rate')}
+          detalhe={t('admin_dash_active')}
+          cor={{ bg: 'bg-violet-50', text: 'text-violet-500', badge: 'bg-violet-50 text-violet-600' }}
+        />
+        <KpiCard
+          icon={FileText}
+          valor={numero(estadosResumo.find((e) => e.chave === 'EM_VALIDACAO')?.total, idioma)}
+          label={t('admin_dash_in_validation')}
+          detalhe={t('admin_dash_processes')}
+          cor={{ bg: 'bg-amber-50', text: 'text-amber-500', badge: 'bg-amber-50 text-amber-700' }}
+        />
+        <KpiCard
+          icon={AlertCircle}
+          valor={numero(foraPrazo.length, idioma)}
+          label={t('admin_dash_sla_overdue')}
+          detalhe={t('admin_dash_attention')}
+          cor={{ bg: 'bg-rose-50', text: 'text-rose-500', badge: 'bg-rose-50 text-rose-600' }}
+        />
+      </div>
 
-      <section>
-        <h2 className="mb-4 text-lg font-bold">Estatísticas</h2>
-        <div className="grid grid-cols-1 gap-5 2xl:grid-cols-[minmax(0,1.35fr)_minmax(520px,0.95fr)]">
-          <Painel titulo="Badges por Área" subtitulo="Badges ativos agrupados pela área da hierarquia." className="min-w-0">
-            <BarChart dados={dados.badges_por_area || dados.badges_por_learning_path} />
-          </Painel>
-          <Painel titulo="Badges por Nível (A-E)" subtitulo="Distribuição dos badges pelos níveis de proficiência." className="min-w-0">
-            <PieChart dados={dados.badges_por_nivel} />
-          </Painel>
-        </div>
-      </section>
-
-      <Painel titulo="Evolução Mensal" subtitulo="Badges atribuídos por mês nos últimos meses com dados.">
-        <LineChart dados={dados.badges_por_mes} />
-      </Painel>
-
-      <Painel titulo="Badges por Intervalo de Datas" subtitulo="Badges atribuídos dentro do período selecionado.">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex flex-wrap items-end gap-4">
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-500">Data início</span>
-              <input
-                type="date"
-                className="input"
-                value={intervalo.data_inicio}
-                max={intervalo.data_fim || undefined}
-                onChange={(e) => setIntervalo((i) => ({ ...i, data_inicio: e.target.value }))}
-              />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs font-medium text-slate-500">Data fim</span>
-              <input
-                type="date"
-                className="input"
-                value={intervalo.data_fim}
-                min={intervalo.data_inicio || undefined}
-                onChange={(e) => setIntervalo((i) => ({ ...i, data_fim: e.target.value }))}
-              />
-            </label>
+          <div>
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+              <Activity className="h-4 w-4 text-slate-500" strokeWidth={1.8} />
+              {t('admin_dash_analysis_period')}
+            </div>
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-500">{t('admin_dash_start_date')}</span>
+                <input
+                  type="date"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-softinsa-400"
+                  value={intervalo.data_inicio}
+                  max={intervalo.data_fim || undefined}
+                  onChange={(e) => setIntervalo((i) => ({ ...i, data_inicio: e.target.value }))}
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-500">{t('admin_dash_end_date')}</span>
+                <input
+                  type="date"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-softinsa-400"
+                  value={intervalo.data_fim}
+                  min={intervalo.data_inicio || undefined}
+                  onChange={(e) => setIntervalo((i) => ({ ...i, data_fim: e.target.value }))}
+                />
+              </label>
+            </div>
             {(intervalo.data_inicio || intervalo.data_fim) && (
               <button
                 type="button"
-                className="btn-secondary"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                 onClick={() => setIntervalo({ data_inicio: '', data_fim: '' })}
               >
-                <ShellIcon nome="x" className="h-4 w-4" /> Limpar
+                <X className="h-4 w-4" strokeWidth={1.8} /> {t('admin_dash_clear_filters')}
               </button>
             )}
           </div>
-          <div className="rounded-xl bg-softinsa-50 px-6 py-4 text-center">
-            <div className="text-xs font-medium uppercase tracking-wide text-softinsa-700">Badges atribuídos no período</div>
-            <div className="mt-1 text-4xl font-bold text-softinsa-700">
-              {(intervalo.data_inicio || intervalo.data_fim) ? numero(dados.badges_no_intervalo) : numero(dados.total_badges_atribuidos)}
-            </div>
+          <div className="min-w-[260px] rounded-2xl bg-softinsa-50 px-6 py-5 text-center">
+            <div className="text-xs font-semibold uppercase tracking-wide text-softinsa-700">{t('admin_dash_badges_period')}</div>
+            <div className="mt-1 text-4xl font-bold text-softinsa-700">{numero(valorIntervalo, idioma)}</div>
             <div className="mt-1 text-xs text-slate-500">
               {(intervalo.data_inicio || intervalo.data_fim)
-                ? `${intervalo.data_inicio ? formatarData(intervalo.data_inicio) : '…'} — ${intervalo.data_fim ? formatarData(intervalo.data_fim) : '…'}`
-                : 'Todos os períodos (selecione um intervalo)'}
+                ? `${intervalo.data_inicio ? formatarDataIdioma(intervalo.data_inicio, idioma) : '…'} - ${intervalo.data_fim ? formatarDataIdioma(intervalo.data_fim, idioma) : '…'}`
+                : t('admin_dash_all_periods')}
             </div>
-          </div>
-        </div>
-      </Painel>
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <Painel titulo="Controlo SLA">
-          <div className="space-y-4 text-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">SLA Talent Manager</span>
-              <span className="font-bold text-emerald-600">{slaTalent ? `${slaTalent.limite} ${slaTalent.unidade}` : '-'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">SLA Service Line</span>
-              <span className="font-bold text-emerald-600">{slaService ? `${slaService.limite} ${slaService.unidade}` : '-'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Processos SLA ultrapassado</span>
-              <span className="font-bold text-rose-600">{numero(foraSla.data?.dados?.length)}</span>
-            </div>
-            <Link to="/admin/sla" className="btn-primary mt-6 w-full">Notificar Equipa</Link>
-          </div>
-        </Painel>
-
-        <Painel titulo="Gamificação Global">
-          <div className="space-y-3 text-sm">
-            <div className="text-slate-500">Top 5 Consultores</div>
-            {(ranking.data?.dados || []).map((r) => (
-              <div key={r.id_utilizador} className="flex items-center justify-between">
-                <span>{r.nome}</span>
-                <span className="font-bold text-softinsa-600">{numero(r.pontos_totais)} pts</span>
-              </div>
-            ))}
-            {(ranking.data?.dados || []).length === 0 && <div className="text-slate-400">Sem ranking disponível</div>}
-            <div className="my-4 border-t border-slate-200" />
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Badge mais obtido do mês</span>
-              <span className="font-bold text-softinsa-600">{dados.badge_mais_obtido_mes?.titulo || '-'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Melhor Service Line</span>
-              <span className="font-bold text-softinsa-600">{dados.melhor_service_line?.nome || '-'}</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Conquistas especiais</span>
-              <span className="font-bold text-softinsa-600">{numero(dados.total_conquistas_especiais)}</span>
-            </div>
-          </div>
-        </Painel>
-      </div>
-
-      <section>
-        <h2 className="mb-4 text-lg font-bold">Pedidos Recentes</h2>
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-50 text-xs font-semibold text-slate-500">
-                <tr>
-                  <th className="px-4 py-4 text-left">Consultor</th>
-                  <th className="px-4 py-4 text-left">Badge</th>
-                  <th className="px-4 py-4 text-left">Service Line</th>
-                  <th className="px-4 py-4 text-left">Estado</th>
-                  <th className="px-4 py-4 text-left">Data</th>
-                  <th className="px-4 py-4 text-left">SLA Restante</th>
-                  <th className="px-4 py-4 text-left">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200">
-                {recentes.map((c) => {
-                  const info = estadoCandidatura(c.estado_atual);
-                  return (
-                    <tr key={c.id_candidatura}>
-                      <td className="px-4 py-4 font-medium text-slate-700">{c.nome_consultor}</td>
-                      <td className="px-4 py-4 text-slate-700">{c.titulo_badge}</td>
-                      <td className="px-4 py-4 text-slate-500">{c.nome_service_line}</td>
-                      <td className="px-4 py-4"><span className={`badge-pill ${info.cor}`}>{info.label}</span></td>
-                      <td className="px-4 py-4 text-slate-500">{formatarData(c.data_submissao || c.data_abertura)}</td>
-                      <td className="px-4 py-4 text-slate-500">{formatarSlaRestante(c, listaSlas)}</td>
-                      <td className="px-4 py-4">
-                        <Link to="/admin/candidaturas" state={{ abrirCandidaturaId: c.id_candidatura }} className="font-medium text-softinsa-700 hover:underline">Ver Processo</Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {recentes.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">Sem pedidos recentes.</td></tr>
-                )}
-              </tbody>
-            </table>
           </div>
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
-        <Painel titulo="Avisos Ativos">
-          <div className="divide-y divide-slate-200">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <Grafico titulo={t('admin_dash_badges_area')} subtitulo={t('admin_dash_badges_area_desc')}>
+          {badgesPorArea.length === 0 ? <SemDados texto={t('admin_dash_no_data')} /> : (
+            <ResponsiveContainer width="100%" height={320}>
+              <BarChart data={badgesPorArea} margin={{ top: 10, right: 12, left: -10, bottom: 48 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
+                <XAxis
+                  dataKey="nome"
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tickFormatter={(valor) => textoCurto(valor, 16)}
+                  interval={0}
+                  angle={-18}
+                  textAnchor="end"
+                />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                <Tooltip content={<TooltipGrafico idioma={idioma} />} />
+                <Bar dataKey="total" name={t('admin_dash_badges')} fill="#3b82f6" radius={[6, 6, 0, 0]} maxBarSize={44} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </Grafico>
+
+        <Grafico titulo={t('admin_dash_badges_level')} subtitulo={t('admin_dash_badges_level_desc')}>
+          {badgesPorNivel.length === 0 ? <SemDados texto={t('admin_dash_no_data')} /> : (
+            <ResponsiveContainer width="100%" height={320}>
+              <PieChart>
+                <Pie
+                  data={badgesPorNivel}
+                  dataKey="total"
+                  nameKey="nivel"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={64}
+                  outerRadius={104}
+                  paddingAngle={2}
+                  label={({ codigo, percent }) => `${codigo} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {badgesPorNivel.map((item, index) => (
+                    <Cell key={item.nivel} fill={CORES_NIVEL[index % CORES_NIVEL.length]} />
+                  ))}
+                </Pie>
+                <Tooltip content={<TooltipGrafico idioma={idioma} />} />
+                <Legend iconType="circle" formatter={(value) => <span className="text-xs text-slate-600">{value}</span>} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </Grafico>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(420px,0.8fr)]">
+        <Grafico titulo={t('admin_dash_monthly_evolution')} subtitulo={t('admin_dash_monthly_evolution_desc')}>
+          {evolucaoMensal.length === 0 ? <SemDados altura="h-[300px]" texto={t('admin_dash_no_data')} /> : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={evolucaoMensal} margin={{ top: 12, right: 20, left: -10, bottom: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11, fill: '#64748b' }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+                <Tooltip content={<TooltipGrafico idioma={idioma} />} />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  name={t('admin_dash_badges')}
+                  stroke="#2563eb"
+                  strokeWidth={2.5}
+                  dot={{ r: 4, fill: '#2563eb', strokeWidth: 0 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </Grafico>
+
+        <Grafico titulo={t('admin_dash_apps_state')} subtitulo={t('admin_dash_apps_state_desc')}>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={estadosChart} margin={{ top: 12, right: 12, left: -10, bottom: 8 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
+              <XAxis dataKey="estado" tick={{ fontSize: 11, fill: '#64748b' }} />
+              <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} />
+              <Tooltip content={<TooltipGrafico idioma={idioma} />} />
+              <Bar dataKey="total" name={t('admin_dash_applications')} radius={[6, 6, 0, 0]} maxBarSize={48}>
+                {estadosChart.map((item) => (
+                  <Cell key={item.estado} fill={item.cor} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </Grafico>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <Grafico titulo={t('admin_dash_sla_control')} subtitulo={t('admin_dash_sla_control_desc')}>
+          <div className="space-y-4 text-sm">
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+              <span className="text-slate-500">{t('admin_dash_sla_talent')}</span>
+              <span className="font-bold text-emerald-600">{formatarLimiteSla(slaTalent, t)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3">
+              <span className="text-slate-500">{t('admin_dash_sla_service_line')}</span>
+              <span className="font-bold text-emerald-600">{formatarLimiteSla(slaService, t)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-rose-50 px-4 py-3">
+              <span className="text-rose-700">{t('admin_dash_sla_overdue_processes')}</span>
+              <span className="font-bold text-rose-600">{numero(foraPrazo.length, idioma)}</span>
+            </div>
+            <Link to="/admin/sla" className="btn-primary mt-5 w-full">
+              <Clock className="h-4 w-4" strokeWidth={1.8} /> {t('admin_dash_manage_sla')}
+            </Link>
+          </div>
+        </Grafico>
+
+        <RankingCard ranking={ranking.data?.dados || []} t={t} idioma={idioma} />
+
+        <Grafico titulo={t('admin_dash_highlights')} subtitulo={t('admin_dash_highlights_desc')}>
+          <div className="space-y-4 text-sm">
+            <div className="rounded-xl bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <Award className="h-4 w-4" strokeWidth={1.8} /> {t('admin_dash_badge_month')}
+              </div>
+              <p className="mt-2 text-sm font-bold leading-5 text-slate-800">{dados.badge_mais_obtido_mes?.titulo || '-'}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <Trophy className="h-4 w-4" strokeWidth={1.8} /> {t('admin_dash_best_service_line')}
+              </div>
+              <p className="mt-2 text-sm font-bold leading-5 text-slate-800">{dados.melhor_service_line?.nome || '-'}</p>
+            </div>
+            <div className="rounded-xl bg-slate-50 px-4 py-3">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                <CheckCircle className="h-4 w-4" strokeWidth={1.8} /> {t('admin_dash_special_achievements')}
+              </div>
+              <p className="mt-2 text-2xl font-bold text-softinsa-700">{numero(dados.total_conquistas_especiais, idioma)}</p>
+            </div>
+          </div>
+        </Grafico>
+      </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-6 py-5">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">{t('admin_dash_recent_requests')}</h2>
+            <p className="mt-1 text-sm text-slate-500">{t('admin_dash_recent_requests_desc')}</p>
+          </div>
+          <Link to="/admin/candidaturas" className="text-sm font-semibold text-softinsa-700 hover:underline">{t('admin_dash_view_all')}</Link>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-50 text-xs font-semibold text-slate-500">
+              <tr>
+                <th className="px-5 py-4 text-left">{t('admin_dash_col_consultant')}</th>
+                <th className="px-5 py-4 text-left">{t('admin_dash_col_badge')}</th>
+                <th className="px-5 py-4 text-left">{t('admin_dash_col_service_line')}</th>
+                <th className="px-5 py-4 text-left">{t('admin_dash_col_state')}</th>
+                <th className="px-5 py-4 text-left">{t('admin_dash_col_date')}</th>
+                <th className="px-5 py-4 text-left">{t('admin_dash_col_sla')}</th>
+                <th className="px-5 py-4 text-left">{t('admin_dash_col_action')}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {recentes.map((c) => {
+                const info = estadoCandidaturaAdmin(c.estado_atual, t);
+                return (
+                  <tr key={c.id_candidatura} className="hover:bg-slate-50/70">
+                    <td className="px-5 py-4 font-medium text-slate-800">{c.nome_consultor}</td>
+                    <td className="px-5 py-4 text-slate-700">{c.titulo_badge}</td>
+                    <td className="px-5 py-4 text-slate-500">{c.nome_service_line}</td>
+                    <td className="px-5 py-4"><span className={`badge-pill ${info.cor}`}>{info.label}</span></td>
+                    <td className="px-5 py-4 text-slate-500">{formatarDataIdioma(c.data_submissao || c.data_abertura, idioma)}</td>
+                    <td className="px-5 py-4 text-slate-500">{formatarSlaRestante(c, listaSlas, t)}</td>
+                    <td className="px-5 py-4">
+                      <Link to="/admin/candidaturas" state={{ abrirCandidaturaId: c.id_candidatura }} className="font-semibold text-softinsa-700 hover:underline">{t('admin_dash_view_process')}</Link>
+                    </td>
+                  </tr>
+                );
+              })}
+              {recentes.length === 0 && (
+                <tr><td colSpan={7} className="px-5 py-10 text-center text-slate-500">{t('admin_dash_no_recent_requests')}</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <Grafico titulo={t('admin_dash_active_notices')} subtitulo={t('admin_dash_active_notices_desc')}>
+          <div className="divide-y divide-slate-100">
             {listaAvisos.slice(0, 4).map((aviso) => (
               <div key={aviso.id_aviso} className="flex items-center justify-between gap-4 py-3 first:pt-0">
-                <div>
-                  <div className="font-medium text-slate-800">{aviso.titulo}</div>
-                  <div className="text-xs text-slate-500">{formatarData(aviso.data_inicio || aviso.created_at)}</div>
+                <div className="min-w-0">
+                  <div className="truncate font-semibold text-slate-800">{aviso.titulo}</div>
+                  <div className="text-xs text-slate-500">{formatarDataIdioma(aviso.data_inicio || aviso.created_at, idioma)}</div>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex shrink-0 items-center gap-3">
                   <span className={`badge-pill ${aviso.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
-                    {aviso.ativo ? 'Ativo' : 'Inativo'}
+                    {aviso.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}
                   </span>
-                  <Link to="/admin/avisos" className="text-sm font-medium text-softinsa-700">Gerir</Link>
+                  <Link to="/admin/avisos" className="text-sm font-semibold text-softinsa-700">{t('admin_dash_manage')}</Link>
                 </div>
               </div>
             ))}
-            {listaAvisos.length === 0 && <div className="py-8 text-center text-sm text-slate-500">Sem avisos configurados.</div>}
+            {listaAvisos.length === 0 && <div className="py-8 text-center text-sm text-slate-500">{t('admin_dash_no_notices')}</div>}
           </div>
-        </Painel>
+        </Grafico>
 
-        <Painel titulo="Auditoria">
-          <div className="rounded-lg bg-slate-50 p-4">
-            <div className="text-xs text-slate-500">Última ação administrativa</div>
+        <Grafico titulo={t('admin_dash_audit')} subtitulo={t('admin_dash_audit_desc')}>
+          <div className="rounded-xl bg-slate-50 p-4">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <Bell className="h-4 w-4" strokeWidth={1.8} /> {t('admin_dash_last_admin_action')}
+            </div>
             <div className="mt-2 font-semibold text-slate-800">
-              {recentes[0] ? `Candidatura #${recentes[0].id_candidatura} - ${recentes[0].titulo_badge}` : 'Sem atividade recente'}
+              {recentes[0] ? `${t('admin_dash_application')} #${recentes[0].id_candidatura} - ${recentes[0].titulo_badge}` : t('admin_dash_no_recent_activity')}
             </div>
             <div className="mt-1 text-xs text-slate-500">
-              Por Admin - {recentes[0] ? formatarData(recentes[0].data_submissao || recentes[0].data_abertura) : '-'}
+              {t('admin_dash_by_admin')} - {recentes[0] ? formatarDataIdioma(recentes[0].data_submissao || recentes[0].data_abertura, idioma) : '-'}
             </div>
           </div>
-          <div className="mt-5 flex items-center justify-between">
-            <span className="text-slate-500">Total ações registadas</span>
-            <span className="text-2xl font-bold text-softinsa-600">{numero(dados.total_acoes_registadas)}</span>
+          <div className="mt-5 flex items-center justify-between rounded-xl bg-softinsa-50 px-4 py-3">
+            <span className="text-sm font-medium text-softinsa-700">{t('admin_dash_total_actions')}</span>
+            <span className="text-2xl font-bold text-softinsa-700">{numero(dados.total_acoes_registadas, idioma)}</span>
           </div>
-          <Link to="/admin/candidaturas" className="btn-secondary mt-6 w-full bg-slate-100">Ver Histórico Completo</Link>
-        </Painel>
+          <Link to="/admin/candidaturas" className="btn-secondary mt-6 w-full bg-slate-100">{t('admin_dash_view_full_history')}</Link>
+        </Grafico>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import {
   KeyRound, Pencil, Shield, TrendingUp, Trophy, X,
 } from 'lucide-react';
 import { api, extrairErro } from '../../lib/api';
-import { ModalAlterarPassword, Modal2FA } from '../../components/PerfilSeguranca';
+import { ModalAlterarPassword, Modal2FA, ModalDesativar2FA } from '../../components/PerfilSeguranca';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
 import { useAuth } from '../../context/AuthContext';
@@ -18,8 +18,9 @@ import toast from 'react-hot-toast';
 ═══════════════════════════════════════════════════════════════════════════ */
 function ModalEditarPerfil({ utilizador, onFechar, onSucesso }) {
   const { t } = useLanguage();
+  const idAreaAtual = utilizador?.id_area || utilizador?.area?.id_area || '';
   const [nome, setNome]       = useState(utilizador?.nome || '');
-  const [idArea, setIdArea]   = useState('');
+  const [idArea, setIdArea]   = useState(idAreaAtual ? String(idAreaAtual) : '');
 
   const { data: areasData } = useQuery({
     queryKey: ['areas-todas'],
@@ -28,10 +29,13 @@ function ModalEditarPerfil({ utilizador, onFechar, onSucesso }) {
   });
 
   const guardar = useMutation({
-    mutationFn: () => api.put('/api/utilizadores/eu/perfil', {
-      nome: nome.trim(),
-      ...(idArea ? { id_area: Number(idArea) } : {}),
-    }),
+    mutationFn: () => {
+      const areaAlterada = String(idArea || '') !== String(idAreaAtual || '');
+      return api.put('/api/utilizadores/eu/perfil', {
+        nome: nome.trim(),
+        ...(areaAlterada && idArea ? { id_area: Number(idArea) } : {}),
+      });
+    },
     onSuccess: () => { toast.success('Perfil atualizado.'); onSucesso(); onFechar(); },
     onError: (err) => toast.error(extrairErro(err, 'Erro ao atualizar perfil.')),
   });
@@ -76,11 +80,14 @@ function ModalEditarPerfil({ utilizador, onFechar, onSucesso }) {
               onChange={e => setIdArea(e.target.value)}
               className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400"
             >
-              <option value="">Manter área atual</option>
+              {!idAreaAtual && <option value="">Escolha uma área</option>}
               {(areasData?.dados ?? []).map(a => (
                 <option key={a.id_area} value={a.id_area}>{a.nome}</option>
               ))}
             </select>
+            <p className="mt-1 text-[11px] text-slate-400">
+              A gravação só altera a associação se escolher uma área diferente.
+            </p>
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Ano de Entrada</label>
@@ -125,6 +132,7 @@ export default function Perfil() {
   const [modalEditar,   setModalEditar]   = useState(false);
   const [modalPassword, setModalPassword] = useState(false);
   const [modal2FA,      setModal2FA]      = useState(false);
+  const [modalDesativar2FA, setModalDesativar2FA] = useState(false);
 
   const nome     = utilizador?.nome || '';
   const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
@@ -195,12 +203,6 @@ export default function Perfil() {
     onError: () => toast.error('Erro ao guardar RGPD.'),
   });
 
-  const desativar2FA = useMutation({
-    mutationFn: () => api.post('/api/totp/desativar'),
-    onSuccess: () => { toast.success('2FA desativado.'); refetchTotp(); recarregar(); },
-    onError: (err) => toast.error(extrairErro(err, 'Erro ao desativar 2FA.')),
-  });
-
   function toggleRgpd(tipo, valor) {
     setRgpd(prev => ({ ...prev, [tipo]: valor }));
     guardarRgpd.mutate({ tipo_consentimento: tipo, aceite: valor, versao_politica: '1.0' });
@@ -213,6 +215,7 @@ export default function Perfil() {
       {modalEditar   && <ModalEditarPerfil   utilizador={utilizador} onFechar={() => setModalEditar(false)}   onSucesso={recarregar} />}
       {modalPassword && <ModalAlterarPassword                        onFechar={() => setModalPassword(false)} />}
       {modal2FA      && <Modal2FA                                    onFechar={() => setModal2FA(false)}      onSucesso={() => { refetchTotp(); recarregar(); }} />}
+      {modalDesativar2FA && <ModalDesativar2FA onFechar={() => setModalDesativar2FA(false)} onSucesso={() => { refetchTotp(); recarregar(); }} />}
 
       <ConsultorSidebar />
       <div className="lg:pl-[260px]">
@@ -397,8 +400,8 @@ export default function Perfil() {
                       </div>
                     </div>
                     {totpAtivo ? (
-                      <button type="button" onClick={() => desativar2FA.mutate()} disabled={desativar2FA.isPending} className="rounded-lg border border-red-200 bg-white px-4 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition disabled:opacity-60">
-                        {desativar2FA.isPending ? '...' : t('desativar')}
+                      <button type="button" onClick={() => setModalDesativar2FA(true)} className="rounded-lg border border-red-200 bg-white px-4 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition">
+                        {t('desativar')}
                       </button>
                     ) : (
                       <button type="button" onClick={() => setModal2FA(true)} className="rounded-lg bg-softinsa-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-softinsa-800 transition">

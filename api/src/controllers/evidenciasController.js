@@ -2,9 +2,14 @@ const fs = require('fs');
 const path = require('path');
 const { pool } = require('../db/connection');
 const { pastaUploads } = require('../middleware/upload');
+const { obterCandidaturaComAcesso } = require('../utils/candidaturasPermissoes');
 
 async function listarPorCandidatura(req, res, next) {
   try {
+    const { candidatura, permitido } = await obterCandidaturaComAcesso(req.utilizador, req.params.id);
+    if (!candidatura) return res.status(404).json({ erro: 'Candidatura não encontrada.' });
+    if (!permitido) return res.status(403).json({ erro: 'Sem permissão para esta candidatura.' });
+
     const [linhas] = await pool.query(
       `SELECT ev.*, r.codigo_requisito, r.titulo AS titulo_requisito
          FROM evidencia ev

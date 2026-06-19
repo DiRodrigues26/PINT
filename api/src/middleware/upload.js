@@ -17,22 +17,44 @@ const storage = multer.diskStorage({
 
 const memoryStorage = multer.memoryStorage();
 
-const tiposPermitidos = [
-  'application/pdf',
-  'image/png',
-  'image/jpeg',
-  'image/jpg',
-  'application/zip',
-  'application/x-zip-compressed',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'image/webp',
-  'video/webm',
-];
+const tiposPermitidos = new Map([
+  ['application/pdf', ['.pdf']],
+  ['image/png', ['.png']],
+  ['image/jpeg', ['.jpg', '.jpeg']],
+  ['image/jpg', ['.jpg', '.jpeg']],
+  ['application/zip', ['.zip']],
+  ['application/x-zip-compressed', ['.zip']],
+  ['application/msword', ['.doc']],
+  ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', ['.docx']],
+  ['image/webp', ['.webp']],
+  ['video/webm', ['.webm']],
+]);
+
+const imagensPermitidas = new Map([
+  ['image/png', ['.png']],
+  ['image/jpeg', ['.jpg', '.jpeg']],
+  ['image/jpg', ['.jpg', '.jpeg']],
+  ['image/webp', ['.webp']],
+]);
+
+function extensaoOriginal(file) {
+  return path.extname(file.originalname || '').toLowerCase();
+}
+
+function validarTipoEExtensao(file, permitidos) {
+  const extensoes = permitidos.get(file.mimetype);
+  if (!extensoes) return false;
+  return extensoes.includes(extensaoOriginal(file));
+}
 
 function filtroFicheiro(req, file, cb) {
-  if (tiposPermitidos.includes(file.mimetype)) return cb(null, true);
-  cb(new Error('Tipo de ficheiro não permitido.'));
+  if (validarTipoEExtensao(file, tiposPermitidos)) return cb(null, true);
+  cb(new Error('Tipo ou extensão de ficheiro não permitido.'));
+}
+
+function filtroImagem(req, file, cb) {
+  if (validarTipoEExtensao(file, imagensPermitidas)) return cb(null, true);
+  cb(new Error('Apenas imagens PNG, JPG, JPEG ou WEBP são permitidas.'));
 }
 
 const limiteMB = parseInt(process.env.MAX_FILE_SIZE_MB || '10', 10);
@@ -46,7 +68,7 @@ const upload = multer({
 
 const uploadMemoria = multer({
   storage: memoryStorage,
-  fileFilter: filtroFicheiro,
+  fileFilter: filtroImagem,
   limits: { fileSize: limiteImagemMB * 1024 * 1024 },
 });
 

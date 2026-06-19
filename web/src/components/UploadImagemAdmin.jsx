@@ -42,7 +42,7 @@ export default function UploadImagemAdmin({
         ref={inputRef}
         type="file"
         className="hidden"
-        accept="image/png,image/jpeg,image/jpg,image/webp,video/webm"
+        accept="image/png,image/jpeg,image/jpg,image/webp"
         onChange={carregar}
       />
       <button
@@ -56,7 +56,7 @@ export default function UploadImagemAdmin({
         ) : (
           <Upload className="h-9 w-9 text-slate-900" strokeWidth={1.8} />
         )}
-        <span className="mt-3 text-sm text-slate-400">PNG, JPEG, JPG, WEBP ou WEBM (máx. 5MB)</span>
+        <span className="mt-3 text-sm text-slate-400">PNG, JPEG, JPG ou WEBP (máx. 5MB)</span>
         <span className="mt-2 text-sm font-medium text-slate-900">
           {aCarregar ? 'A carregar...' : valor ? 'Trocar imagem' : 'Clique para fazer upload'}
         </span>

@@ -13,7 +13,7 @@ router.get('/pontos',
   ctrl.estatisticasPontos
 );
 router.get('/gestor',
-  autorizarPerfis('Administrador', 'Talent Manager', 'Service Line'),
+  autorizarPerfis('Administrador', 'Talent Manager'),
   ctrl.dashboardGestor
 );
 router.get('/talent-atividade',

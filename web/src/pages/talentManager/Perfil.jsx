@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Mail, Pencil, KeyRound, Globe, ShieldCheck, FileCheck, CheckCircle, XCircle,
-  Send, MessageSquare, Bell, AlertCircle, Copy, Sparkles, FileText, Award, Users,
+  Send, Bell, AlertCircle, Copy, FileText, Award, Users,
   ClipboardList, BarChart3, BookOpen, ClipboardCheck, X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -13,6 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { exportCSV, exportPDF } from '../../lib/exportUtils';
 import { useTM } from './i18n';
+import AssinaturaEmailPreview from '../../components/AssinaturaEmailPreview';
 
 function formatarDataHora(d) {
   if (!d) return '—';
@@ -267,19 +268,18 @@ export default function TalentPerfil() {
           {/* Assinatura de Email */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="flex items-center gap-2 text-base font-bold text-slate-900"><Mail className="h-5 w-5 text-slate-500" /> {tt('assinatura_email')}</h3>
-            <div className="mt-4 rounded-xl border border-slate-200 p-5">
-              <div ref={assinaturaRef}>
-                <div style={{ fontFamily: 'Arial, sans-serif' }}>
-                  <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#1e293b' }}>{nome}</div>
-                  <div style={{ fontSize: '13px', color: '#64748b' }}>Talent Manager · Softinsa</div>
-                  <div style={{ fontSize: '12px', color: '#0B5CAB', marginTop: '4px' }}>{email}</div>
-                </div>
-              </div>
+            <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5">
+              <AssinaturaEmailPreview
+                ref={assinaturaRef}
+                nome={nome}
+                cargo="Talent Manager · Softinsa"
+                email={email}
+              />
             </div>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <button onClick={copiarAssinatura} className="flex items-center justify-center gap-2 rounded-lg bg-softinsa-600 py-2.5 text-sm font-semibold text-white hover:bg-softinsa-700"><Copy className="h-4 w-4" /> {tt('copiar_assinatura')}</button>
-              <button onClick={copiarAssinatura} className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Sparkles className="h-4 w-4" /> {tt('gerar_assinatura')}</button>
-            </div>
+            <button onClick={copiarAssinatura} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-softinsa-600 py-2.5 text-sm font-semibold text-white hover:bg-softinsa-700">
+              <Copy className="h-4 w-4" />
+              {tt('copiar_assinatura')}
+            </button>
           </section>
 
           {/* Acessos rápidos */}

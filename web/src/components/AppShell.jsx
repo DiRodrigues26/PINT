@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useLanguage } from '../context/LanguageContext';
 import {
   Activity,
   Award,
@@ -44,7 +45,7 @@ export function ShellIcon({ nome, className = 'h-5 w-5' }) {
 }
 
 export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
-  const perfis = utilizador?.perfis?.join(', ') || 'Utilizador';
+  const { t } = useLanguage();
   const itemClass = (ativoItem) => `flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition ${
     ativoItem
       ? 'bg-[#eaf3ff] text-softinsa-700 shadow-[inset_3px_0_0_#39639c]'
@@ -71,7 +72,7 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
             {menu.map((item) => (
               item.to ? (
                 <NavLink
-                  key={item.label}
+                  key={item.chave || item.to}
                   to={item.to}
                   end={item.end}
                   className={({ isActive }) => itemClass(isActive)}
@@ -81,7 +82,7 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
                 </NavLink>
               ) : (
                 <button
-                  key={item.label}
+                  key={item.chave || item.label}
                   type="button"
                   onClick={() => onSelect?.(item.chave)}
                   className={itemClass(ativo === item.chave)}
@@ -100,7 +101,7 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:bg-[#eaf3ff] hover:text-softinsa-700"
           >
             <ShellIcon nome="logout" className="h-4 w-4" />
-            Terminar sessão
+            {t('admin_logout_title')}
           </button>
         </div>
       </aside>
@@ -110,23 +111,23 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
           {menu.map((item) => (
             item.to ? (
               <NavLink
-                key={item.label}
+                key={item.chave || item.to}
                 to={item.to}
                 end={item.end}
                 className={({ isActive }) => mobileItemClass(isActive)}
               >
                 <ShellIcon nome={item.icon} className="h-5 w-5 shrink-0" />
-                <span className="line-clamp-1 max-w-[68px]">{item.label.replace('Gestão de ', '')}</span>
+                <span className="line-clamp-1 max-w-[68px]">{item.mobileLabel || item.label}</span>
               </NavLink>
             ) : (
               <button
-                key={item.label}
+                key={item.chave || item.label}
                 type="button"
                 onClick={() => onSelect?.(item.chave)}
                 className={mobileItemClass(ativo === item.chave)}
               >
                 <ShellIcon nome={item.icon} className="h-5 w-5 shrink-0" />
-                <span className="line-clamp-1 max-w-[68px]">{item.label.replace('Gestão de ', '')}</span>
+                <span className="line-clamp-1 max-w-[68px]">{item.mobileLabel || item.label}</span>
               </button>
             )
           ))}
@@ -138,7 +139,9 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
 
 export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoesTo = '/notificacoes' }) {
   const [aberto, setAberto] = useState(false);
-  const perfis = utilizador?.perfis?.join(', ') || 'Utilizador';
+  const { idioma, mudarIdioma, t } = useLanguage();
+  const perfis = utilizador?.perfis?.join(', ') || t('admin_user_fallback');
+  const IDIOMAS = ['pt', 'en', 'es'];
 
   const { data: notifData } = useQuery({
     queryKey: ['topbar-notificacoes-nao-lidas'],
@@ -156,12 +159,23 @@ export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoe
           <p className="mt-1 text-sm text-slate-600">{subtitulo}</p>
         </div>
         <div className="flex items-center gap-5">
-          <div className="hidden items-center gap-3 text-lg sm:flex">
-            <span title="Português" aria-label="Português" className="leading-none">🇵🇹</span>
-            <span title="English" aria-label="English" className="leading-none opacity-70">🇬🇧</span>
-            <span title="Español" aria-label="Español" className="leading-none opacity-70">🇪🇸</span>
+          <div className="hidden items-center gap-2 text-sm font-semibold sm:flex">
+            {IDIOMAS.map((lang, i) => (
+              <span key={lang} className="flex items-center gap-2">
+                {i > 0 && <span className="h-4 w-px bg-slate-300" />}
+                <button
+                  type="button"
+                  onClick={() => mudarIdioma(lang)}
+                  title={t(`admin_language_${lang}`)}
+                  aria-label={t(`admin_language_${lang}`)}
+                  className={`transition ${idioma === lang ? 'text-softinsa-700' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  {lang.toUpperCase()}
+                </button>
+              </span>
+            ))}
           </div>
-          <Link to={notificacoesTo} className="relative text-slate-700 hover:text-softinsa-700" aria-label="Notificações">
+          <Link to={notificacoesTo} className="relative text-slate-700 hover:text-softinsa-700" aria-label={t('admin_notifications')}>
             <ShellIcon nome="bell" />
             {naoLidas > 0 && (
               <span className="absolute -right-2 -top-2 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white">
@@ -177,16 +191,18 @@ export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoe
               aria-haspopup="menu"
               aria-expanded={aberto}
             >
-              <span className="hidden max-w-[180px] truncate pl-1 text-sm font-semibold text-slate-900 sm:block">{utilizador?.nome || 'Admin'}</span>
+              <span className="hidden max-w-[180px] truncate pl-1 text-sm font-semibold text-slate-900 sm:block">
+                {utilizador?.nome || t('admin_role_short')}
+              </span>
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
-                {(utilizador?.nome || 'Admin').slice(0, 2).toUpperCase()}
+                {(utilizador?.nome || t('admin_role_short')).slice(0, 2).toUpperCase()}
               </span>
             </button>
 
             {aberto && (
               <div className="absolute right-0 mt-3 w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg" role="menu">
                 <div className="border-b border-slate-100 px-4 py-4">
-                  <div className="truncate text-sm font-bold text-slate-900">{utilizador?.nome || 'Utilizador'}</div>
+                  <div className="truncate text-sm font-bold text-slate-900">{utilizador?.nome || t('admin_user_fallback')}</div>
                   <div className="mt-1 truncate text-xs text-slate-500">{utilizador?.email || '-'}</div>
                   <div className="mt-2 inline-flex rounded-full bg-[#eaf3ff] px-3 py-1 text-xs font-semibold text-softinsa-700">
                     {perfis}
@@ -201,7 +217,7 @@ export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoe
                   }}
                 >
                   <ShellIcon nome="logout" className="h-4 w-4" />
-                  Terminar sessão
+                  {t('admin_logout_title')}
                 </button>
               </div>
             )}

@@ -5,11 +5,7 @@ import { api, extrairErro } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import SplitLayout from '../../components/SplitLayout';
 
-const PERFIS = [
-  { valor: 'Consultor', rotulo: 'Consultor' },
-  { valor: 'Service Line', rotulo: 'Service Line Leader' },
-  { valor: 'Talent Manager', rotulo: 'Talent Manager' },
-];
+const PERFIL_PUBLICO = 'Consultor';
 
 export default function CompletarPerfil() {
   const { token } = useParams();
@@ -17,30 +13,19 @@ export default function CompletarPerfil() {
   const { recarregar } = useAuth();
 
   const [nome, setNome] = useState('');
-  const [perfil, setPerfil] = useState('');
-  const [idServiceLine, setIdServiceLine] = useState('');
   const [idArea, setIdArea] = useState('');
-  const [serviceLines, setServiceLines] = useState([]);
   const [areas, setAreas] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    api.get('/publico/service-lines')
-      .then(({ data }) => setServiceLines(data.dados || []))
-      .catch(() => {});
     api.get('/publico/areas?ativo=1')
       .then(({ data }) => setAreas(data.dados || []))
       .catch(() => {});
   }, []);
 
-  // Consultor escolhe a sua ÁREA (req 2); Service Line Leader escolhe a sua Service Line
-  const precisaArea = perfil === 'Consultor';
-  const precisaServiceLine = perfil === 'Service Line';
   const podeSubmeter =
     nome.trim().length > 0 &&
-    perfil.length > 0 &&
-    (!precisaArea || idArea) &&
-    (!precisaServiceLine || idServiceLine) &&
+    idArea &&
     !loading;
 
   async function submeter(e) {
@@ -51,9 +36,8 @@ export default function CompletarPerfil() {
       const { data } = await api.post('/api/auth/completar-perfil', {
         token,
         nome,
-        perfil,
+        perfil: PERFIL_PUBLICO,
         id_area: idArea ? Number(idArea) : null,
-        id_service_line: idServiceLine ? Number(idServiceLine) : null,
       });
       if (data.token) {
         localStorage.setItem('token', data.token);
@@ -91,61 +75,23 @@ export default function CompletarPerfil() {
         </div>
 
         <div>
-          <label htmlFor="perfil" className="label">Perfil</label>
+          <label htmlFor="area" className="label">Área</label>
           <select
-            id="perfil"
+            id="area"
             required
-            value={perfil}
-            onChange={(e) => { setPerfil(e.target.value); setIdServiceLine(''); setIdArea(''); }}
+            value={idArea}
+            onChange={(e) => setIdArea(e.target.value)}
             className="input"
           >
-            <option value="">Tipo de perfil</option>
-            {PERFIS.map((p) => (
-              <option key={p.valor} value={p.valor}>{p.rotulo}</option>
+            <option value="">Escolhe a tua área</option>
+            {areas.map((a) => (
+              <option key={a.id_area} value={a.id_area}>
+                {a.nome}{a.nome_service_line ? ` — ${a.nome_service_line}` : ''}
+              </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-slate-500">Verás os badges preferenciais da tua área ao entrar.</p>
         </div>
-
-        {/* Consultor → escolhe a sua Área (req 2) */}
-        {precisaArea && (
-          <div>
-            <label htmlFor="area" className="label">Área</label>
-            <select
-              id="area"
-              required
-              value={idArea}
-              onChange={(e) => setIdArea(e.target.value)}
-              className="input"
-            >
-              <option value="">Escolhe a tua área</option>
-              {areas.map((a) => (
-                <option key={a.id_area} value={a.id_area}>
-                  {a.nome}{a.nome_service_line ? ` — ${a.nome_service_line}` : ''}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-slate-500">Verás os badges preferenciais da tua área ao entrar.</p>
-          </div>
-        )}
-
-        {/* Service Line Leader → escolhe a sua Service Line */}
-        {precisaServiceLine && (
-          <div>
-            <label htmlFor="service-line" className="label">Service Line</label>
-            <select
-              id="service-line"
-              required
-              value={idServiceLine}
-              onChange={(e) => setIdServiceLine(e.target.value)}
-              className="input"
-            >
-              <option value="">Escolhe a tua Service Line</option>
-              {serviceLines.map((sl) => (
-                <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>
-              ))}
-            </select>
-          </div>
-        )}
 
         <button type="submit" disabled={!podeSubmeter} className="btn-primary w-full mt-2">
           {loading ? 'A concluir…' : 'Registar'}

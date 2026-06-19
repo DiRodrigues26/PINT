@@ -1,6 +1,11 @@
 const { verificarToken } = require('../utils/jwt');
 const { pool } = require('../db/connection');
 
+function podeContinuarComPrimeiroLoginPendente(req) {
+  const caminho = String(req.originalUrl || '').split('?')[0];
+  return caminho === '/api/auth/eu' || caminho === '/api/auth/primeiro-login';
+}
+
 async function autenticar(req, res, next) {
   try {
     const header = req.headers.authorization || '';
@@ -33,30 +38,49 @@ async function autenticar(req, res, next) {
 
     const nomesPerfis = perfis.map(p => p.nome_perfil);
 
-    // Área + Service Line do consultor (para o perfil e dashboards)
-    let areaInfo = {};
-    if (nomesPerfis.includes('Consultor')) {
-      const [areaRows] = await pool.query(
-        `SELECT a.id_area, a.nome AS nome_area, sl.id_service_line, sl.nome AS nome_service_line
-           FROM consultor_area ca
-           JOIN area a          ON a.id_area = ca.id_area
-           JOIN service_line sl ON sl.id_service_line = a.id_service_line
-          WHERE ca.id_utilizador = ? AND ca.ativo = 1
-          LIMIT 1`,
-        [utilizador.id_utilizador]
-      );
-      areaInfo = areaRows[0] || {};
-    }
+    const [areas] = await pool.query(
+      `SELECT ca.id_area, a.nome AS nome_area,
+              sl.id_service_line, sl.nome AS nome_service_line
+         FROM consultor_area ca
+         JOIN area a ON a.id_area = ca.id_area
+         JOIN service_line sl ON sl.id_service_line = a.id_service_line
+        WHERE ca.id_utilizador = ? AND ca.ativo = 1
+        LIMIT 1`,
+      [utilizador.id_utilizador]
+    );
+
+    const [serviceLines] = await pool.query(
+      `SELECT slr.id_service_line, sl.nome AS nome_service_line
+         FROM service_line_responsavel slr
+         JOIN service_line sl ON sl.id_service_line = slr.id_service_line
+        WHERE slr.id_utilizador = ?
+        LIMIT 1`,
+      [utilizador.id_utilizador]
+    );
+
+    const area = areas[0] || null;
+    const serviceLine = serviceLines[0] || (area
+      ? { id_service_line: area.id_service_line, nome_service_line: area.nome_service_line }
+      : null);
 
     req.utilizador = {
       ...utilizador,
+      id_area: area?.id_area || null,
+      nome_area: area?.nome_area || null,
+      id_service_line: serviceLine?.id_service_line || null,
+      nome_service_line: serviceLine?.nome_service_line || null,
+      area,
+      service_line: serviceLine,
       perfis: nomesPerfis,
       ids_perfis: perfis.map(p => p.id_perfil),
-      id_area: areaInfo.id_area || null,
-      nome_area: areaInfo.nome_area || null,
-      id_service_line: areaInfo.id_service_line || null,
-      nome_service_line: areaInfo.nome_service_line || null,
     };
+
+    if (utilizador.primeiro_login_pendente && !podeContinuarComPrimeiroLoginPendente(req)) {
+      return res.status(403).json({
+        erro: 'É obrigatório alterar a password temporária antes de continuar.',
+        codigo: 'PRIMEIRO_LOGIN_PENDENTE',
+      });
+    }
 
     next();
   } catch (err) {

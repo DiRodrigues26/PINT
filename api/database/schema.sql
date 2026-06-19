@@ -469,6 +469,7 @@ CREATE TABLE `utilizador` (
   `primeiro_login_pendente` tinyint(1) NOT NULL DEFAULT '1',
   `idioma` enum('pt','en','es') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pt',
   `token_confirmacao_email` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `token_confirmacao_expira` datetime DEFAULT NULL,
   `token_recuperacao_password` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `token_recuperacao_expira` datetime DEFAULT NULL,
   `ultimo_login` datetime DEFAULT NULL,

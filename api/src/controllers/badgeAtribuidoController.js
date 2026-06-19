@@ -12,6 +12,30 @@ async function temConsentimento(idUtilizador, tipo) {
   return r.length > 0 && !!r[0].aceite;
 }
 
+function temAcessoGlobal(perfis = []) {
+  return perfis.includes('Administrador') || perfis.includes('Talent Manager');
+}
+
+async function obterServiceLineResponsavel(idUtilizador) {
+  const [linhas] = await pool.query(
+    'SELECT id_service_line FROM service_line_responsavel WHERE id_utilizador = ? LIMIT 1',
+    [idUtilizador]
+  );
+  return linhas[0]?.id_service_line || null;
+}
+
+async function consultorPertenceServiceLine(idConsultor, idServiceLine) {
+  const [linhas] = await pool.query(
+    `SELECT 1
+       FROM consultor_area ca
+       JOIN area a ON a.id_area = ca.id_area
+      WHERE ca.id_utilizador = ? AND ca.ativo = 1 AND a.id_service_line = ?
+      LIMIT 1`,
+    [idConsultor, idServiceLine]
+  );
+  return linhas.length > 0;
+}
+
 async function listarMeus(req, res, next) {
   try {
     const [linhas] = await pool.query(
@@ -38,14 +62,24 @@ async function listarDeConsultor(req, res, next) {
   try {
     const { id } = req.params;
 
-    // scope: admin/talent/service line veem; consultor vê apenas públicos (publicado=1) se não for dono
+    // scope: admin/talent veem global; service line vê apenas a sua SL; consultor vê apenas públicos se não for dono
     const perfis = req.utilizador.perfis;
     const ehDono = Number(id) === req.utilizador.id_utilizador;
-    const temAcesso = perfis.includes('Administrador') || perfis.includes('Talent Manager') || perfis.includes('Service Line');
+    const acessoGlobal = temAcessoGlobal(perfis);
 
     const where = ['ba.id_consultor = ?'];
     const params = [id];
-    if (!ehDono && !temAcesso) {
+    if (!ehDono && acessoGlobal) {
+      // acesso total
+    } else if (!ehDono && perfis.includes('Service Line')) {
+      const idServiceLine = await obterServiceLineResponsavel(req.utilizador.id_utilizador);
+      if (!idServiceLine) return res.status(403).json({ erro: 'Sem service line associada.' });
+      if (!(await consultorPertenceServiceLine(id, idServiceLine))) {
+        return res.status(403).json({ erro: 'Sem permissão para este consultor.' });
+      }
+      where.push('sl.id_service_line = ?');
+      params.push(idServiceLine);
+    } else if (!ehDono) {
       where.push('ba.publicado = 1');
     }
 
@@ -56,7 +90,7 @@ async function listarDeConsultor(req, res, next) {
               COALESCE(ba.pontos_atribuidos, b.pontos, 0) AS pontos,
               b.pontos AS pontos_badge_atual,
               n.codigo_nivel, n.nome_nivel,
-              a.nome AS nome_area, sl.nome AS nome_service_line
+              a.nome AS nome_area, sl.id_service_line, sl.nome AS nome_service_line
          FROM badge_atribuido ba
          JOIN badge b ON b.id_badge = ba.id_badge
          JOIN nivel n ON n.id_nivel = b.id_nivel
@@ -169,7 +203,7 @@ async function gerarCertificado(req, res, next) {
               COALESCE(ba.pontos_atribuidos, b.pontos, 0) AS pontos,
               b.titulo,
               n.codigo_nivel, n.nome_nivel,
-              a.nome AS nome_area, sl.nome AS nome_service_line,
+              a.nome AS nome_area, sl.id_service_line, sl.nome AS nome_service_line,
               u.nome AS nome_consultor
          FROM badge_atribuido ba
          JOIN badge b         ON b.id_badge = ba.id_badge
@@ -187,8 +221,13 @@ async function gerarCertificado(req, res, next) {
     // Apenas o dono ou perfis com permissão de gestão podem descarregar
     const perfis = req.utilizador.perfis;
     const ehDono = dados.id_consultor === req.utilizador.id_utilizador;
-    const temAcesso = perfis.includes('Administrador') || perfis.includes('Talent Manager') || perfis.includes('Service Line');
-    if (!ehDono && !temAcesso) {
+    const acessoGlobal = temAcessoGlobal(perfis);
+    let acessoServiceLine = false;
+    if (!ehDono && !acessoGlobal && perfis.includes('Service Line')) {
+      const idServiceLine = await obterServiceLineResponsavel(req.utilizador.id_utilizador);
+      acessoServiceLine = !!idServiceLine && Number(idServiceLine) === Number(dados.id_service_line);
+    }
+    if (!ehDono && !acessoGlobal && !acessoServiceLine) {
       return res.status(403).json({ erro: 'Sem permissão para descarregar este certificado.' });
     }
 

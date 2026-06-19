@@ -1,110 +1,32 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Award, Bell, BookOpen, Check, CheckCheck, Clock, FileText, Plus, RefreshCw, Settings, Trash2, TriangleAlert } from 'lucide-react';
+import { Bell, BookOpen, Check, CheckCheck, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../../context/LanguageContext';
+import {
+  NotificacaoItem,
+  TOPBAR_NOTIFICACOES_QUERY_KEY,
+  classificarNotificacao,
+} from '../../components/NotificacoesComuns';
 
-function tempoRelativo(dataStr) {
-  const diff = Date.now() - new Date(dataStr).getTime();
-  const mins = Math.floor(diff / 60_000);
-  const horas = Math.floor(diff / 3_600_000);
-  const dias = Math.floor(diff / 86_400_000);
-  if (mins < 60) return `Há ${mins || 1} min`;
-  if (horas < 24) return `Há ${horas} hora${horas > 1 ? 's' : ''}`;
-  if (dias === 1) return 'Há 1 dia';
-  return `Há ${dias} dias`;
-}
+function acaoNotificacao(notif, navigate) {
+  const tipo = notif.tipo || '';
+  const entidade = notif.entidade_relacionada;
 
-/* Mapeia tipos/categorias de notificação para ícone + cor + categoria */
-const TIPO_CONFIG = {
-  CANDIDATURA_APROVADA:       { icon: Award,         bg: 'bg-emerald-500',    categoria: 'CANDIDATURA' },
-  CANDIDATURA_REJEITADA:      { icon: TriangleAlert,  bg: 'bg-red-500',        categoria: 'CANDIDATURA' },
-  CANDIDATURA_DEVOLVIDA:      { icon: RefreshCw,      bg: 'bg-orange-500',     categoria: 'CANDIDATURA' },
-  CANDIDATURA_EM_REVISAO:     { icon: Clock,          bg: 'bg-amber-500',      categoria: 'CANDIDATURA' },
-  BADGE_ATRIBUIDO:            { icon: Award,          bg: 'bg-emerald-500',    categoria: 'BADGE' },
-  BADGE_EXPIRACAO:            { icon: TriangleAlert,  bg: 'bg-red-500',        categoria: 'BADGE' },
-  BADGE_RECOMENDADO:          { icon: Award,          bg: 'bg-softinsa-500',   categoria: 'BADGE' },
-  EVIDENCIA_RECEBIDA:         { icon: FileText,       bg: 'bg-blue-500',       categoria: 'CANDIDATURA' },
-  SISTEMA:                    { icon: Settings,       bg: 'bg-purple-500',     categoria: 'SISTEMA' },
-  default:                    { icon: Bell,           bg: 'bg-slate-500',      categoria: 'SISTEMA' },
-};
-
-function getCfg(tipo) {
-  return TIPO_CONFIG[tipo] || TIPO_CONFIG.default;
-}
-
-/* Botão de ação por tipo */
-function BotaoAcao({ tipo, categoria, entidade, navigate }) {
-  const cat = String(categoria || '').toUpperCase();
-  const t = String(tipo || '').toUpperCase();
-  const baseCls = 'mt-3 flex items-center gap-1.5 rounded-lg bg-softinsa-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-softinsa-700 transition';
-
-  // Badge atribuído / confirmado / expiração → Os Meus Badges
-  if (cat === 'BADGE' || t === 'APPROVED' || t.includes('ATRIBUID') || t.includes('EXPIRA')) {
-    return (
-      <button type="button" onClick={() => navigate('/meus-badges')} className={baseCls}>
-        {t.includes('EXPIRA') ? 'Renovar Badge →' : 'Ver Badge →'}
-      </button>
-    );
+  if ((tipo.includes('CANDIDATURA') || tipo.includes('EVIDENCIA')) && entidade) {
+    return { label: 'Ver candidatura', onClick: () => navigate(`/candidaturas/${entidade}`) };
   }
-  // Candidatura → vai à candidatura específica se houver id, senão à lista
-  if (cat === 'CANDIDATURA' || t.includes('CANDIDATURA') || t.includes('TALENT') || t.includes('EVIDENCIA') || ['REJECTED', 'SENT_BACK'].includes(t)) {
-    const destino = /^\d+$/.test(String(entidade)) ? `/candidaturas/${entidade}` : '/candidaturas';
-    return (
-      <button type="button" onClick={() => navigate(destino)} className={baseCls}>
-        Ver Candidatura →
-      </button>
-    );
+  if (tipo === 'BADGE_EXPIRACAO') {
+    return { label: 'Renovar badge', onClick: () => navigate('/meus-badges') };
   }
-  return (
-    <button
-      type="button"
-      onClick={() => navigate('/badges')}
-      className="mt-3 flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
-    >
-      Ver Detalhes →
-    </button>
-  );
-}
-
-function ItemNotificacao({ notif, onLer }) {
-  const navigate = useNavigate();
-  const cfg = getCfg(notif.tipo);
-  const Icon = cfg.icon;
-
-  return (
-    <div
-      className={`flex gap-4 rounded-xl border border-l-4 bg-white p-5 shadow-sm transition ${
-        notif.lida ? 'border-slate-200 border-l-slate-200 opacity-80' : `border-slate-200 ${cfg.bg.replace('bg-', 'border-l-')}`
-      }`}
-      onClick={() => !notif.lida && onLer(notif.id_notificacao)}
-    >
-      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${cfg.bg}`}>
-        <Icon className="h-5 w-5 text-white" strokeWidth={1.8} />
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <p className="text-sm font-bold text-slate-800">{notif.titulo}</p>
-          <div className="flex shrink-0 items-center gap-2">
-            {!notif.lida && (
-              <span className="rounded-full bg-softinsa-600 px-2 py-0.5 text-[10px] font-bold text-white">NOVO</span>
-            )}
-            <span className="flex items-center gap-1 text-xs text-slate-400">
-              <Clock className="h-3.5 w-3.5" strokeWidth={1.8} />
-              {tempoRelativo(notif.data_criacao)}
-            </span>
-          </div>
-        </div>
-        {notif.mensagem && <p className="mt-0.5 text-xs text-slate-500">{notif.mensagem}</p>}
-        <BotaoAcao tipo={notif.tipo} categoria={notif.categoria} entidade={notif.entidade_relacionada} navigate={navigate} />
-      </div>
-    </div>
-  );
+  if (tipo.includes('BADGE')) {
+    return { label: 'Ver badge', onClick: () => navigate('/meus-badges') };
+  }
+  return null;
 }
 
 // TABS are built dynamically inside the component using t()
@@ -208,8 +130,8 @@ function FormLembrete({ onCriar, onCancelar, aPending }) {
 export default function Notificacoes() {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [tabAtiva, setTabAtiva] = useState('');
-  const topbarNotificacoesQueryKey = ['topbar-notificacoes-nao-lidas'];
 
   const TABS = [
     { key: '',            label: t('tab_todas') },
@@ -236,7 +158,7 @@ export default function Notificacoes() {
     mutationFn: (id) => api.post(`/api/notificacoes/${id}/ler`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notificacoes'] });
-      queryClient.invalidateQueries({ queryKey: topbarNotificacoesQueryKey });
+      queryClient.invalidateQueries({ queryKey: TOPBAR_NOTIFICACOES_QUERY_KEY });
     },
   });
 
@@ -244,7 +166,7 @@ export default function Notificacoes() {
     mutationFn: () => api.post('/api/notificacoes/ler-todas'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notificacoes'] });
-      queryClient.invalidateQueries({ queryKey: topbarNotificacoesQueryKey });
+      queryClient.invalidateQueries({ queryKey: TOPBAR_NOTIFICACOES_QUERY_KEY });
       toast.success('Todas as notificações marcadas como lidas.');
     },
   });
@@ -271,8 +193,7 @@ export default function Notificacoes() {
     const lista = data?.dados ?? [];
     if (!tabAtiva) return lista;
     return lista.filter(n => {
-      const cfg = getCfg(n.tipo);
-      return cfg.categoria === tabAtiva || n.categoria === tabAtiva;
+      return classificarNotificacao(n) === tabAtiva || n.categoria === tabAtiva;
     });
   }, [data, tabAtiva]);
 
@@ -381,7 +302,12 @@ export default function Notificacoes() {
           ) : (
             <div className="mt-4 space-y-3">
               {notificacoes.map(n => (
-                <ItemNotificacao key={n.id_notificacao} notif={n} onLer={(id) => marcarLida.mutate(id)} />
+                <NotificacaoItem
+                  key={n.id_notificacao}
+                  notif={n}
+                  onLer={(id) => marcarLida.mutate(id)}
+                  acao={acaoNotificacao(n, navigate)}
+                />
               ))}
             </div>
           )}

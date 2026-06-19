@@ -7,15 +7,9 @@ import Carregando from '../../components/Carregando';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import toast from 'react-hot-toast';
+import AssinaturaEmailPreview from '../../components/AssinaturaEmailPreview';
 
 const ORIGIN = window.location.origin;
-
-/* Cores por nível (hex inline — compatível com clientes de email) */
-const NIVEL_COR = { A: '#0B5CAB', B: '#3B82F6', C: '#6366F1', D: '#7C3AED', E: '#6B21A8' };
-
-function urlVerificar(b) {
-  return `${ORIGIN}/verificar/${b.token_publico}`;
-}
 
 export default function AssinaturaEmail() {
   const { t } = useLanguage();
@@ -162,40 +156,14 @@ export default function AssinaturaEmail() {
 
                   {/* Bloco que será copiado (HTML inline para compatibilidade com clientes de email) */}
                   <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4">
-                    <div ref={previewRef}>
-                      <table cellPadding="0" cellSpacing="0" style={{ fontFamily: 'Arial, sans-serif', color: '#1e293b' }}>
-                        <tbody>
-                          <tr>
-                            <td style={{ paddingRight: '16px', borderRight: '3px solid #0B5CAB' }}>
-                              <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#0B5CAB' }}>{nome || 'Nome'}</div>
-                              <div style={{ fontSize: '13px', color: '#475569', marginTop: '2px' }}>{cargo}</div>
-                              {emailContacto && (
-                                <div style={{ fontSize: '12px', color: '#64748b', marginTop: '6px' }}>{emailContacto}</div>
-                              )}
-                              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>SOFTINSA</div>
-                            </td>
-                            <td style={{ paddingLeft: '16px' }}>
-                              {escolhidos.map(b => (
-                                <a key={b.id_badge_atribuido} href={urlVerificar(b)} target="_blank" rel="noreferrer"
-                                  title={b.titulo} style={{ display: 'inline-block', marginRight: '6px', textDecoration: 'none' }}>
-                                  {b.imagem_url ? (
-                                    <img src={b.imagem_url} alt={b.titulo}
-                                      width="40" height="40" style={{ borderRadius: '50%', verticalAlign: 'middle' }} />
-                                  ) : (
-                                    <span style={{
-                                      display: 'inline-block', width: '40px', height: '40px', lineHeight: '40px',
-                                      borderRadius: '50%', backgroundColor: NIVEL_COR[b.codigo_nivel] || '#0B5CAB',
-                                      color: '#ffffff', textAlign: 'center', fontWeight: 'bold', fontSize: '15px',
-                                      verticalAlign: 'middle',
-                                    }}>{b.codigo_nivel || '★'}</span>
-                                  )}
-                                </a>
-                              ))}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
+                    <AssinaturaEmailPreview
+                      ref={previewRef}
+                      nome={nome}
+                      cargo={cargo}
+                      email={emailContacto}
+                      badges={escolhidos}
+                      origin={ORIGIN}
+                    />
                   </div>
                 </div>
 

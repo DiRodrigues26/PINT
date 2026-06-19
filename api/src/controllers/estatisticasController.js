@@ -483,15 +483,23 @@ async function dashboardServiceLine(req, res, next) {
               COUNT(DISTINCT ba.id_badge_atribuido) AS total_badges,
               MAX(n.ordem) AS nivel_mais_alto_ordem,
               MAX(n.codigo_nivel) AS nivel_mais_alto,
-              SUM(CASE WHEN ba.data_expiracao IS NULL OR ba.data_expiracao > NOW() THEN 1 ELSE 0 END) AS badges_ativos,
-              SUM(CASE WHEN ba.data_expiracao IS NOT NULL AND ba.data_expiracao <= NOW() THEN 1 ELSE 0 END) AS badges_expirados,
+              SUM(CASE WHEN ba.id_badge_atribuido IS NOT NULL AND (ba.data_expiracao IS NULL OR ba.data_expiracao > NOW()) THEN 1 ELSE 0 END) AS badges_ativos,
+              SUM(CASE WHEN ba.id_badge_atribuido IS NOT NULL AND ba.data_expiracao IS NOT NULL AND ba.data_expiracao <= NOW() THEN 1 ELSE 0 END) AS badges_expirados,
               COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais,
               (SELECT COUNT(*) FROM utilizador_conquista uc WHERE uc.id_utilizador = u.id_utilizador) AS conquistas,
               (SELECT COUNT(*) FROM candidatura_badge cb
+                JOIN badge b_proc ON b_proc.id_badge = cb.id_badge
+                JOIN nivel n_proc ON n_proc.id_nivel = b_proc.id_nivel
+                JOIN area a_proc ON a_proc.id_area = n_proc.id_area
                 WHERE cb.id_consultor = u.id_utilizador
+                  AND a_proc.id_service_line = a.id_service_line
                   AND cb.estado_atual NOT IN ('APPROVED','REJECTED','CLOSED')) AS badges_em_processo,
               (SELECT cb2.estado_atual FROM candidatura_badge cb2
+                JOIN badge b_ult ON b_ult.id_badge = cb2.id_badge
+                JOIN nivel n_ult ON n_ult.id_nivel = b_ult.id_nivel
+                JOIN area a_ult ON a_ult.id_area = n_ult.id_area
                 WHERE cb2.id_consultor = u.id_utilizador
+                  AND a_ult.id_service_line = a.id_service_line
                 ORDER BY cb2.data_abertura DESC LIMIT 1) AS ultimo_estado,
               (SELECT ce.nome FROM utilizador_conquista uc2
                 JOIN conquista_especial ce ON ce.id_conquista = uc2.id_conquista
@@ -501,6 +509,14 @@ async function dashboardServiceLine(req, res, next) {
          JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
          JOIN area a ON a.id_area = ca.id_area
          LEFT JOIN badge_atribuido ba ON ba.id_consultor = u.id_utilizador
+          AND EXISTS (
+            SELECT 1
+              FROM badge b_scope
+              JOIN nivel n_scope ON n_scope.id_nivel = b_scope.id_nivel
+              JOIN area a_scope ON a_scope.id_area = n_scope.id_area
+             WHERE b_scope.id_badge = ba.id_badge
+               AND a_scope.id_service_line = a.id_service_line
+          )
          LEFT JOIN badge b ON b.id_badge = ba.id_badge
          LEFT JOIN nivel n ON n.id_nivel = b.id_nivel
         WHERE a.id_service_line = ?
@@ -519,6 +535,14 @@ async function dashboardServiceLine(req, res, next) {
          JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
          JOIN area a ON a.id_area = ca.id_area
          LEFT JOIN badge_atribuido ba ON ba.id_consultor = u.id_utilizador
+          AND EXISTS (
+            SELECT 1
+              FROM badge b_scope
+              JOIN nivel n_scope ON n_scope.id_nivel = b_scope.id_nivel
+              JOIN area a_scope ON a_scope.id_area = n_scope.id_area
+             WHERE b_scope.id_badge = ba.id_badge
+               AND a_scope.id_service_line = a.id_service_line
+          )
          LEFT JOIN badge b ON b.id_badge = ba.id_badge
         WHERE a.id_service_line = ?
         GROUP BY u.id_utilizador, u.nome, a.nome
@@ -717,12 +741,26 @@ async function perfilConsultorSL(req, res, next) {
               sl.id_service_line, sl.nome AS nome_service_line,
               COALESCE(SUM(COALESCE(ba.pontos_atribuidos, b.pontos, 0)), 0) AS pontos_totais,
               COUNT(DISTINCT ba.id_badge_atribuido) AS total_badges,
-              (SELECT COUNT(*) FROM candidatura_badge cb WHERE cb.id_consultor = u.id_utilizador AND cb.estado_atual NOT IN ('APPROVED','REJECTED','CLOSED')) AS em_processo
+              (SELECT COUNT(*) FROM candidatura_badge cb
+                JOIN badge b_proc ON b_proc.id_badge = cb.id_badge
+                JOIN nivel n_proc ON n_proc.id_nivel = b_proc.id_nivel
+                JOIN area a_proc ON a_proc.id_area = n_proc.id_area
+               WHERE cb.id_consultor = u.id_utilizador
+                 AND a_proc.id_service_line = sl.id_service_line
+                 AND cb.estado_atual NOT IN ('APPROVED','REJECTED','CLOSED')) AS em_processo
          FROM utilizador u
          JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
          JOIN area a ON a.id_area = ca.id_area
          JOIN service_line sl ON sl.id_service_line = a.id_service_line
          LEFT JOIN badge_atribuido ba ON ba.id_consultor = u.id_utilizador
+          AND EXISTS (
+            SELECT 1
+              FROM badge b_scope
+              JOIN nivel n_scope ON n_scope.id_nivel = b_scope.id_nivel
+              JOIN area a_scope ON a_scope.id_area = n_scope.id_area
+             WHERE b_scope.id_badge = ba.id_badge
+               AND a_scope.id_service_line = sl.id_service_line
+          )
          LEFT JOIN badge b ON b.id_badge = ba.id_badge
         WHERE u.id_utilizador = ? AND a.id_service_line = ?
         GROUP BY u.id_utilizador, u.nome, u.email, a.id_area, a.nome, sl.id_service_line, sl.nome`,
@@ -738,6 +776,14 @@ async function perfilConsultorSL(req, res, next) {
          JOIN consultor_area ca ON ca.id_utilizador = u.id_utilizador AND ca.ativo = 1
          JOIN area a ON a.id_area = ca.id_area
          LEFT JOIN badge_atribuido ba ON ba.id_consultor = u.id_utilizador
+          AND EXISTS (
+            SELECT 1
+              FROM badge b_scope
+              JOIN nivel n_scope ON n_scope.id_nivel = b_scope.id_nivel
+              JOIN area a_scope ON a_scope.id_area = n_scope.id_area
+             WHERE b_scope.id_badge = ba.id_badge
+               AND a_scope.id_service_line = a.id_service_line
+          )
          LEFT JOIN badge b ON b.id_badge = ba.id_badge
         WHERE a.id_service_line = ?
         GROUP BY u.id_utilizador
@@ -769,9 +815,12 @@ async function perfilConsultorSL(req, res, next) {
          FROM candidatura_badge cb
          JOIN badge b ON b.id_badge = cb.id_badge
          JOIN nivel n ON n.id_nivel = b.id_nivel
-        WHERE cb.id_consultor = ? AND cb.estado_atual NOT IN ('APPROVED','REJECTED','CLOSED')
+         JOIN area a ON a.id_area = n.id_area
+        WHERE cb.id_consultor = ?
+          AND a.id_service_line = ?
+          AND cb.estado_atual NOT IN ('APPROVED','REJECTED','CLOSED')
         ORDER BY cb.data_submissao DESC`,
-      [idConsultor]
+      [idConsultor, id_service_line]
     );
 
     res.json({

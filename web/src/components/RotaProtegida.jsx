@@ -8,6 +8,9 @@ export default function RotaProtegida({ children, perfis }) {
 
   if (carregando) return <Carregando />;
   if (!utilizador) return <Navigate to="/login" replace state={{ from: location }} />;
+  if (utilizador.primeiro_login_pendente && location.pathname !== '/alterar-password-inicial') {
+    return <Navigate to="/alterar-password-inicial" replace />;
+  }
   if (perfis && !temPerfil(...perfis)) {
     return <Navigate to="/" replace />;
   }

@@ -2,6 +2,7 @@ const { pool } = require('../db/connection');
 const { gerarTokenAleatorio, gerarCodigoPublico } = require('../utils/tokens');
 const { notificarMudancaEstadoCandidatura } = require('../utils/email');
 const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
+const { obterCandidaturaComAcesso } = require('../utils/candidaturasPermissoes');
 
 const ESTADOS = {
   OPEN: 'OPEN',
@@ -132,22 +133,9 @@ async function listar(req, res, next) {
 
 async function obter(req, res, next) {
   try {
-    const candidatura = await obterCandidaturaOuErro(req.params.id);
+    const { candidatura, permitido } = await obterCandidaturaComAcesso(req.utilizador, req.params.id);
     if (!candidatura) return res.status(404).json({ erro: 'Candidatura não encontrada.' });
-
-    // scope check
-    const perfis = req.utilizador.perfis;
-    const ehDonoCandidatura = candidatura.id_consultor === req.utilizador.id_utilizador;
-    const temAcessoElevado = perfis.includes('Administrador') || perfis.includes('Talent Manager');
-    let temAcessoServiceLine = false;
-    if (perfis.includes('Service Line')) {
-      const [sl] = await pool.query(
-        'SELECT id_service_line FROM service_line_responsavel WHERE id_utilizador = ?',
-        [req.utilizador.id_utilizador]
-      );
-      temAcessoServiceLine = sl[0]?.id_service_line === candidatura.id_service_line;
-    }
-    if (!ehDonoCandidatura && !temAcessoElevado && !temAcessoServiceLine) {
+    if (!permitido) {
       return res.status(403).json({ erro: 'Sem permissão para esta candidatura.' });
     }
 
@@ -386,6 +374,10 @@ async function cancelar(req, res, next) {
 
 async function historico(req, res, next) {
   try {
+    const { candidatura, permitido } = await obterCandidaturaComAcesso(req.utilizador, req.params.id);
+    if (!candidatura) return res.status(404).json({ erro: 'Candidatura não encontrada.' });
+    if (!permitido) return res.status(403).json({ erro: 'Sem permissão para esta candidatura.' });
+
     const [linhas] = await pool.query(
       `SELECT h.*, u.nome AS nome_responsavel
          FROM historico_candidatura h

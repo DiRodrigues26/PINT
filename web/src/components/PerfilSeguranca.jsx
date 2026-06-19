@@ -199,3 +199,82 @@ export function Modal2FA({ onFechar, onSucesso }) {
     </div>
   );
 }
+
+export function ModalDesativar2FA({ onFechar, onSucesso }) {
+  const [codigo, setCodigo] = useState('');
+  const [password, setPassword] = useState('');
+  const [verPassword, setVerPassword] = useState(false);
+
+  const desativar = useMutation({
+    mutationFn: () => api.post('/api/totp/desativar', {
+      codigo: codigo.length === 6 ? codigo : undefined,
+      password_atual: password || undefined,
+    }),
+    onSuccess: () => {
+      toast.success('2FA desativado.');
+      onSucesso?.();
+      onFechar();
+    },
+    onError: (err) => toast.error(extrairErro(err, 'Erro ao desativar 2FA.')),
+  });
+
+  const podeDesativar = codigo.length === 6 || password.length > 0;
+
+  return (
+    <div className="fixed inset-x-0 -top-8 bottom-0 z-50 flex items-center justify-center bg-slate-950/85 px-4 pt-8" onClick={onFechar}>
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <h2 className="text-base font-bold text-slate-900">Desativar Autenticação de Dois Fatores</h2>
+            <p className="mt-0.5 text-xs text-slate-500">Confirme a operação com o código 2FA ou a password atual.</p>
+          </div>
+          <button type="button" onClick={onFechar} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 transition">
+            <X className="h-5 w-5" strokeWidth={2} />
+          </button>
+        </div>
+
+        <div className="space-y-4 px-6 py-5">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">Código 2FA</label>
+            <input
+              value={codigo}
+              onChange={(e) => setCodigo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              maxLength={6}
+              inputMode="numeric"
+              className="w-full rounded-lg border border-slate-200 px-3 py-3 text-center text-xl font-mono font-bold tracking-[0.5em] outline-none focus:border-softinsa-400 focus:ring-2 focus:ring-softinsa-100"
+            />
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-200" />
+            <span className="text-xs font-semibold uppercase text-slate-400">ou</span>
+            <div className="h-px flex-1 bg-slate-200" />
+          </div>
+
+          <CampoPassword
+            label="Password Atual"
+            value={password}
+            onChange={setPassword}
+            mostrar={verPassword}
+            toggleMostrar={() => setVerPassword((v) => !v)}
+          />
+        </div>
+
+        <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+          <button type="button" onClick={onFechar} className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => desativar.mutate()}
+            disabled={!podeDesativar || desativar.isPending}
+            className="flex-1 rounded-lg bg-red-600 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+          >
+            {desativar.isPending ? 'A desativar...' : 'Desativar 2FA'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -18,8 +18,13 @@ const {
 } = require('../utils/email');
 const { podeEnviarEmail } = require('../utils/configNotificacao');
 const { calcularSaudacao } = require('../utils/saudacao');
+const {
+  dataExpiracaoConfirmacao,
+  garantirColunaTokenConfirmacaoExpira,
+  tokenConfirmacaoExpirado,
+} = require('../utils/confirmacaoEmail');
 
-const PERFIS_PERMITIDOS_REGISTO = ['Consultor', 'Service Line', 'Talent Manager'];
+const PERFIS_PERMITIDOS_REGISTO = ['Consultor'];
 
 async function gerarSlugUnico(nome) {
   const base = gerarSlug(nome) || 'utilizador';
@@ -57,14 +62,16 @@ async function registar(req, res, next) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const tokenConfirmacao = gerarTokenAleatorio();
+    const tokenConfirmacaoExpira = dataExpiracaoConfirmacao();
     const nomeTemporario = String(email).split('@')[0];
     const slug = await gerarSlugUnico(nomeTemporario);
+    await garantirColunaTokenConfirmacaoExpira();
 
     await pool.query(
       `INSERT INTO utilizador
-         (nome, email, password_hash, idioma, token_confirmacao_email, url_slug, primeiro_login_pendente)
-       VALUES (?, ?, ?, ?, ?, ?, 0)`,
-      [nomeTemporario, email, passwordHash, idioma || 'pt', tokenConfirmacao, slug]
+         (nome, email, password_hash, idioma, token_confirmacao_email, token_confirmacao_expira, url_slug, primeiro_login_pendente)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+      [nomeTemporario, email, passwordHash, idioma || 'pt', tokenConfirmacao, tokenConfirmacaoExpira, slug]
     );
 
     try {
@@ -87,9 +94,10 @@ async function confirmarEmail(req, res, next) {
   try {
     const token = req.body?.token || req.query?.token || req.params?.token;
     if (!token) return res.status(400).json({ erro: 'Token em falta.' });
+    await garantirColunaTokenConfirmacaoExpira();
 
     const [linhas] = await pool.query(
-      `SELECT id_utilizador, email_confirmado, primeiro_login_pendente
+      `SELECT id_utilizador, email_confirmado, primeiro_login_pendente, token_confirmacao_expira
          FROM utilizador
         WHERE token_confirmacao_email = ?`,
       [token]
@@ -97,6 +105,13 @@ async function confirmarEmail(req, res, next) {
     if (linhas.length === 0) return res.status(404).json({ erro: 'Token inválido ou já utilizado.' });
 
     const u = linhas[0];
+    if (tokenConfirmacaoExpirado(u.token_confirmacao_expira)) {
+      await pool.query(
+        'UPDATE utilizador SET token_confirmacao_email = NULL, token_confirmacao_expira = NULL WHERE id_utilizador = ?',
+        [u.id_utilizador]
+      );
+      return res.status(400).json({ erro: 'Token expirado. Peça um novo registo ou contacto ao administrador.' });
+    }
 
     // se ainda não tem perfil, considera-se "perfil pendente" → frontend redireciona para completar
     const [perfis] = await pool.query(
@@ -122,6 +137,7 @@ async function confirmarEmail(req, res, next) {
         `UPDATE utilizador
             SET email_confirmado = 1,
                 token_confirmacao_email = NULL,
+                token_confirmacao_expira = NULL,
                 token_recuperacao_password = ?,
                 token_recuperacao_expira = ?
           WHERE id_utilizador = ?`,
@@ -131,7 +147,8 @@ async function confirmarEmail(req, res, next) {
       await pool.query(
         `UPDATE utilizador
             SET email_confirmado = 1,
-                token_confirmacao_email = NULL
+                token_confirmacao_email = NULL,
+                token_confirmacao_expira = NULL
           WHERE id_utilizador = ?`,
         [u.id_utilizador]
       );
@@ -150,7 +167,7 @@ async function confirmarEmail(req, res, next) {
 
 async function completarPerfil(req, res, next) {
   try {
-    const { token, nome, perfil, id_service_line, id_area } = req.body;
+    const { token, nome, perfil, id_area } = req.body;
     if (!token) return res.status(400).json({ erro: 'Token em falta.' });
     if (!nome || !perfil) {
       return res.status(400).json({ erro: 'Nome e perfil são obrigatórios.' });
@@ -161,12 +178,10 @@ async function completarPerfil(req, res, next) {
     if (perfil === 'Consultor' && !id_area) {
       return res.status(400).json({ erro: 'Área é obrigatória para Consultor.' });
     }
-    if (perfil === 'Service Line' && !id_service_line) {
-      return res.status(400).json({ erro: 'Service Line é obrigatória para Service Line Leader.' });
-    }
+    await garantirColunaTokenConfirmacaoExpira();
 
     const [linhas] = await pool.query(
-      `SELECT id_utilizador, email, idioma, ultimo_login, primeiro_login_pendente
+      `SELECT id_utilizador, email, idioma, ultimo_login, primeiro_login_pendente, token_confirmacao_expira
          FROM utilizador
         WHERE token_confirmacao_email = ?`,
       [token]
@@ -174,6 +189,13 @@ async function completarPerfil(req, res, next) {
     if (linhas.length === 0) return res.status(404).json({ erro: 'Token inválido ou já utilizado.' });
 
     const u = linhas[0];
+    if (tokenConfirmacaoExpirado(u.token_confirmacao_expira)) {
+      await pool.query(
+        'UPDATE utilizador SET token_confirmacao_email = NULL, token_confirmacao_expira = NULL WHERE id_utilizador = ?',
+        [u.id_utilizador]
+      );
+      return res.status(400).json({ erro: 'Token expirado. Peça um novo registo ou contacto ao administrador.' });
+    }
 
     const conn = await pool.getConnection();
     try {
@@ -186,7 +208,8 @@ async function completarPerfil(req, res, next) {
             SET nome = ?,
                 url_slug = ?,
                 email_confirmado = 1,
-                token_confirmacao_email = NULL
+                token_confirmacao_email = NULL,
+                token_confirmacao_expira = NULL
           WHERE id_utilizador = ?`,
         [nome, slug, u.id_utilizador]
       );
@@ -210,16 +233,6 @@ async function completarPerfil(req, res, next) {
           [u.id_utilizador, id_area]
         );
       }
-      // Service Line Leader → regista a sua Service Line
-      else if (perfil === 'Service Line' && id_service_line) {
-        await conn.query(
-          `INSERT INTO service_line_responsavel (id_utilizador, id_service_line)
-             VALUES (?, ?)
-           ON DUPLICATE KEY UPDATE id_service_line = VALUES(id_service_line)`,
-          [u.id_utilizador, id_service_line]
-        );
-      }
-
       await conn.query(
         `INSERT IGNORE INTO preferencia_notificacao (id_utilizador) VALUES (?)`,
         [u.id_utilizador]

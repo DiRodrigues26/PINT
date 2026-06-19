@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { ModalAlterarPassword, Modal2FA } from '../../components/PerfilSeguranca';
+import { ModalAlterarPassword, Modal2FA, ModalDesativar2FA } from '../../components/PerfilSeguranca';
 
 /* Modal de editar dados (admin só altera o nome) */
 function ModalEditarNome({ utilizador, onFechar, onSucesso }) {
@@ -76,6 +76,7 @@ export default function AdminPerfil() {
   const [modalEditar, setModalEditar] = useState(false);
   const [modalPassword, setModalPassword] = useState(false);
   const [modal2FA, setModal2FA] = useState(false);
+  const [modalDesativar2FA, setModalDesativar2FA] = useState(false);
 
   const nome = utilizador?.nome || 'Admin';
   const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0].toUpperCase()).join('');
@@ -88,17 +89,12 @@ export default function AdminPerfil() {
   });
   const totpAtivo = totpData?.ativo ?? !!utilizador?.totp_ativo;
 
-  const desativar2FA = useMutation({
-    mutationFn: () => api.post('/api/totp/desativar'),
-    onSuccess: () => { toast.success('2FA desativado.'); refetchTotp(); recarregar(); },
-    onError: (err) => toast.error(extrairErro(err, 'Erro ao desativar 2FA.')),
-  });
-
   return (
     <div className="mx-auto max-w-[1100px] space-y-6">
       {modalEditar && <ModalEditarNome utilizador={utilizador} onFechar={() => setModalEditar(false)} onSucesso={recarregar} />}
       {modalPassword && <ModalAlterarPassword onFechar={() => setModalPassword(false)} />}
       {modal2FA && <Modal2FA onFechar={() => setModal2FA(false)} onSucesso={() => { refetchTotp(); recarregar(); queryClient.invalidateQueries({ queryKey: ['totp-estado'] }); }} />}
+      {modalDesativar2FA && <ModalDesativar2FA onFechar={() => setModalDesativar2FA(false)} onSucesso={() => { refetchTotp(); recarregar(); queryClient.invalidateQueries({ queryKey: ['totp-estado'] }); }} />}
 
       <header>
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Perfil</h1>
@@ -190,8 +186,8 @@ export default function AdminPerfil() {
               </div>
             </div>
             {totpAtivo ? (
-              <button type="button" onClick={() => desativar2FA.mutate()} disabled={desativar2FA.isPending} className="rounded-lg border border-red-200 bg-white px-4 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition disabled:opacity-60">
-                {desativar2FA.isPending ? '...' : 'Desativar'}
+              <button type="button" onClick={() => setModalDesativar2FA(true)} className="rounded-lg border border-red-200 bg-white px-4 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition">
+                Desativar
               </button>
             ) : (
               <button type="button" onClick={() => setModal2FA(true)} className="rounded-lg bg-softinsa-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-softinsa-800 transition">

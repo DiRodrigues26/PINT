@@ -3,6 +3,7 @@ const { pool } = require('../db/connection');
 const { gerarSlug } = require('../utils/slug');
 const { gerarTokenAleatorio } = require('../utils/tokens');
 const { enviarConfirmacaoRegisto, enviarRecuperacaoPassword } = require('../utils/email');
+const { dataExpiracaoConfirmacao, garantirColunaTokenConfirmacaoExpira } = require('../utils/confirmacaoEmail');
 
 async function gerarSlugUnico(nome, ignorarId = null) {
   const base = gerarSlug(nome) || 'utilizador';
@@ -169,6 +170,9 @@ async function criar(req, res, next) {
     if (!nome || !email || !password) {
       return res.status(400).json({ erro: 'Nome, email e password são obrigatórios.' });
     }
+    if (String(password).length < 8) {
+      return res.status(400).json({ erro: 'Password deve ter pelo menos 8 caracteres.' });
+    }
 
     const [existe] = await pool.query(
       'SELECT 1 FROM utilizador WHERE email = ?',
@@ -179,6 +183,8 @@ async function criar(req, res, next) {
     const passwordHash = await bcrypt.hash(password, 10);
     const slug = await gerarSlugUnico(nome);
     const tokenConfirmacao = gerarTokenAleatorio();
+    const tokenConfirmacaoExpira = enviar_email_confirmacao ? dataExpiracaoConfirmacao() : null;
+    await garantirColunaTokenConfirmacaoExpira();
 
     const conn = await pool.getConnection();
     try {
@@ -186,9 +192,9 @@ async function criar(req, res, next) {
 
       const [result] = await conn.query(
         `INSERT INTO utilizador
-           (nome, email, password_hash, idioma, url_slug, token_confirmacao_email,
+           (nome, email, password_hash, idioma, url_slug, token_confirmacao_email, token_confirmacao_expira,
             primeiro_login_pendente, email_confirmado)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           nome,
           email,
@@ -196,6 +202,7 @@ async function criar(req, res, next) {
           idioma,
           slug,
           enviar_email_confirmacao ? tokenConfirmacao : null,
+          tokenConfirmacaoExpira,
           primeiro_login_pendente ? 1 : 0,
           enviar_email_confirmacao ? 0 : 1,
         ]
@@ -410,36 +417,74 @@ async function atualizarMeuPerfil(req, res, next) {
     const id = req.utilizador.id_utilizador;
     const campos = [];
     const valores = [];
+    const idAreaRecebida = id_area !== undefined ? Number(id_area) : undefined;
+    const nomeLimpo = nome !== undefined ? String(nome).trim() : undefined;
 
-    if (nome !== undefined)   { campos.push('nome = ?');   valores.push(nome); }
+    if (id_area !== undefined && (!Number.isInteger(idAreaRecebida) || idAreaRecebida <= 0)) {
+      return res.status(400).json({ erro: 'Área inválida.' });
+    }
+    if (nome !== undefined && !nomeLimpo) {
+      return res.status(400).json({ erro: 'Nome é obrigatório.' });
+    }
+
+    if (nome !== undefined)   { campos.push('nome = ?');   valores.push(nomeLimpo); }
     if (idioma !== undefined) { campos.push('idioma = ?'); valores.push(idioma); }
     if (nome !== undefined) {
-      const novoSlug = await gerarSlugUnico(nome, id);
+      const novoSlug = await gerarSlugUnico(nomeLimpo, id);
       campos.push('url_slug = ?');
       valores.push(novoSlug);
     }
 
-    if (campos.length > 0) {
-      valores.push(id);
-      await pool.query(`UPDATE utilizador SET ${campos.join(', ')} WHERE id_utilizador = ?`, valores);
-    }
-
-    if (id_area !== undefined) {
-      const [areaExiste] = await pool.query('SELECT id_area FROM area WHERE id_area = ? AND ativo = 1', [id_area]);
-      if (areaExiste.length === 0) return res.status(404).json({ erro: 'Área não encontrada.' });
-
-      await pool.query(
-        'UPDATE consultor_area SET ativo = 0, data_fim = NOW() WHERE id_utilizador = ? AND ativo = 1',
-        [id]
-      );
-      await pool.query(
-        'INSERT INTO consultor_area (id_utilizador, id_area, ativo) VALUES (?, ?, 1)',
-        [id, id_area]
-      );
-    }
-
     if (campos.length === 0 && id_area === undefined) {
       return res.status(400).json({ erro: 'Nada para atualizar.' });
+    }
+
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      if (campos.length > 0) {
+        valores.push(id);
+        await conn.query(`UPDATE utilizador SET ${campos.join(', ')} WHERE id_utilizador = ?`, valores);
+      }
+
+      if (id_area !== undefined) {
+        const [areaExiste] = await conn.query(
+          'SELECT id_area FROM area WHERE id_area = ? AND ativo = 1',
+          [idAreaRecebida]
+        );
+        if (areaExiste.length === 0) {
+          await conn.rollback();
+          return res.status(404).json({ erro: 'Área não encontrada.' });
+        }
+
+        const [areaAtual] = await conn.query(
+          'SELECT id_area FROM consultor_area WHERE id_utilizador = ? AND ativo = 1 LIMIT 1',
+          [id]
+        );
+
+        if (Number(areaAtual[0]?.id_area) !== idAreaRecebida) {
+          await conn.query(
+            'DELETE FROM consultor_area WHERE id_utilizador = ? AND ativo = 0',
+            [id]
+          );
+          await conn.query(
+            'UPDATE consultor_area SET ativo = 0, data_fim = NOW() WHERE id_utilizador = ? AND ativo = 1',
+            [id]
+          );
+          await conn.query(
+            'INSERT INTO consultor_area (id_utilizador, id_area, ativo) VALUES (?, ?, 1)',
+            [id, idAreaRecebida]
+          );
+        }
+      }
+
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
     }
 
     res.json({ mensagem: 'Perfil atualizado.' });

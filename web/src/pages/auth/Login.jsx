@@ -28,7 +28,7 @@ export default function Login() {
   const [loading2fa, setLoading2fa]         = useState(false);
   const [erro2fa, setErro2fa]               = useState('');
 
-  const { login, utilizador } = useAuth();
+  const { login, logout, utilizador } = useAuth();
   const navigate  = useNavigate();
   const location  = useLocation();
 
@@ -66,6 +66,7 @@ export default function Login() {
     if (r.ok) {
       if (r.dados?.requires_2fa) {
         /* Servidor pediu 2FA — não há token ainda */
+        logout();
         setPreAuthToken(r.dados.pre_auth_token);
         setRequires2fa(true);
         return;
@@ -98,12 +99,29 @@ export default function Login() {
       else localStorage.removeItem('email_guardado');
       toast.success(data.saudacao || 'Bem-vindo!');
       /* Recarrega o utilizador via AuthContext */
-      window.location.href = destinoAposLogin(data.utilizador);
+      window.location.href = data.utilizador?.primeiro_login_pendente
+        ? '/alterar-password-inicial'
+        : destinoAposLogin(data.utilizador);
     } catch (err) {
       setErro2fa(extrairErro(err, 'Código inválido. Tenta novamente.'));
     } finally {
       setLoading2fa(false);
     }
+  }
+
+  function voltarAoLogin() {
+    logout();
+    localStorage.removeItem('email_guardado');
+    setRequires2fa(false);
+    setPreAuthToken('');
+    setCodigo2fa('');
+    setErro2fa('');
+    setEmail('');
+    setPassword('');
+    setSubmetido(false);
+    setErroCredenciais(false);
+    setLoading(false);
+    setLoading2fa(false);
   }
 
   /* ── Render: step 2FA ───────────────────────────────────────────────── */
@@ -142,7 +160,7 @@ export default function Login() {
 
           <button
             type="button"
-            onClick={() => { setRequires2fa(false); setCodigo2fa(''); setPreAuthToken(''); }}
+            onClick={voltarAoLogin}
             className="w-full text-center text-sm text-slate-500 hover:text-slate-800"
           >
             ← Voltar ao login
