@@ -15,7 +15,17 @@
       "Bash(awk '/CREATE TABLE `preferencia_notificacao`/,/ENGINE=InnoDB/' api/database/schema.sql)",
       "Bash(awk '/CREATE TABLE `utilizador`/,/ENGINE=InnoDB/' api/database/schema.sql)",
       "Bash(awk '/CREATE TABLE `perfil`/,/ENGINE=InnoDB/' api/database/schema.sql)",
-      "Bash(awk '/CREATE TABLE `utilizador_perfil`/,/ENGINE=InnoDB/' api/database/schema.sql)"
+      "Bash(awk '/CREATE TABLE `utilizador_perfil`/,/ENGINE=InnoDB/' api/database/schema.sql)",
+      "Bash(git fetch *)",
+      "Bash(git rev-list *)",
+      "Bash(node --check src/pages/talentManager/Pedidos.jsx)",
+      "Bash(node --check src/pages/talentManager/PedidoDetalhe.jsx)",
+      "Bash(node --check src/pages/talentManager/i18n.js)",
+      "WebSearch",
+      "Bash(npm install *)",
+      "Bash(node -e \"require\\('./src/utils/email.js'\\); console.log\\('OK'\\)\")",
+      "Bash(cd \"/c/Users/USER/Desktop/PINT\" && wc -l web/src/context/LanguageContext.jsx)",
+      "Bash(cd \"/c/Users/USER/Desktop/PINT/web/src\" && \\\\ *)"
     ]
   }
 }
