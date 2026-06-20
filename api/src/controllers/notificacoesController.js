@@ -1,4 +1,5 @@
 const { pool } = require('../db/connection');
+const push = require('../utils/push');
 
 async function listarMinhas(req, res, next) {
   try {
@@ -85,4 +86,49 @@ async function apagarLidas(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listarMinhas, marcarLida, marcarTodasLidas, arquivarLidas, apagarLidas, eliminar };
+// ─── Tokens de dispositivo (push FCM) ───────────────────────────────────────
+
+async function registarTokenDispositivo(req, res, next) {
+  try {
+    const { token, plataforma } = req.body;
+    if (!token) return res.status(400).json({ erro: 'token é obrigatório.' });
+    await push.guardarToken(req.utilizador.id_utilizador, token, plataforma);
+    res.status(201).json({ mensagem: 'Token registado.' });
+  } catch (err) { next(err); }
+}
+
+async function removerTokenDispositivo(req, res, next) {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ erro: 'token é obrigatório.' });
+    await push.removerToken(req.utilizador.id_utilizador, token);
+    res.json({ mensagem: 'Token removido.' });
+  } catch (err) { next(err); }
+}
+
+// Envia um push de teste para os dispositivos do próprio utilizador.
+async function testarPush(req, res, next) {
+  try {
+    const resultado = await push.enviarPushParaUtilizadores(
+      [req.utilizador.id_utilizador],
+      {
+        titulo: 'Notificação de teste',
+        mensagem: 'As notificações push estão a funcionar! 🎉',
+        dados: { tipo: 'TESTE' },
+      }
+    );
+    res.json({ mensagem: 'Pedido de push enviado.', ...resultado });
+  } catch (err) { next(err); }
+}
+
+module.exports = {
+  listarMinhas,
+  marcarLida,
+  marcarTodasLidas,
+  arquivarLidas,
+  apagarLidas,
+  eliminar,
+  registarTokenDispositivo,
+  removerTokenDispositivo,
+  testarPush,
+};

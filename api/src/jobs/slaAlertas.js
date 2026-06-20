@@ -13,6 +13,7 @@ const { pool } = require('../db/connection');
 const { listarForaSLA, responsaveisPorFase } = require('../controllers/slaController');
 const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
 const { enviarEmail } = require('../utils/email');
+const { enviarPushParaUtilizadores } = require('../utils/push');
 
 const HORAS_DEDUP = parseInt(process.env.SLA_ALERT_DEDUP_HOURS || '24', 10);
 
@@ -57,6 +58,19 @@ async function executarVerificacaoSLA() {
               [r.id_utilizador, titulo, mensagem, `Candidatura #${c.id_candidatura}`]
             );
           }
+
+          // Notificação PUSH para a app mobile (bónus: SLA ultrapassado).
+          // Best-effort: nunca aborta o tick nem a contagem.
+          await enviarPushParaUtilizadores(
+            responsaveis.map((r) => r.id_utilizador),
+            {
+              titulo,
+              mensagem,
+              dados: { tipo: 'SLA_ALERTA', candidatura: String(c.id_candidatura) },
+            }
+          ).catch((errPush) =>
+            console.warn(`⚠️ [SLA] Falha no push da candidatura #${c.id_candidatura}:`, errPush.message)
+          );
         }
 
         if (email) {

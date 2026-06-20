@@ -6,6 +6,9 @@ const { autenticar } = require('../middleware/autenticar');
 router.use(autenticar);
 
 router.get('/',               ctrl.listarMinhas);
+router.post('/registar-token', ctrl.registarTokenDispositivo);
+router.post('/remover-token',  ctrl.removerTokenDispositivo);
+router.post('/testar-push',    ctrl.testarPush);
 router.post('/ler-todas',     ctrl.marcarTodasLidas);
 router.post('/arquivar-lidas', ctrl.arquivarLidas);
 router.post('/apagar-lidas',  ctrl.apagarLidas);
