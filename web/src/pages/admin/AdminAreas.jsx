@@ -17,6 +17,7 @@ import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
 import Paginacao from '../../components/admin/Paginacao';
+import { useLanguage } from '../../context/LanguageContext';
 
 const ESTADO_INICIAL = {
   nome: '',
@@ -53,14 +54,14 @@ function prepararPayload(form) {
   };
 }
 
-function dadosAreas(items) {
-  const headers = ['Nome da Área', 'Learning Path', 'Service Line', 'Data de Criação', 'Estado'];
+function dadosAreas(items, t) {
+  const headers = [t('admin_areas_col_nome'), t('admin_rel_col_lp'), 'Service Line', t('admin_lp_col_data_criacao'), t('admin_dash_col_state')];
   const linhas = items.map((area) => [
     area.nome,
     area.nome_learning_path || '',
     area.nome_service_line || '',
     formatarData(area.created_at),
-    area.ativo ? 'Ativo' : 'Inativo',
+    area.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive'),
   ]);
   return { headers, linhas };
 }
@@ -78,12 +79,12 @@ function areaTemDependencias(area) {
   return deps.niveis > 0 || deps.badges > 0 || deps.consultores > 0;
 }
 
-function textoDependenciasArea(area) {
+function textoDependenciasArea(area, t) {
   const deps = dependenciasArea(area);
   const partes = [];
-  if (deps.niveis) partes.push(`${deps.niveis} nível(eis)`);
-  if (deps.badges) partes.push(`${deps.badges} badge(s)`);
-  if (deps.consultores) partes.push(`${deps.consultores} consultor(es) associado(s)`);
+  if (deps.niveis) partes.push(t('admin_areas_dep_niveis').replace('{total}', deps.niveis));
+  if (deps.badges) partes.push(t('admin_areas_dep_badges').replace('{total}', deps.badges));
+  if (deps.consultores) partes.push(t('admin_areas_dep_consultores').replace('{total}', deps.consultores));
   return partes.join(', ');
 }
 
@@ -130,7 +131,7 @@ async function obterTodasServiceLines() {
   return { dados: todas };
 }
 
-function FormArea({ form, setForm, learningPaths, serviceLines, serviceLinesLoading, modo, onSubmit, onCancelar, loading }) {
+function FormArea({ form, setForm, learningPaths, serviceLines, serviceLinesLoading, modo, onSubmit, onCancelar, loading, t }) {
   const serviceLinesDisponiveis = useMemo(() => {
     if (!form.id_learning_path) return serviceLines;
     return serviceLines.filter((sl) => String(sl.id_learning_path) === String(form.id_learning_path));
@@ -160,19 +161,19 @@ function FormArea({ form, setForm, learningPaths, serviceLines, serviceLinesLoad
       <div className="space-y-5 px-7 py-4">
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Nome da Área<span className="text-red-600">*</span>
+            {t('admin_areas_col_nome')}<span className="text-red-600">*</span>
           </label>
           <input
             className="input"
             required
-            placeholder="Área"
+            placeholder={t('admin_rel_col_area')}
             value={form.nome}
             onChange={(e) => atualizar('nome', e.target.value)}
           />
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Learning Path<span className="text-red-600">*</span>
+            {t('admin_rel_col_lp')}<span className="text-red-600">*</span>
           </label>
           <select
             className="input"
@@ -180,7 +181,7 @@ function FormArea({ form, setForm, learningPaths, serviceLines, serviceLinesLoad
             value={form.id_learning_path}
             onChange={(e) => atualizar('id_learning_path', e.target.value)}
           >
-            <option value="">Selecione um Learning Path</option>
+            <option value="">{t('admin_sl_select_lp')}</option>
             {learningPaths.map((lp) => (
               <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>
             ))}
@@ -197,45 +198,45 @@ function FormArea({ form, setForm, learningPaths, serviceLines, serviceLinesLoad
             onChange={(e) => atualizar('id_service_line', e.target.value)}
           >
             <option value="">
-              {serviceLinesLoading ? 'A carregar Service Lines...' : 'Selecione uma Service Line'}
+              {serviceLinesLoading ? t('admin_areas_a_carregar_sls') : t('admin_areas_select_sl')}
             </option>
             {serviceLinesDisponiveis.map((sl) => (
               <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>
             ))}
             {!serviceLinesLoading && serviceLinesDisponiveis.length === 0 && (
-              <option value="" disabled>Sem Service Lines para o Learning Path selecionado</option>
+              <option value="" disabled>{t('admin_areas_sem_sls_lp')}</option>
             )}
           </select>
         </div>
         {modo === 'editar' && (
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-900">Descrição</label>
+            <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_lp_descricao')}</label>
             <textarea
               className="input min-h-24 resize-y"
-              placeholder="Descrição interna da área"
+              placeholder={t('admin_areas_placeholder_descricao')}
               value={form.descricao || ''}
               onChange={(e) => atualizar('descricao', e.target.value)}
             />
           </div>
         )}
         <div>
-          <div className="mb-3 text-sm font-medium text-slate-900">Estado</div>
+          <div className="mb-3 text-sm font-medium text-slate-900">{t('admin_dash_col_state')}</div>
           <div className="flex gap-4 text-base text-slate-700">
             <label className="flex items-center gap-2">
               <input type="radio" className="h-4 w-4 text-softinsa-600" checked={form.ativo} onChange={() => atualizar('ativo', true)} />
-              Ativo
+              {t('admin_dash_notice_active')}
             </label>
             <label className="flex items-center gap-2">
               <input type="radio" className="h-4 w-4 text-softinsa-600" checked={!form.ativo} onChange={() => atualizar('ativo', false)} />
-              Inativo
+              {t('admin_dash_notice_inactive')}
             </label>
           </div>
         </div>
       </div>
       <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">
-        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>Cancelar</button>
+        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>{t('admin_cancel')}</button>
         <button type="submit" className="btn-primary min-w-40" disabled={loading}>
-          {loading ? 'A guardar...' : modo === 'criar' ? 'Criar Área' : 'Atualizar Área'}
+          {loading ? t('admin_lp_a_guardar') : modo === 'criar' ? t('admin_areas_criar') : t('admin_areas_btn_atualizar')}
         </button>
       </div>
     </form>
@@ -243,6 +244,7 @@ function FormArea({ form, setForm, learningPaths, serviceLines, serviceLinesLoad
 }
 
 export default function AdminAreas() {
+  const { t } = useLanguage();
   const qc = useQueryClient();
   const [filtros, setFiltros] = useState({ pesquisa: '', id_learning_path: '', id_service_line: '', ativo: '' });
   const [pagina, setPagina] = useState(1);
@@ -276,7 +278,7 @@ export default function AdminAreas() {
   const criar = useMutation({
     mutationFn: async () => (await api.post('/api/areas', prepararPayload(form))).data,
     onSuccess: () => {
-      toast.success('Área criada.');
+      toast.success(t('admin_areas_toast_criada'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'areas'] });
       qc.invalidateQueries({ queryKey: ['admin', 'service-lines'] });
@@ -288,7 +290,7 @@ export default function AdminAreas() {
   const atualizar = useMutation({
     mutationFn: async () => (await api.put(`/api/areas/${modal.area.id_area}`, prepararPayload(form))).data,
     onSuccess: () => {
-      toast.success('Área atualizada.');
+      toast.success(t('admin_areas_toast_atualizada'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'areas'] });
       qc.invalidateQueries({ queryKey: ['admin', 'service-lines'] });
@@ -300,7 +302,7 @@ export default function AdminAreas() {
   const alternarEstado = useMutation({
     mutationFn: async (area) => (await api.put(`/api/areas/${area.id_area}`, { ativo: !area.ativo })).data,
     onSuccess: () => {
-      toast.success('Estado atualizado.');
+      toast.success(t('admin_lp_toast_estado_atualizado'));
       qc.invalidateQueries({ queryKey: ['admin', 'areas'] });
     },
     onError: (err) => toast.error(extrairErro(err)),
@@ -309,7 +311,7 @@ export default function AdminAreas() {
   const eliminar = useMutation({
     mutationFn: async () => (await api.delete(`/api/areas/${modal.area.id_area}`)).data,
     onSuccess: () => {
-      toast.success('Área eliminada.');
+      toast.success(t('admin_areas_toast_eliminada'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'areas'] });
       qc.invalidateQueries({ queryKey: ['admin', 'service-lines'] });
@@ -353,34 +355,34 @@ export default function AdminAreas() {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosAreas(todos);
+      const { headers, linhas } = dadosAreas(todos, t);
       descarregarCsv('areas.csv', headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível exportar as áreas.'));
+      toast.error(extrairErro(err, t('admin_areas_erro_exportar_excel')));
     }
   }
 
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosAreas(todos);
-      imprimirTabela('Gestão de Áreas', headers, linhas);
+      const { headers, linhas } = dadosAreas(todos, t);
+      imprimirTabela(t('admin_menu_areas'), headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
+      toast.error(extrairErro(err, t('admin_lp_erro_exportar_pdf')));
     }
   }
 
   function abrirCriacao() {
     if (learningPaths.isLoading || serviceLines.isLoading) {
-      toast('A carregar a hierarquia. Tenta novamente dentro de instantes.');
+      toast(t('admin_areas_a_carregar_hierarquia'));
       return;
     }
     if (lps.length === 0) {
-      toast.error('Antes de criar uma Área, cria primeiro um Learning Path.');
+      toast.error(t('admin_areas_erro_sem_lp'));
       return;
     }
     if (sls.length === 0) {
-      toast.error('Antes de criar uma Área, cria primeiro uma Service Line.');
+      toast.error(t('admin_areas_erro_sem_sl'));
       return;
     }
 
@@ -416,16 +418,16 @@ export default function AdminAreas() {
   return (
     <div className="mx-auto max-w-[1420px] space-y-7">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Áreas</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_areas')}</h1>
         <div className="flex flex-wrap gap-3">
           <button type="button" className="btn-secondary" onClick={exportarExcel}>
-            <Icon nome="file" className="h-4 w-4" /> Exportar Excel
+            <Icon nome="file" className="h-4 w-4" /> {t('admin_sla_export_excel')}
           </button>
           <button type="button" className="btn-secondary" onClick={exportarPdf}>
-            <Icon nome="download" className="h-4 w-4" /> Exportar PDF
+            <Icon nome="download" className="h-4 w-4" /> {t('admin_sla_export_pdf')}
           </button>
           <button type="button" className="btn-primary" onClick={abrirCriacao}>
-            <Icon nome="plus" className="h-4 w-4" /> Criar Área
+            <Icon nome="plus" className="h-4 w-4" /> {t('admin_areas_criar')}
           </button>
         </div>
       </header>
@@ -436,26 +438,26 @@ export default function AdminAreas() {
             <Icon nome="search" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
               className="input pl-10"
-              placeholder="Pesquisar área..."
+              placeholder={t('admin_areas_pesquisar')}
               value={filtros.pesquisa}
               onChange={(e) => atualizarFiltro('pesquisa', e.target.value)}
             />
           </label>
           <select className="input" value={filtros.id_learning_path} onChange={(e) => atualizarFiltro('id_learning_path', e.target.value)}>
-            <option value="">Learning paths (Todos)</option>
+            <option value="">{t('admin_sl_lps_todos')}</option>
             {lps.map((lp) => <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>)}
           </select>
           <select className="input" value={filtros.id_service_line} onChange={(e) => atualizarFiltro('id_service_line', e.target.value)}>
-            <option value="">Service Lines (Todas)</option>
+            <option value="">{t('admin_areas_sls_todas')}</option>
             {serviceLinesFiltro.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
           </select>
           <select className="input" value={filtros.ativo} onChange={(e) => atualizarFiltro('ativo', e.target.value)}>
-            <option value="">Estado (Todos)</option>
-            <option value="1">Ativo</option>
-            <option value="0">Inativo</option>
+            <option value="">{t('admin_notif_estado_todos')}</option>
+            <option value="1">{t('admin_dash_notice_active')}</option>
+            <option value="0">{t('admin_dash_notice_inactive')}</option>
           </select>
           <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
-            <Icon nome="x" className="h-4 w-4" /> Limpar Filtros
+            <Icon nome="x" className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}
           </button>
         </div>
       </section>
@@ -465,17 +467,17 @@ export default function AdminAreas() {
           <table className="min-w-[1120px] w-full text-sm">
             <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-6 py-4 text-center">Nome da Área</th>
-                <th className="px-6 py-4 text-center">Learning Path</th>
+                <th className="px-6 py-4 text-center">{t('admin_areas_col_nome')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_rel_col_lp')}</th>
                 <th className="px-6 py-4 text-center">Service Line</th>
-                <th className="px-6 py-4 text-center">Data de Criação</th>
-                <th className="px-6 py-4 text-center">Estado</th>
-                <th className="px-6 py-4 text-center">Ações</th>
+                <th className="px-6 py-4 text-center">{t('admin_lp_col_data_criacao')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_dash_col_state')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_sla_col_acoes')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {areas.isLoading ? (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500">A carregar áreas...</td></tr>
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500">{t('admin_areas_a_carregar')}</td></tr>
               ) : lista.map((area) => (
                 <tr key={area.id_area} className="text-slate-700">
                   <td className="px-6 py-5 text-center font-medium text-slate-800">{area.nome}</td>
@@ -484,21 +486,21 @@ export default function AdminAreas() {
                   <td className="px-6 py-5 text-center text-slate-600">{formatarData(area.created_at)}</td>
                   <td className="px-6 py-5 text-center">
                     <span className={`badge-pill ${area.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                      {area.ativo ? 'Ativo' : 'Inativo'}
+                      {area.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}
                     </span>
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex items-center justify-center gap-4 text-softinsa-700">
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Ver" onClick={() => setModal({ tipo: 'ver', area })}><Icon nome="eye" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Editar" onClick={() => abrirEdicao(area)}><Icon nome="edit" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={area.ativo ? 'Desativar' : 'Ativar'} onClick={() => area.ativo ? setModal({ tipo: 'desativar', area }) : alternarEstado.mutate(area)}><Icon nome="power" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title="Eliminar" onClick={() => setModal({ tipo: 'eliminar', area })}><Icon nome="trash" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_ver')} onClick={() => setModal({ tipo: 'ver', area })}><Icon nome="eye" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_editar')} onClick={() => abrirEdicao(area)}><Icon nome="edit" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={area.ativo ? t('admin_lp_desativar') : t('admin_lp_ativar')} onClick={() => area.ativo ? setModal({ tipo: 'desativar', area }) : alternarEstado.mutate(area)}><Icon nome="power" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title={t('admin_notif_eliminar')} onClick={() => setModal({ tipo: 'eliminar', area })}><Icon nome="trash" className="h-5 w-5" /></button>
                     </div>
                   </td>
                 </tr>
               ))}
               {!areas.isLoading && lista.length === 0 && (
-                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500">Nenhuma área encontrada.</td></tr>
+                <tr><td colSpan={6} className="px-5 py-12 text-center text-slate-500">{t('admin_areas_vazio')}</td></tr>
               )}
             </tbody>
           </table>
@@ -514,7 +516,7 @@ export default function AdminAreas() {
       </section>
 
       {modal?.tipo === 'criar' && (
-        <Modal titulo="Criar Nova Área" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_areas_modal_criar_titulo')} onFechar={() => setModal(null)}>
           <FormArea
             form={form}
             setForm={setForm}
@@ -525,12 +527,13 @@ export default function AdminAreas() {
             onSubmit={(e) => { e.preventDefault(); criar.mutate(); }}
             onCancelar={() => setModal(null)}
             loading={criar.isPending}
+            t={t}
           />
         </Modal>
       )}
 
       {modal?.tipo === 'editar' && (
-        <Modal titulo="Editar Área" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_areas_modal_editar_titulo')} onFechar={() => setModal(null)}>
           <FormArea
             form={form}
             setForm={setForm}
@@ -541,35 +544,36 @@ export default function AdminAreas() {
             onSubmit={(e) => { e.preventDefault(); atualizar.mutate(); }}
             onCancelar={() => setModal(null)}
             loading={atualizar.isPending}
+            t={t}
           />
         </Modal>
       )}
 
       {modal?.tipo === 'ver' && (
-        <Modal titulo="Detalhe da Área" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_areas_modal_detalhe_titulo')} onFechar={() => setModal(null)}>
           <div className="grid grid-cols-1 gap-4 px-7 py-5 text-sm md:grid-cols-2">
-            <div><div className="text-slate-500">Nome</div><div className="font-semibold">{modal.area.nome}</div></div>
-            <div><div className="text-slate-500">Learning Path</div><div className="font-semibold">{modal.area.nome_learning_path}</div></div>
+            <div><div className="text-slate-500">{t('admin_lp_lbl_nome')}</div><div className="font-semibold">{modal.area.nome}</div></div>
+            <div><div className="text-slate-500">{t('admin_rel_col_lp')}</div><div className="font-semibold">{modal.area.nome_learning_path}</div></div>
             <div><div className="text-slate-500">Service Line</div><div className="font-semibold">{modal.area.nome_service_line}</div></div>
-            <div><div className="text-slate-500">Níveis</div><div className="font-semibold">{modal.area.total_niveis || 0}</div></div>
-            <div><div className="text-slate-500">Badges</div><div className="font-semibold">{modal.area.total_badges || 0}</div></div>
-            <div><div className="text-slate-500">Consultores associados</div><div className="font-semibold">{modal.area.total_consultores || 0}</div></div>
-            <div><div className="text-slate-500">Data de Criação</div><div className="font-semibold">{formatarData(modal.area.created_at)}</div></div>
-            <div><div className="text-slate-500">Estado</div><div className="font-semibold">{modal.area.ativo ? 'Ativo' : 'Inativo'}</div></div>
-            <div className="md:col-span-2"><div className="text-slate-500">Descrição</div><div className="font-semibold">{modal.area.descricao || '—'}</div></div>
+            <div><div className="text-slate-500">{t('admin_rel_col_nr_niveis')}</div><div className="font-semibold">{modal.area.total_niveis || 0}</div></div>
+            <div><div className="text-slate-500">{t('admin_lp_lbl_badges')}</div><div className="font-semibold">{modal.area.total_badges || 0}</div></div>
+            <div><div className="text-slate-500">{t('admin_areas_consultores_associados')}</div><div className="font-semibold">{modal.area.total_consultores || 0}</div></div>
+            <div><div className="text-slate-500">{t('admin_lp_col_data_criacao')}</div><div className="font-semibold">{formatarData(modal.area.created_at)}</div></div>
+            <div><div className="text-slate-500">{t('admin_dash_col_state')}</div><div className="font-semibold">{modal.area.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}</div></div>
+            <div className="md:col-span-2"><div className="text-slate-500">{t('admin_lp_descricao')}</div><div className="font-semibold">{modal.area.descricao || '—'}</div></div>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'desativar' && (
-        <Modal titulo="Desativar Área" icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_areas_modal_desativar_titulo')} icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
           <div className="px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende desativar a área “{modal.area.nome}”?
+              {t('admin_areas_desativar_confirm').replace('{nome}', modal.area.nome)}
             </p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button
               type="button"
               className="btn bg-orange-500 px-7 text-white hover:bg-orange-600"
@@ -578,35 +582,35 @@ export default function AdminAreas() {
                 alternarEstado.mutate(modal.area, { onSuccess: () => setModal(null) });
               }}
             >
-              {alternarEstado.isPending ? 'A confirmar...' : 'Confirmar'}
+              {alternarEstado.isPending ? t('admin_lp_a_confirmar') : t('admin_lp_confirmar')}
             </button>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'eliminar' && (
-        <Modal titulo="Eliminar Área" icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_areas_modal_eliminar_titulo')} icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
           <div className="space-y-4 px-7 py-6">
             {areaTemDependencias(modal.area) ? (
               <>
                 <p className="text-base leading-7 text-slate-600">
-                  Não é possível eliminar a área “{modal.area.nome}” porque ainda tem {textoDependenciasArea(modal.area)}.
+                  {t('admin_areas_eliminar_bloqueado').replace('{nome}', modal.area.nome).replace('{deps}', textoDependenciasArea(modal.area, t))}
                 </p>
                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-                  Remove ou reassocia estas dependências primeiro. Se a área já não deve ser usada, o caminho seguro é desativá-la.
+                  {t('admin_areas_eliminar_bloqueado_desc')}
                 </p>
               </>
             ) : (
               <>
                 <p className="text-base leading-7 text-slate-600">
-                  Tem a certeza que pretende eliminar a área “{modal.area.nome}”?
+                  {t('admin_areas_eliminar_confirm').replace('{nome}', modal.area.nome)}
                 </p>
-                <p className="font-medium text-red-500">Esta ação não pode ser revertida!</p>
+                <p className="font-medium text-red-500">{t('admin_notif_irreversivel')}</p>
               </>
             )}
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             {areaTemDependencias(modal.area) && modal.area.ativo ? (
               <button
                 type="button"
@@ -616,11 +620,11 @@ export default function AdminAreas() {
                   alternarEstado.mutate(modal.area, { onSuccess: () => setModal(null) });
                 }}
               >
-                {alternarEstado.isPending ? 'A desativar...' : 'Desativar Área'}
+                {alternarEstado.isPending ? t('admin_areas_a_desativar') : t('admin_areas_desativar')}
               </button>
             ) : (
               <button type="button" className="btn bg-red-600 px-7 text-white hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400" disabled={eliminar.isPending || areaTemDependencias(modal.area)} onClick={() => eliminar.mutate()}>
-              {eliminar.isPending ? 'A eliminar...' : 'Eliminar'}
+              {eliminar.isPending ? t('admin_notif_a_eliminar') : t('admin_notif_eliminar')}
               </button>
             )}
           </div>

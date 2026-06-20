@@ -16,17 +16,30 @@ import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import UploadImagemAdmin from '../../components/UploadImagemAdmin';
 import Paginacao from '../../components/admin/Paginacao';
+import { useLanguage } from '../../context/LanguageContext';
 
 const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Badge', 'Outro'];
 
-const NIVEIS = {
-  A: 'Júnior',
-  B: 'Intermédio',
-  C: 'Sénior',
-  D: 'Especialista',
-  E: 'Líder',
-  Especial: 'Especial',
-};
+function niveisMap(t) {
+  return {
+    A: t('admin_nivel_a'),
+    B: t('admin_nivel_b'),
+    C: t('admin_nivel_c'),
+    D: t('admin_nivel_d'),
+    E: t('admin_nivel_e'),
+    Especial: t('admin_req_nivel_especial'),
+  };
+}
+
+function tipoEvidenciaLabel(tipo, t) {
+  return {
+    Certificado: t('admin_badges_tipo_certificado'),
+    Curso: t('admin_eventos_tipo_curso'),
+    Documento: t('admin_badges_tipo_documento'),
+    Badge: t('admin_dash_col_badge'),
+    Outro: t('admin_badges_tipo_outro'),
+  }[tipo] || tipo;
+}
 
 const FORM_INICIAL = {
   titulo: '',
@@ -98,10 +111,10 @@ async function obterTodasDaRota(rota, params = {}) {
   return { dados: todas };
 }
 
-function dificuldade(item) {
+function dificuldade(item, t) {
   const codigo = item.codigo_nivel || '';
   if (!codigo) return '—';
-  return `(${codigo}) ${item.nome_nivel || NIVEIS[codigo] || ''}`.trim();
+  return `(${codigo}) ${item.nome_nivel || niveisMap(t)[codigo] || ''}`.trim();
 }
 
 function descricaoCurta(texto) {
@@ -119,31 +132,31 @@ function prepararPayloadEdicao(form) {
   };
 }
 
-function dadosRequisitos(items) {
-  const headers = ['Título', 'Descrição', 'Nível', 'Tipo Evidência', 'Nº Badges', 'Estado'];
+function dadosRequisitos(items, t) {
+  const headers = [t('admin_rel_col_titulo'), t('admin_lp_descricao'), t('admin_dash_level'), t('admin_req_tipo_evidencia'), t('admin_rel_col_nr_badges'), t('admin_dash_col_state')];
   const linhas = items.map((req) => [
     req.titulo,
     req.descricao || '',
-    dificuldade(req),
-    req.tipo_evidencia || '',
+    dificuldade(req, t),
+    tipoEvidenciaLabel(req.tipo_evidencia, t) || '',
     req.total_badges || 0,
-    req.ativo !== 0 ? 'Ativo' : 'Inativo',
+    req.ativo !== 0 ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive'),
   ]);
   return { headers, linhas };
 }
 
-function FormRequisito({ form, setForm, requisito, onSubmit, onCancelar, loading }) {
+function FormRequisito({ form, setForm, requisito, onSubmit, onCancelar, loading, t }) {
   return (
     <form onSubmit={onSubmit}>
       <div className="max-h-[72vh] space-y-6 overflow-y-auto px-7 py-4">
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Título<span className="text-red-600">*</span>
+            {t('admin_rel_col_titulo')}<span className="text-red-600">*</span>
           </label>
           <input
             className="input"
             required
-            placeholder="Título do requisito"
+            placeholder={t('admin_req_placeholder_titulo')}
             value={form.titulo}
             onChange={(e) => setForm((atual) => ({ ...atual, titulo: e.target.value }))}
           />
@@ -151,12 +164,12 @@ function FormRequisito({ form, setForm, requisito, onSubmit, onCancelar, loading
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Descrição<span className="text-red-600">*</span>
+            {t('admin_lp_descricao')}<span className="text-red-600">*</span>
           </label>
           <textarea
             className="input min-h-[92px] resize-y py-3"
             required
-            placeholder="Descreve o requisito e as evidências aceites."
+            placeholder={t('admin_req_placeholder_descricao')}
             value={form.descricao}
             onChange={(e) => setForm((atual) => ({ ...atual, descricao: e.target.value }))}
           />
@@ -164,7 +177,7 @@ function FormRequisito({ form, setForm, requisito, onSubmit, onCancelar, loading
 
         <div>
           <label className="mb-3 block text-sm font-medium text-slate-900">
-            Imagem<span className="text-red-600">*</span>
+            {t('admin_req_imagem')}<span className="text-red-600">*</span>
           </label>
           <UploadImagemAdmin
             contexto="requisitos"
@@ -175,7 +188,7 @@ function FormRequisito({ form, setForm, requisito, onSubmit, onCancelar, loading
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Tipo de requisito<span className="text-red-600">*</span>
+            {t('admin_req_tipo_requisito')}<span className="text-red-600">*</span>
           </label>
           <select
             className="input"
@@ -183,19 +196,21 @@ function FormRequisito({ form, setForm, requisito, onSubmit, onCancelar, loading
             value={form.tipo_evidencia}
             onChange={(e) => setForm((atual) => ({ ...atual, tipo_evidencia: e.target.value }))}
           >
-            {TIPOS_EVIDENCIA.map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+            {TIPOS_EVIDENCIA.map((tipo) => <option key={tipo} value={tipo}>{tipoEvidenciaLabel(tipo, t)}</option>)}
           </select>
         </div>
 
         <div className="rounded-lg bg-slate-50 px-4 py-3">
-          <div className="text-sm font-medium text-slate-900">Contexto</div>
+          <div className="text-sm font-medium text-slate-900">{t('admin_req_contexto')}</div>
           <div className="mt-1 text-sm text-slate-500">
-            {dificuldade(requisito)} · associado a {requisito?.total_badges || 0} badge(s)
+            {t('admin_req_contexto_desc')
+              .replace('{nivel}', dificuldade(requisito, t))
+              .replace('{total}', requisito?.total_badges || 0)}
           </div>
         </div>
 
         <div>
-          <div className="mb-3 text-sm font-medium text-slate-900">Estado</div>
+          <div className="mb-3 text-sm font-medium text-slate-900">{t('admin_dash_col_state')}</div>
           <div className="flex gap-5 text-base text-slate-700">
             <label className="flex items-center gap-2">
               <input
@@ -204,7 +219,7 @@ function FormRequisito({ form, setForm, requisito, onSubmit, onCancelar, loading
                 checked={form.ativo}
                 onChange={() => setForm((atual) => ({ ...atual, ativo: true }))}
               />
-              Ativo
+              {t('admin_dash_notice_active')}
             </label>
             <label className="flex items-center gap-2">
               <input
@@ -213,16 +228,16 @@ function FormRequisito({ form, setForm, requisito, onSubmit, onCancelar, loading
                 checked={!form.ativo}
                 onChange={() => setForm((atual) => ({ ...atual, ativo: false }))}
               />
-              Inativo
+              {t('admin_dash_notice_inactive')}
             </label>
           </div>
         </div>
       </div>
 
       <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">
-        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>Cancelar</button>
+        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>{t('admin_cancel')}</button>
         <button type="submit" className="btn-primary min-w-36" disabled={loading}>
-          {loading ? 'A guardar...' : 'Editar Requisito'}
+          {loading ? t('admin_lp_a_guardar') : t('admin_req_editar')}
         </button>
       </div>
     </form>
@@ -230,6 +245,7 @@ function FormRequisito({ form, setForm, requisito, onSubmit, onCancelar, loading
 }
 
 export default function AdminRequisitos() {
+  const { t } = useLanguage();
   const qc = useQueryClient();
   const [filtros, setFiltros] = useState({ pesquisa: '', codigo_nivel: '', tipo_evidencia: '', ativo: '' });
   const [pagina, setPagina] = useState(1);
@@ -261,7 +277,7 @@ export default function AdminRequisitos() {
       return (await api.put(`/api/requisitos/${modal.requisito.id_requisito}`, payload)).data;
     },
     onSuccess: () => {
-      toast.success('Requisito atualizado.');
+      toast.success(t('admin_req_toast_atualizado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'requisitos'] });
       qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
@@ -273,7 +289,7 @@ export default function AdminRequisitos() {
   const alternarEstado = useMutation({
     mutationFn: async (requisito) => (await api.put(`/api/requisitos/${requisito.id_requisito}`, { ativo: !(requisito.ativo !== 0) })).data,
     onSuccess: () => {
-      toast.success('Estado atualizado.');
+      toast.success(t('admin_lp_toast_estado_atualizado'));
       qc.invalidateQueries({ queryKey: ['admin', 'requisitos'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
@@ -283,7 +299,7 @@ export default function AdminRequisitos() {
   const eliminar = useMutation({
     mutationFn: async () => (await api.delete(`/api/requisitos/${modal.requisito.id_requisito}`)).data,
     onSuccess: () => {
-      toast.success('Requisito eliminado.');
+      toast.success(t('admin_req_toast_eliminado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'requisitos'] });
       qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
@@ -341,39 +357,39 @@ export default function AdminRequisitos() {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosRequisitos(todos);
+      const { headers, linhas } = dadosRequisitos(todos, t);
       descarregarCsv('requisitos.csv', headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível exportar os requisitos.'));
+      toast.error(extrairErro(err, t('admin_req_erro_exportar_excel')));
     }
   }
 
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosRequisitos(todos);
-      imprimirTabela('Gestão de Requisitos', headers, linhas);
+      const { headers, linhas } = dadosRequisitos(todos, t);
+      imprimirTabela(t('admin_menu_requisitos'), headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
+      toast.error(extrairErro(err, t('admin_lp_erro_exportar_pdf')));
     }
   }
 
   return (
     <div className="mx-auto max-w-[1280px] space-y-7">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Requisitos</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_requisitos')}</h1>
         <div className="flex flex-wrap gap-3">
           <button type="button" className="btn-secondary" onClick={exportarExcel}>
-            <Icon nome="download" className="h-4 w-4" /> Exportar Excel
+            <Icon nome="download" className="h-4 w-4" /> {t('admin_sla_export_excel')}
           </button>
           <button type="button" className="btn-secondary" onClick={exportarPdf}>
-            <Icon nome="download" className="h-4 w-4" /> Exportar PDF
+            <Icon nome="download" className="h-4 w-4" /> {t('admin_sla_export_pdf')}
           </button>
         </div>
       </header>
 
       <section className="rounded-lg border border-blue-100 bg-blue-50 px-5 py-4 text-sm text-blue-900">
-        Os requisitos são criados dentro de um badge. Esta página serve para consultar, editar, ativar/desativar e auditar requisitos já associados.
+        {t('admin_req_info')}
       </section>
 
       <section className="rounded-lg bg-white p-5 shadow-sm">
@@ -382,31 +398,31 @@ export default function AdminRequisitos() {
             <Icon nome="search" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
               className="input pl-10"
-              placeholder="Pesquisar requisito..."
+              placeholder={t('admin_req_pesquisar')}
               value={filtros.pesquisa}
               onChange={(e) => atualizarFiltro('pesquisa', e.target.value)}
             />
           </label>
           <select className="input" value={filtros.codigo_nivel} onChange={(e) => atualizarFiltro('codigo_nivel', e.target.value)}>
-            <option value="">Nível (Todos)</option>
+            <option value="">{t('admin_req_nivel_todos')}</option>
             {niveisFiltro.map((nivel) => (
               <option key={nivel.codigo_nivel} value={nivel.codigo_nivel}>
-                {nivel.codigo_nivel} - {nivel.nome_nivel || NIVEIS[nivel.codigo_nivel]}
+                {nivel.codigo_nivel} - {nivel.nome_nivel || niveisMap(t)[nivel.codigo_nivel]}
               </option>
             ))}
-            <option value="Especial">Especial</option>
+            <option value="Especial">{t('admin_req_nivel_especial')}</option>
           </select>
           <select className="input" value={filtros.tipo_evidencia} onChange={(e) => atualizarFiltro('tipo_evidencia', e.target.value)}>
-            <option value="">Tipo Evidência (Todos)</option>
-            {TIPOS_EVIDENCIA.map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+            <option value="">{t('admin_req_tipo_todos')}</option>
+            {TIPOS_EVIDENCIA.map((tipo) => <option key={tipo} value={tipo}>{tipoEvidenciaLabel(tipo, t)}</option>)}
           </select>
           <select className="input" value={filtros.ativo} onChange={(e) => atualizarFiltro('ativo', e.target.value)}>
-            <option value="">Estado (Todos)</option>
-            <option value="1">Ativo</option>
-            <option value="0">Inativo</option>
+            <option value="">{t('admin_notif_estado_todos')}</option>
+            <option value="1">{t('admin_dash_notice_active')}</option>
+            <option value="0">{t('admin_dash_notice_inactive')}</option>
           </select>
           <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
-            <Icon nome="x" className="h-4 w-4" /> Limpar Filtros
+            <Icon nome="x" className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}
           </button>
         </div>
       </section>
@@ -416,42 +432,42 @@ export default function AdminRequisitos() {
           <table className="min-w-[1120px] w-full text-sm">
             <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-5 py-4 text-center">Título</th>
-                <th className="px-5 py-4 text-center">Descrição</th>
-                <th className="px-5 py-4 text-center">Nível</th>
-                <th className="px-5 py-4 text-center">Tipo Evidência</th>
-                <th className="px-5 py-4 text-center">Nº Badges</th>
-                <th className="px-5 py-4 text-center">Estado</th>
-                <th className="px-5 py-4 text-center">Ações</th>
+                <th className="px-5 py-4 text-center">{t('admin_rel_col_titulo')}</th>
+                <th className="px-5 py-4 text-center">{t('admin_lp_descricao')}</th>
+                <th className="px-5 py-4 text-center">{t('admin_dash_level')}</th>
+                <th className="px-5 py-4 text-center">{t('admin_req_tipo_evidencia')}</th>
+                <th className="px-5 py-4 text-center">{t('admin_rel_col_nr_badges')}</th>
+                <th className="px-5 py-4 text-center">{t('admin_dash_col_state')}</th>
+                <th className="px-5 py-4 text-center">{t('admin_sla_col_acoes')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {requisitos.isLoading ? (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500">A carregar requisitos...</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500">{t('admin_req_a_carregar')}</td></tr>
               ) : lista.map((requisito) => (
                 <tr key={requisito.id_requisito} className="text-slate-700">
                   <td className="px-5 py-5 text-center font-semibold text-slate-800">{requisito.titulo}</td>
                   <td className="px-5 py-5 text-center text-slate-500" title={requisito.descricao || ''}>{descricaoCurta(requisito.descricao)}</td>
-                  <td className="px-5 py-5 text-center text-slate-500">{dificuldade(requisito)}</td>
-                  <td className="px-5 py-5 text-center text-slate-500">{requisito.tipo_evidencia || '—'}</td>
+                  <td className="px-5 py-5 text-center text-slate-500">{dificuldade(requisito, t)}</td>
+                  <td className="px-5 py-5 text-center text-slate-500">{tipoEvidenciaLabel(requisito.tipo_evidencia, t) || '—'}</td>
                   <td className="px-5 py-5 text-center font-semibold text-slate-800">{requisito.total_badges || 0}</td>
                   <td className="px-5 py-5 text-center">
                     <span className={`badge-pill ${requisito.ativo !== 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                      {requisito.ativo !== 0 ? 'Ativo' : 'Inativo'}
+                      {requisito.ativo !== 0 ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}
                     </span>
                   </td>
                   <td className="px-5 py-5">
                     <div className="flex items-center justify-center gap-4 text-softinsa-700">
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Ver" onClick={() => setModal({ tipo: 'ver', requisito })}><Icon nome="eye" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Editar" onClick={() => abrirEdicao(requisito)}><Icon nome="edit" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={requisito.ativo !== 0 ? 'Desativar' : 'Ativar'} onClick={() => requisito.ativo !== 0 ? setModal({ tipo: 'desativar', requisito }) : alternarEstado.mutate(requisito)}><Icon nome="power" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title="Eliminar" onClick={() => setModal({ tipo: 'eliminar', requisito })}><Icon nome="trash" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_ver')} onClick={() => setModal({ tipo: 'ver', requisito })}><Icon nome="eye" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_editar')} onClick={() => abrirEdicao(requisito)}><Icon nome="edit" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={requisito.ativo !== 0 ? t('admin_lp_desativar') : t('admin_lp_ativar')} onClick={() => requisito.ativo !== 0 ? setModal({ tipo: 'desativar', requisito }) : alternarEstado.mutate(requisito)}><Icon nome="power" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title={t('admin_notif_eliminar')} onClick={() => setModal({ tipo: 'eliminar', requisito })}><Icon nome="trash" className="h-5 w-5" /></button>
                     </div>
                   </td>
                 </tr>
               ))}
               {!requisitos.isLoading && lista.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500">Nenhum requisito encontrado.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500">{t('admin_req_vazio')}</td></tr>
               )}
             </tbody>
           </table>
@@ -467,7 +483,7 @@ export default function AdminRequisitos() {
       </section>
 
       {modal?.tipo === 'editar' && (
-        <Modal titulo="Editar Requisito" onFechar={() => setModal(null)} size="lg">
+        <Modal titulo={t('admin_req_editar')} onFechar={() => setModal(null)} size="lg">
           <FormRequisito
             form={form}
             setForm={setForm}
@@ -475,56 +491,57 @@ export default function AdminRequisitos() {
             onSubmit={(e) => { e.preventDefault(); atualizar.mutate(); }}
             onCancelar={() => setModal(null)}
             loading={atualizar.isPending}
+            t={t}
           />
         </Modal>
       )}
 
       {modal?.tipo === 'ver' && (
-        <Modal titulo="Detalhe do Requisito" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_req_modal_detalhe_titulo')} onFechar={() => setModal(null)}>
           <div className="grid grid-cols-1 gap-4 px-7 py-5 text-sm md:grid-cols-2">
-            <div><div className="text-slate-500">Título</div><div className="font-semibold">{modal.requisito.titulo}</div></div>
-            <div><div className="text-slate-500">Nível</div><div className="font-semibold">{dificuldade(modal.requisito)}</div></div>
-            <div><div className="text-slate-500">Tipo Evidência</div><div className="font-semibold">{modal.requisito.tipo_evidencia || '—'}</div></div>
-            <div><div className="text-slate-500">N.º Badges</div><div className="font-semibold">{modal.requisito.total_badges || 0}</div></div>
-            <div><div className="text-slate-500">Estado</div><div className="font-semibold">{modal.requisito.ativo !== 0 ? 'Ativo' : 'Inativo'}</div></div>
-            <div className="md:col-span-2"><div className="text-slate-500">Descrição</div><div className="font-semibold whitespace-pre-wrap">{modal.requisito.descricao || '—'}</div></div>
+            <div><div className="text-slate-500">{t('admin_rel_col_titulo')}</div><div className="font-semibold">{modal.requisito.titulo}</div></div>
+            <div><div className="text-slate-500">{t('admin_dash_level')}</div><div className="font-semibold">{dificuldade(modal.requisito, t)}</div></div>
+            <div><div className="text-slate-500">{t('admin_req_tipo_evidencia')}</div><div className="font-semibold">{tipoEvidenciaLabel(modal.requisito.tipo_evidencia, t) || '—'}</div></div>
+            <div><div className="text-slate-500">{t('admin_req_nr_badges')}</div><div className="font-semibold">{modal.requisito.total_badges || 0}</div></div>
+            <div><div className="text-slate-500">{t('admin_dash_col_state')}</div><div className="font-semibold">{modal.requisito.ativo !== 0 ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}</div></div>
+            <div className="md:col-span-2"><div className="text-slate-500">{t('admin_lp_descricao')}</div><div className="font-semibold whitespace-pre-wrap">{modal.requisito.descricao || '—'}</div></div>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'desativar' && (
-        <Modal titulo="Desativar Requisito" icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_req_modal_desativar_titulo')} icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
           <div className="px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende desativar o requisito “{modal.requisito.titulo}”?
+              {t('admin_req_desativar_confirm').replace('{titulo}', modal.requisito.titulo)}
             </p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button
               type="button"
               className="btn bg-orange-500 px-7 text-white hover:bg-orange-600"
               disabled={alternarEstado.isPending}
               onClick={() => alternarEstado.mutate(modal.requisito, { onSuccess: () => setModal(null) })}
             >
-              {alternarEstado.isPending ? 'A confirmar...' : 'Confirmar'}
+              {alternarEstado.isPending ? t('admin_lp_a_confirmar') : t('admin_lp_confirmar')}
             </button>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'eliminar' && (
-        <Modal titulo="Eliminar Requisito" icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_req_modal_eliminar_titulo')} icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
           <div className="space-y-4 px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende eliminar o requisito “{modal.requisito.titulo}”?
+              {t('admin_req_eliminar_confirm').replace('{titulo}', modal.requisito.titulo)}
             </p>
-            <p className="font-medium text-red-500">Esta ação não pode ser revertida!</p>
+            <p className="font-medium text-red-500">{t('admin_notif_irreversivel')}</p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button type="button" className="btn bg-red-600 px-7 text-white hover:bg-red-700" disabled={eliminar.isPending} onClick={() => eliminar.mutate()}>
-              {eliminar.isPending ? 'A eliminar...' : 'Eliminar'}
+              {eliminar.isPending ? t('admin_notif_a_eliminar') : t('admin_notif_eliminar')}
             </button>
           </div>
         </Modal>

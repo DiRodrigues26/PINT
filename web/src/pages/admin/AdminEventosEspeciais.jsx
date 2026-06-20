@@ -19,14 +19,19 @@ import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
 import UploadImagemAdmin from '../../components/UploadImagemAdmin';
 import Paginacao from '../../components/admin/Paginacao';
+import { useLanguage } from '../../context/LanguageContext';
 
-const NIVEIS = {
-  A: 'Júnior',
-  B: 'Intermédio',
-  C: 'Sénior',
-  D: 'Especialista',
-  E: 'Líder',
-};
+const CODIGOS_NIVEL = ['A', 'B', 'C', 'D', 'E'];
+
+function niveisMap(t) {
+  return {
+    A: t('admin_nivel_a'),
+    B: t('admin_nivel_b'),
+    C: t('admin_nivel_c'),
+    D: t('admin_nivel_d'),
+    E: t('admin_nivel_e'),
+  };
+}
 
 const FORM_INICIAL = {
   titulo: '',
@@ -119,34 +124,51 @@ function dataFuturaPadrao() {
   return data.toISOString().slice(0, 10);
 }
 
-function dificuldade(item) {
+function dificuldade(item, t) {
   const codigo = item.codigo_nivel || '';
-  return codigo ? `(${codigo}) ${item.nome_nivel || NIVEIS[codigo] || ''}` : '—';
+  return codigo ? `(${codigo}) ${item.nome_nivel || niveisMap(t)[codigo] || ''}` : '—';
 }
 
-function expiracaoBadge(item) {
+function expiracaoBadge(item, t) {
   if (!item?.id_badge) return 'n/a';
   if (!item.tem_expiracao_badge && !item.tem_expiracao) return 'n/a';
-  return item.validade_dias_badge || item.validade_dias ? `${item.validade_dias_badge || item.validade_dias} dias` : 'Configurada';
+  const dias = item.validade_dias_badge || item.validade_dias;
+  return dias ? t('admin_eventos_dias').replace('{total}', dias) : t('admin_eventos_expiracao_configurada');
 }
 
-function tipoRequisito(req) {
+function tipoRequisitoValor(req) {
   const texto = `${req.titulo || ''} ${req.descricao || ''}`.toLowerCase();
-  if (texto.includes('curso')) return 'Curso';
-  if (texto.includes('badge')) return 'Badges';
-  return 'Evento';
+  if (texto.includes('curso')) return 'CURSO';
+  if (texto.includes('badge')) return 'BADGES';
+  return 'EVENTO';
 }
 
-function dadosEventos(items) {
-  const headers = ['Título', 'Dificuldade', 'Nº Requisitos', 'Badge', 'Data Criação', 'Data Limite', 'Estado'];
+function tipoRequisitoLabel(valor, t) {
+  return {
+    BADGES: t('admin_eventos_tipo_badges'),
+    CURSO: t('admin_eventos_tipo_curso'),
+    EVENTO: t('admin_eventos_tipo_evento'),
+  }[valor] || valor;
+}
+
+function dadosEventos(items, t) {
+  const headers = [
+    t('admin_rel_col_titulo'),
+    t('admin_niveis_dificuldade'),
+    t('admin_rel_col_nr_req'),
+    t('admin_dash_col_badge'),
+    t('admin_lp_col_data_criacao'),
+    t('admin_rel_col_data_limite'),
+    t('admin_dash_col_state'),
+  ];
   const linhas = items.map((evento) => [
     evento.titulo,
-    dificuldade(evento),
+    dificuldade(evento, t),
     evento.n_requisitos || 0,
     evento.titulo_badge || '',
     formatarData(evento.data_criacao),
     formatarData(evento.data_limite),
-    evento.ativo ? 'Ativo' : 'Inativo',
+    evento.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive'),
   ]);
   return { headers, linhas };
 }
@@ -165,7 +187,7 @@ function prepararPayload(form, niveis) {
   };
 }
 
-function BadgeEspecialResumo({ form, setForm, badges, modo }) {
+function BadgeEspecialResumo({ form, setForm, badges, modo, t }) {
   const pesquisa = form.pesquisaBadge.trim().toLowerCase();
   const selecionado = badges.find((badge) => String(badge.id_badge) === String(form.id_badge));
   const linhas = pesquisa
@@ -178,7 +200,7 @@ function BadgeEspecialResumo({ form, setForm, badges, modo }) {
         <Icon nome="search" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
         <input
           className="input pl-11"
-          placeholder="Pesquisar badge..."
+          placeholder={t('admin_pontos_pesquisar')}
           value={form.pesquisaBadge}
           onChange={(e) => setForm((atual) => ({ ...atual, pesquisaBadge: e.target.value }))}
         />
@@ -187,10 +209,10 @@ function BadgeEspecialResumo({ form, setForm, badges, modo }) {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
             <tr>
-              <th className="px-4 py-4 text-center">Nome do Badge</th>
-              <th className="px-4 py-4 text-center">Pontos</th>
-              <th className="px-4 py-4 text-center">Expiração</th>
-              <th className="px-4 py-4 text-center">Estado</th>
+              <th className="px-4 py-4 text-center">{t('admin_pontos_col_badge')}</th>
+              <th className="px-4 py-4 text-center">{t('admin_pontos_atuais')}</th>
+              <th className="px-4 py-4 text-center">{t('admin_eventos_expiracao')}</th>
+              <th className="px-4 py-4 text-center">{t('admin_dash_col_state')}</th>
             </tr>
           </thead>
           <tbody>
@@ -202,10 +224,10 @@ function BadgeEspecialResumo({ form, setForm, badges, modo }) {
               >
                 <td className="px-4 py-5 text-center font-medium">{badge.titulo}</td>
                 <td className="px-4 py-5 text-center font-medium">{badge.pontos || 0}</td>
-                <td className="px-4 py-5 text-center font-medium">{expiracaoBadge(badge)}</td>
+                <td className="px-4 py-5 text-center font-medium">{expiracaoBadge(badge, t)}</td>
                 <td className="px-4 py-5 text-center">
                   <span className={`badge-pill ${badge.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                    {badge.ativo ? 'Ativo' : 'Inativo'}
+                    {badge.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}
                   </span>
                 </td>
               </tr>
@@ -223,10 +245,10 @@ function BadgeEspecialResumo({ form, setForm, badges, modo }) {
           <button
             type="button"
             className="btn-primary"
-            onClick={() => toast(modo === 'criar' ? 'Criação de badges será implementada no CRUD de Badges.' : 'Edição de badges será implementada no CRUD de Badges.')}
+            onClick={() => toast(modo === 'criar' ? t('admin_eventos_toast_criar_badge_pendente') : t('admin_eventos_toast_editar_badge_pendente'))}
           >
             <Icon nome={modo === 'criar' ? 'plus' : 'edit'} className="h-4 w-4" />
-            {modo === 'criar' ? 'Criar Badge' : 'Editar Badge'}
+            {modo === 'criar' ? t('admin_eventos_criar_badge') : t('admin_pontos_editar_badge')}
           </button>
         </div>
       </div>
@@ -234,7 +256,7 @@ function BadgeEspecialResumo({ form, setForm, badges, modo }) {
   );
 }
 
-function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, onSubmit, onCancelar, loading }) {
+function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, onSubmit, onCancelar, loading, t }) {
   const requisitosFiltrados = useMemo(() => {
     const pesquisa = form.pesquisaRequisito.trim().toLowerCase();
     return requisitos.filter((req) => {
@@ -242,7 +264,7 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
         || req.titulo?.toLowerCase().includes(pesquisa)
         || req.descricao?.toLowerCase().includes(pesquisa);
       const passaNivel = !form.filtroNivelRequisito || form.filtroNivelRequisito === form.codigo_nivel;
-      const passaTipo = !form.filtroTipoRequisito || tipoRequisito(req) === form.filtroTipoRequisito;
+      const passaTipo = !form.filtroTipoRequisito || tipoRequisitoValor(req) === form.filtroTipoRequisito;
       return passaPesquisa && passaNivel && passaTipo;
     });
   }, [form.codigo_nivel, form.filtroNivelRequisito, form.filtroTipoRequisito, form.pesquisaRequisito, requisitos]);
@@ -271,21 +293,21 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
       <div className="max-h-[72vh] space-y-6 overflow-y-auto px-7 py-4">
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Título do evento<span className="text-red-600">*</span>
+            {t('admin_eventos_titulo_evento')}<span className="text-red-600">*</span>
           </label>
           <input
             className="input"
             required
-            placeholder="Evento"
+            placeholder={t('admin_eventos_placeholder_titulo')}
             value={form.titulo}
             onChange={(e) => setForm((atual) => ({ ...atual, titulo: e.target.value }))}
           />
         </div>
 
         <div>
-          <div className="mb-3 text-sm font-medium text-slate-900">Nível</div>
+          <div className="mb-3 text-sm font-medium text-slate-900">{t('admin_dash_level')}</div>
           <div className="flex flex-wrap gap-5 text-base text-slate-700">
-            {Object.keys(NIVEIS).map((codigo) => (
+            {CODIGOS_NIVEL.map((codigo) => (
               <label key={codigo} className="flex items-center gap-2">
                 <input
                   type="radio"
@@ -301,7 +323,7 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
 
         <div>
           <label className="mb-3 block text-sm font-medium text-slate-900">
-            Imagem do evento<span className="text-red-600">*</span>
+            {t('admin_eventos_imagem')}<span className="text-red-600">*</span>
           </label>
           <UploadImagemAdmin
             contexto="eventos"
@@ -318,7 +340,7 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
               checked={form.data_limite_ativa}
               onChange={(e) => setForm((atual) => ({ ...atual, data_limite_ativa: e.target.checked }))}
             />
-            Data limite<span className="text-red-600">*</span>
+            {t('admin_eventos_data_limite')}<span className="text-red-600">*</span>
           </label>
           <label className="relative block">
             <Icon nome="calendar" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-500" />
@@ -335,27 +357,27 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
 
         <div>
           <label className="mb-3 block text-sm font-medium text-slate-900">
-            Requisitos especiais<span className="text-red-600">*</span>
+            {t('admin_eventos_requisitos_especiais')}<span className="text-red-600">*</span>
           </label>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_180px_200px]">
             <label className="relative block">
               <Icon nome="search" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
               <input
                 className="input pl-11"
-                placeholder="Pesquisar requisitos..."
+                placeholder={t('admin_eventos_pesquisar_requisitos')}
                 value={form.pesquisaRequisito}
                 onChange={(e) => setForm((atual) => ({ ...atual, pesquisaRequisito: e.target.value }))}
               />
             </label>
             <select className="input" value={form.filtroNivelRequisito} onChange={(e) => setForm((atual) => ({ ...atual, filtroNivelRequisito: e.target.value }))}>
-              <option value="">Nível (Todos)</option>
-              {Object.keys(NIVEIS).map((codigo) => <option key={codigo} value={codigo}>{codigo}</option>)}
+              <option value="">{t('admin_req_nivel_todos')}</option>
+              {CODIGOS_NIVEL.map((codigo) => <option key={codigo} value={codigo}>{codigo}</option>)}
             </select>
             <select className="input" value={form.filtroTipoRequisito} onChange={(e) => setForm((atual) => ({ ...atual, filtroTipoRequisito: e.target.value }))}>
-              <option value="">Tipo evidência (Todos)</option>
-              <option value="Badges">Badges</option>
-              <option value="Curso">Curso</option>
-              <option value="Evento">Evento</option>
+              <option value="">{t('admin_req_tipo_todos')}</option>
+              <option value="BADGES">{t('admin_eventos_tipo_badges')}</option>
+              <option value="CURSO">{t('admin_eventos_tipo_curso')}</option>
+              <option value="EVENTO">{t('admin_eventos_tipo_evento')}</option>
             </select>
           </div>
           <div className="mt-1 overflow-hidden rounded-xl border border-slate-200">
@@ -363,9 +385,9 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
               <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="w-16 px-4 py-4 text-center"></th>
-                  <th className="px-4 py-4 text-center">Título</th>
-                  <th className="px-4 py-4 text-center">Descrição</th>
-                  <th className="px-4 py-4 text-center">Tipo evidência</th>
+                  <th className="px-4 py-4 text-center">{t('admin_rel_col_titulo')}</th>
+                  <th className="px-4 py-4 text-center">{t('admin_lp_descricao')}</th>
+                  <th className="px-4 py-4 text-center">{t('admin_req_tipo_evidencia')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -381,11 +403,11 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
                     </td>
                     <td className="px-4 py-4 text-center font-medium text-slate-800">{req.titulo}</td>
                     <td className="px-4 py-4 text-center text-slate-600">{req.descricao || '—'}</td>
-                    <td className="px-4 py-4 text-center text-slate-600">{tipoRequisito(req)}</td>
+                    <td className="px-4 py-4 text-center text-slate-600">{tipoRequisitoLabel(tipoRequisitoValor(req), t)}</td>
                   </tr>
                 ))}
                 {requisitosFiltrados.length === 0 && (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-500">Sem requisitos especiais.</td></tr>
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-500">{t('admin_eventos_sem_requisitos')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -399,8 +421,8 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
               onMudarPagina={() => {}}
               className="gap-3 px-6 py-3"
             >
-              <button type="button" className="btn-primary" onClick={() => toast('Criação de requisitos especiais será implementada a seguir.')}>
-                <Icon nome="plus" className="h-4 w-4" /> Criar Requisito
+              <button type="button" className="btn-primary" onClick={() => toast(t('admin_eventos_toast_criar_req_pendente'))}>
+                <Icon nome="plus" className="h-4 w-4" /> {t('admin_eventos_criar_requisito')}
               </button>
             </Paginacao>
           </div>
@@ -408,30 +430,30 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
 
         <div>
           <label className="mb-3 block text-sm font-medium text-slate-900">
-            Badge Especial<span className="text-red-600">*</span>
+            {t('admin_eventos_badge_especial')}<span className="text-red-600">*</span>
           </label>
-          <BadgeEspecialResumo form={form} setForm={setForm} badges={badges} modo={modo} />
+          <BadgeEspecialResumo form={form} setForm={setForm} badges={badges} modo={modo} t={t} />
         </div>
 
         <div>
-          <div className="mb-3 text-sm font-medium text-slate-900">Estado</div>
+          <div className="mb-3 text-sm font-medium text-slate-900">{t('admin_dash_col_state')}</div>
           <div className="flex gap-4 text-base text-slate-700">
             <label className="flex items-center gap-2">
               <input type="radio" className="h-4 w-4 text-softinsa-600" checked={form.ativo} onChange={() => setForm((atual) => ({ ...atual, ativo: true }))} />
-              Ativo
+              {t('admin_dash_notice_active')}
             </label>
             <label className="flex items-center gap-2">
               <input type="radio" className="h-4 w-4 text-softinsa-600" checked={!form.ativo} onChange={() => setForm((atual) => ({ ...atual, ativo: false }))} />
-              Inativo
+              {t('admin_dash_notice_inactive')}
             </label>
           </div>
         </div>
       </div>
 
       <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">
-        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>Cancelar</button>
+        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>{t('admin_cancel')}</button>
         <button type="submit" className="btn-primary min-w-48" disabled={loading}>
-          {loading ? 'A guardar...' : modo === 'criar' ? 'Criar Evento Especial' : 'Editar Evento Especial'}
+          {loading ? t('admin_lp_a_guardar') : modo === 'criar' ? t('admin_eventos_criar') : t('admin_eventos_editar')}
         </button>
       </div>
     </form>
@@ -439,6 +461,7 @@ function FormEvento({ form, setForm, evento, requisitos, niveis, badges, modo, o
 }
 
 export default function AdminEventosEspeciais() {
+  const { t } = useLanguage();
   const qc = useQueryClient();
   const [filtros, setFiltros] = useState({ pesquisa: '', id_learning_path: '', id_service_line: '', id_area: '' });
   const [pagina, setPagina] = useState(1);
@@ -487,11 +510,11 @@ export default function AdminEventosEspeciais() {
   const criar = useMutation({
     mutationFn: async () => {
       const payload = prepararPayload(form, niveis.data?.dados || []);
-      if (!payload.id_nivel) throw new Error('Seleciona um nível para o evento especial.');
+      if (!payload.id_nivel) throw new Error(t('admin_eventos_erro_nivel'));
       return (await api.post('/api/eventos', payload)).data;
     },
     onSuccess: () => {
-      toast.success('Evento especial criado.');
+      toast.success(t('admin_eventos_toast_criado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'eventos-especiais'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
@@ -508,7 +531,7 @@ export default function AdminEventosEspeciais() {
       await Promise.all(removidos.map((req) => api.delete(`/api/eventos/${modal.evento.id_evento}/requisitos/${req.id_ee_requisito}`)));
     },
     onSuccess: () => {
-      toast.success('Evento especial atualizado.');
+      toast.success(t('admin_eventos_toast_atualizado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'eventos-especiais'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
@@ -519,7 +542,7 @@ export default function AdminEventosEspeciais() {
   const alternarEstado = useMutation({
     mutationFn: async (evento) => (await api.put(`/api/eventos/${evento.id_evento}`, { ativo: !evento.ativo })).data,
     onSuccess: () => {
-      toast.success('Estado atualizado.');
+      toast.success(t('admin_lp_toast_estado_atualizado'));
       qc.invalidateQueries({ queryKey: ['admin', 'eventos-especiais'] });
     },
     onError: (err) => toast.error(extrairErro(err)),
@@ -528,7 +551,7 @@ export default function AdminEventosEspeciais() {
   const eliminar = useMutation({
     mutationFn: async () => (await api.delete(`/api/eventos/${modal.evento.id_evento}`)).data,
     onSuccess: () => {
-      toast.success('Evento especial eliminado.');
+      toast.success(t('admin_eventos_toast_eliminado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'eventos-especiais'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
@@ -598,20 +621,20 @@ export default function AdminEventosEspeciais() {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosEventos(todos);
+      const { headers, linhas } = dadosEventos(todos, t);
       descarregarCsv('eventos-especiais.csv', headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível exportar os eventos especiais.'));
+      toast.error(extrairErro(err, t('admin_eventos_erro_exportar_excel')));
     }
   }
 
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosEventos(todos);
-      imprimirTabela('Gestão de Eventos Especiais', headers, linhas);
+      const { headers, linhas } = dadosEventos(todos, t);
+      imprimirTabela(t('admin_menu_eventos'), headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
+      toast.error(extrairErro(err, t('admin_lp_erro_exportar_pdf')));
     }
   }
 
@@ -635,29 +658,29 @@ export default function AdminEventosEspeciais() {
       setModal({ tipo: 'editar', evento: detalhe.evento, requisitos });
     } catch (err) {
       setModal(null);
-      toast.error(extrairErro(err, 'Não foi possível abrir o evento especial.'));
+      toast.error(extrairErro(err, t('admin_eventos_erro_abrir')));
     }
   }
 
   function abrirCriacao() {
     if (learningPaths.isLoading || serviceLines.isLoading || areas.isLoading || niveis.isLoading) {
-      toast('A carregar a hierarquia. Tenta novamente dentro de instantes.');
+      toast(t('admin_areas_a_carregar_hierarquia'));
       return;
     }
     if (lps.length === 0) {
-      toast.error('Antes de criar um Evento Especial, cria primeiro um Learning Path.');
+      toast.error(t('admin_eventos_erro_sem_lp'));
       return;
     }
     if (sls.length === 0) {
-      toast.error('Antes de criar um Evento Especial, cria primeiro uma Service Line.');
+      toast.error(t('admin_eventos_erro_sem_sl'));
       return;
     }
     if (listaAreas.length === 0) {
-      toast.error('Antes de criar um Evento Especial, cria primeiro uma Área.');
+      toast.error(t('admin_eventos_erro_sem_area'));
       return;
     }
     if (listaNiveis.length === 0) {
-      toast.error('Antes de criar um Evento Especial, cria primeiro um Nível.');
+      toast.error(t('admin_eventos_erro_sem_nivel'));
       return;
     }
 
@@ -674,16 +697,16 @@ export default function AdminEventosEspeciais() {
   return (
     <div className="mx-auto max-w-[1280px] space-y-7">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Eventos Especiais</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_eventos')}</h1>
         <div className="flex flex-wrap gap-3">
           <button type="button" className="btn-secondary" onClick={exportarExcel}>
-            <Icon nome="download" className="h-4 w-4" /> Exportar Excel
+            <Icon nome="download" className="h-4 w-4" /> {t('admin_sla_export_excel')}
           </button>
           <button type="button" className="btn-secondary" onClick={exportarPdf}>
-            <Icon nome="file" className="h-4 w-4" /> Exportar PDF
+            <Icon nome="file" className="h-4 w-4" /> {t('admin_sla_export_pdf')}
           </button>
           <button type="button" className="btn-primary" onClick={abrirCriacao}>
-            <Icon nome="plus" className="h-4 w-4" /> Criar Evento Especial
+            <Icon nome="plus" className="h-4 w-4" /> {t('admin_eventos_criar')}
           </button>
         </div>
       </header>
@@ -694,25 +717,25 @@ export default function AdminEventosEspeciais() {
             <Icon nome="search" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
               className="input pl-10"
-              placeholder="Pesquisar Evento..."
+              placeholder={t('admin_eventos_pesquisar')}
               value={filtros.pesquisa}
               onChange={(e) => atualizarFiltro('pesquisa', e.target.value)}
             />
           </label>
           <select className="input" value={filtros.id_learning_path} onChange={(e) => atualizarFiltro('id_learning_path', e.target.value)}>
-            <option value="">Learning paths (Todos)</option>
+            <option value="">{t('admin_sl_lps_todos')}</option>
             {lps.map((lp) => <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>)}
           </select>
           <select className="input" value={filtros.id_service_line} onChange={(e) => atualizarFiltro('id_service_line', e.target.value)}>
-            <option value="">Service Lines (Todas)</option>
+            <option value="">{t('admin_areas_sls_todas')}</option>
             {serviceLinesFiltro.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
           </select>
           <select className="input" value={filtros.id_area} onChange={(e) => atualizarFiltro('id_area', e.target.value)}>
-            <option value="">Área (Todas)</option>
+            <option value="">{t('admin_cand_area_todas')}</option>
             {areasFiltro.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
           </select>
           <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
-            <Icon nome="x" className="h-4 w-4" /> Limpar Filtros
+            <Icon nome="x" className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}
           </button>
         </div>
       </section>
@@ -722,44 +745,44 @@ export default function AdminEventosEspeciais() {
           <table className="min-w-[1120px] w-full text-sm">
             <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-4 text-center">Título</th>
-                <th className="px-4 py-4 text-center">Dificuldade</th>
-                <th className="px-4 py-4 text-center">Nº Requisitos</th>
-                <th className="px-4 py-4 text-center">Badge</th>
-                <th className="px-4 py-4 text-center">Data Criação</th>
-                <th className="px-4 py-4 text-center">Data Limite</th>
-                <th className="px-4 py-4 text-center">Estado</th>
-                <th className="px-4 py-4 text-center">Ações</th>
+                <th className="px-4 py-4 text-center">{t('admin_rel_col_titulo')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_niveis_dificuldade')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_rel_col_nr_req')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_dash_col_badge')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_lp_col_data_criacao')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_rel_col_data_limite')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_dash_col_state')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_sla_col_acoes')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {eventos.isLoading ? (
-                <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">A carregar eventos especiais...</td></tr>
+                <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">{t('admin_eventos_a_carregar')}</td></tr>
               ) : lista.map((evento) => (
                 <tr key={evento.id_evento} className="text-slate-700">
                   <td className="px-4 py-5 text-center font-semibold text-slate-800">{evento.titulo}</td>
-                  <td className="px-4 py-5 text-center text-slate-500">{dificuldade(evento)}</td>
+                  <td className="px-4 py-5 text-center text-slate-500">{dificuldade(evento, t)}</td>
                   <td className="px-4 py-5 text-center font-semibold text-slate-800">{evento.n_requisitos || 0}</td>
-                  <td className="px-4 py-5 text-center">{evento.imagem_badge ? <img src={evento.imagem_badge} alt={evento.titulo_badge || 'Badge'} className="mx-auto h-7 w-7 object-contain" /> : '🏅'}</td>
+                  <td className="px-4 py-5 text-center">{evento.imagem_badge ? <img src={evento.imagem_badge} alt={evento.titulo_badge || t('admin_dash_col_badge')} className="mx-auto h-7 w-7 object-contain" /> : '🏅'}</td>
                   <td className="px-4 py-5 text-center text-slate-600">{formatarData(evento.data_criacao)}</td>
                   <td className="px-4 py-5 text-center text-slate-600">{formatarData(evento.data_limite)}</td>
                   <td className="px-4 py-5 text-center">
                     <span className={`badge-pill ${evento.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                      {evento.ativo ? 'Ativo' : 'Inativo'}
+                      {evento.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}
                     </span>
                   </td>
                   <td className="px-4 py-5">
                     <div className="flex items-center justify-center gap-4 text-softinsa-700">
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Ver" onClick={() => abrirEdicao(evento)}><Icon nome="eye" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Editar" onClick={() => abrirEdicao(evento)}><Icon nome="edit" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={evento.ativo ? 'Desativar' : 'Ativar'} onClick={() => evento.ativo ? setModal({ tipo: 'desativar', evento }) : alternarEstado.mutate(evento)}><Icon nome="power" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title="Eliminar" onClick={() => setModal({ tipo: 'eliminar', evento })}><Icon nome="trash" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_ver')} onClick={() => abrirEdicao(evento)}><Icon nome="eye" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_editar')} onClick={() => abrirEdicao(evento)}><Icon nome="edit" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={evento.ativo ? t('admin_lp_desativar') : t('admin_lp_ativar')} onClick={() => evento.ativo ? setModal({ tipo: 'desativar', evento }) : alternarEstado.mutate(evento)}><Icon nome="power" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title={t('admin_notif_eliminar')} onClick={() => setModal({ tipo: 'eliminar', evento })}><Icon nome="trash" className="h-5 w-5" /></button>
                     </div>
                   </td>
                 </tr>
               ))}
               {!eventos.isLoading && lista.length === 0 && (
-                <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">Nenhum evento especial encontrado.</td></tr>
+                <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">{t('admin_eventos_vazio')}</td></tr>
               )}
             </tbody>
           </table>
@@ -775,9 +798,9 @@ export default function AdminEventosEspeciais() {
       </section>
 
       {['criar', 'editar'].includes(modal?.tipo) && (
-        <Modal titulo={modal.tipo === 'criar' ? 'Criar Evento Especial' : 'Editar Evento Especial'} onFechar={() => setModal(null)} size="lg">
+        <Modal titulo={modal.tipo === 'criar' ? t('admin_eventos_criar') : t('admin_eventos_editar')} onFechar={() => setModal(null)} size="lg">
           {modal.carregando ? (
-            <div className="px-7 py-12 text-center text-slate-500">A carregar evento especial...</div>
+            <div className="px-7 py-12 text-center text-slate-500">{t('admin_eventos_a_carregar_evento')}</div>
           ) : (
             <FormEvento
               form={form}
@@ -799,44 +822,45 @@ export default function AdminEventosEspeciais() {
               onSubmit={(e) => { e.preventDefault(); modal.tipo === 'criar' ? criar.mutate() : atualizar.mutate(); }}
               onCancelar={() => setModal(null)}
               loading={modal.tipo === 'criar' ? criar.isPending : atualizar.isPending}
+              t={t}
             />
           )}
         </Modal>
       )}
 
       {modal?.tipo === 'desativar' && (
-        <Modal titulo="Desativar Evento Especial" icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_eventos_modal_desativar_titulo')} icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
           <div className="px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende desativar o evento especial “{modal.evento.titulo}”?
+              {t('admin_eventos_desativar_confirm').replace('{titulo}', modal.evento.titulo)}
             </p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button
               type="button"
               className="btn bg-orange-500 px-7 text-white hover:bg-orange-600"
               disabled={alternarEstado.isPending}
               onClick={() => alternarEstado.mutate(modal.evento, { onSuccess: () => setModal(null) })}
             >
-              {alternarEstado.isPending ? 'A confirmar...' : 'Confirmar'}
+              {alternarEstado.isPending ? t('admin_lp_a_confirmar') : t('admin_lp_confirmar')}
             </button>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'eliminar' && (
-        <Modal titulo="Eliminar Evento Especial" icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_eventos_modal_eliminar_titulo')} icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
           <div className="space-y-4 px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende eliminar o evento especial “{modal.evento.titulo}”?
+              {t('admin_eventos_eliminar_confirm').replace('{titulo}', modal.evento.titulo)}
             </p>
-            <p className="font-medium text-red-500">Esta ação não pode ser revertida!</p>
+            <p className="font-medium text-red-500">{t('admin_notif_irreversivel')}</p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button type="button" className="btn bg-red-600 px-7 text-white hover:bg-red-700" disabled={eliminar.isPending} onClick={() => eliminar.mutate()}>
-              {eliminar.isPending ? 'A eliminar...' : 'Eliminar'}
+              {eliminar.isPending ? t('admin_notif_a_eliminar') : t('admin_notif_eliminar')}
             </button>
           </div>
         </Modal>

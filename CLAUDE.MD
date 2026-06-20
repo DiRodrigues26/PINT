@@ -51,7 +51,7 @@ PINT/
 | jsonwebtoken | 9.0.3 | Autenticação JWT |
 | bcryptjs | 3.0.3 | Hash de passwords |
 | multer | 2.1.1 | Upload de ficheiros (evidências, imagens) |
-| nodemailer | 8.0.5 | Envio de emails (SMTP ou stub dev) |
+| @sendgrid/mail | 8.1.5 | Envio de emails via API HTTPS (ou stub dev sem `SENDGRID_API_KEY`) |
 | speakeasy | 2.0.0 | Geração/verificação de TOTP (2FA) |
 | qrcode | 1.5.4 | Geração de QR codes (2FA e badges públicos) |
 | uuid | 13.0.0 | Geração de tokens únicos |
@@ -236,17 +236,19 @@ Todas as transições registam auditoria em `historico_candidatura` e/ou `avalia
 
 | Funcionalidade | Estado | Em falta no frontend |
 |---|---|---|
-| RGPD (configurável) | `[~]` | Ecrã admin para gerir versões/textos de política (precisa de tabela + endpoints novos) |
 | Lembretes | `[~]` | UI para consultor gerir lembretes pessoais |
 | Timeline/Objetivos | `[~]` | UI para consultor gerir objetivos |
 | Templates de email | `[~]` | Ecrã admin para gerir templates |
 | Upload real de imagem (Eventos) | `[~]` | Eventos Especiais (Badges já usa `UploadImagemAdmin`) |
 
+### Concluído recentemente (2) — rev. 2026-06-20
+
+- Configuração de políticas RGPD (req. 8 do admin): ecrã `/admin/rgpd`, tabela `politica_rgpd`, CRUD em `/api/rgpd/politicas` e `GET /api/rgpd/politica-ativa`.
+- Automação de alertas SLA: job `api/src/jobs/slaAlertas.js` (arranca em `index.js`), idempotente, respeita `config_notificacao` e preferências individuais. Intervalo via `SLA_JOB_INTERVAL_MIN`.
+
 ### Não implementado
 
-- Configuração de políticas RGPD (req. 8 do admin) — único requisito admin do enunciado por fazer.
-- Automação de alertas SLA (job/cron para criar notificações quando SLA ultrapassa limite).
-- Notificações push/browser push reais (existe notificação interna na plataforma).
+- Notificações push/browser push reais (chega no commit `693cd50` ainda por fazer `git pull` — `api/src/utils/push.js`). Existe notificação interna na plataforma.
 
 ---
 
@@ -296,7 +298,7 @@ Administradores são redirecionados automaticamente para `/admin` após login e 
 | Config Notificações | `/api/config-notificacao` | Config global de notificações (admin) + envio de teste |
 | Lembretes | `/api/lembretes` | CRUD por consultor |
 | Timeline | `/api/timeline` | CRUD objetivos por consultor |
-| RGPD | `/api/rgpd` | Consentimentos |
+| RGPD | `/api/rgpd` | Consentimentos + gestão de políticas (admin) |
 | TOTP | `/api/totp` | 2FA setup e verificação |
 | Ficheiros | `/api/ficheiros` | Gestão de uploads |
 | Público | `/publico` | Verificação de badges sem autenticação |

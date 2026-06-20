@@ -1,38 +1,31 @@
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
-let transporter = null;
+let configurado = false;
 
-function temConfigSMTP() {
-  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+function temConfigSendGrid() {
+  return Boolean(process.env.SENDGRID_API_KEY);
 }
 
-function obterTransporter() {
-  if (transporter) return transporter;
-  if (!temConfigSMTP()) return null;
-
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-  return transporter;
+function obterCliente() {
+  if (!temConfigSendGrid()) return null;
+  if (!configurado) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    configurado = true;
+  }
+  return sgMail;
 }
 
 async function enviarEmail({ para, assunto, html, texto }) {
-  const t = obterTransporter();
-  if (!t) {
+  const cliente = obterCliente();
+  if (!cliente) {
     console.log('📧 [EMAIL STUB] Para:', para);
     console.log('   Assunto:', assunto);
     console.log('   Conteúdo:', texto || html);
     return { stub: true };
   }
 
-  return t.sendMail({
-    from: process.env.SMTP_FROM || 'no-reply@softinsa-badges.local',
+  return cliente.send({
+    from: process.env.EMAIL_FROM || 'no-reply@softinsa-badges.local',
     to: para,
     subject: assunto,
     text: texto,

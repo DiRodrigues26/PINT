@@ -17,6 +17,7 @@ import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
 import Paginacao from '../../components/admin/Paginacao';
+import { useLanguage } from '../../context/LanguageContext';
 
 const BADGES_NIVEL = {
   A: '🥉',
@@ -26,13 +27,17 @@ const BADGES_NIVEL = {
   E: '👑',
 };
 
-const NIVEIS = {
-  A: { nome_nivel: 'Júnior', ordem: 1 },
-  B: { nome_nivel: 'Intermédio', ordem: 2 },
-  C: { nome_nivel: 'Sénior', ordem: 3 },
-  D: { nome_nivel: 'Especialista', ordem: 4 },
-  E: { nome_nivel: 'Líder', ordem: 5 },
-};
+const CODIGOS_NIVEL = ['A', 'B', 'C', 'D', 'E'];
+
+function niveisInfo(t) {
+  return {
+    A: { nome_nivel: t('admin_nivel_a'), ordem: 1 },
+    B: { nome_nivel: t('admin_nivel_b'), ordem: 2 },
+    C: { nome_nivel: t('admin_nivel_c'), ordem: 3 },
+    D: { nome_nivel: t('admin_nivel_d'), ordem: 4 },
+    E: { nome_nivel: t('admin_nivel_e'), ordem: 5 },
+  };
+}
 
 const FORM_INICIAL = {
   codigo_nivel: 'A',
@@ -108,20 +113,20 @@ function dificuldade(nivel) {
   return codigo && nome ? `${codigo} – ${nome}` : nome || codigo || '—';
 }
 
-function badgeNivel(nivel) {
+function badgeNivel(nivel, t) {
   if (nivel.imagem_badge) {
     return <img src={nivel.imagem_badge} alt={nivel.titulo_badge || 'Badge'} className="mx-auto h-7 w-7 object-contain" />;
   }
 
   return (
-    <span className="inline-flex h-8 w-8 items-center justify-center text-xl" title={nivel.titulo_badge || 'Badge do nível'}>
+    <span className="inline-flex h-8 w-8 items-center justify-center text-xl" title={nivel.titulo_badge || t('admin_niveis_badge_nivel')}>
       {BADGES_NIVEL[nivel.codigo_nivel] || '🏅'}
     </span>
   );
 }
 
-function prepararPayload(form) {
-  const infoNivel = NIVEIS[form.codigo_nivel];
+function prepararPayload(form, t) {
+  const infoNivel = niveisInfo(t)[form.codigo_nivel];
 
   return {
     id_area: Number(form.id_area),
@@ -131,8 +136,8 @@ function prepararPayload(form) {
   };
 }
 
-function dadosNiveis(items) {
-  const headers = ['Dificuldade', 'Área', 'Service Line', 'Learning Path', 'Nº Requisitos', 'Badge', 'Data Criação', 'Estado'];
+function dadosNiveis(items, t) {
+  const headers = [t('admin_niveis_dificuldade'), t('admin_rel_col_area'), 'Service Line', t('admin_rel_col_lp'), t('admin_rel_col_nr_req'), t('admin_dash_col_badge'), t('admin_lp_col_data_criacao'), t('admin_dash_col_state')];
   const linhas = items.map((nivel) => [
     dificuldade(nivel),
     nivel.nome_area || '',
@@ -141,7 +146,7 @@ function dadosNiveis(items) {
     nivel.total_requisitos || 0,
     nivel.titulo_badge || nivel.codigo_nivel || '',
     formatarData(nivel.created_at),
-    nivel.ativo !== 0 ? 'Ativo' : 'Inativo',
+    nivel.ativo !== 0 ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive'),
   ]);
   return { headers, linhas };
 }
@@ -157,6 +162,7 @@ function FormNivel({
   onSubmit,
   onCancelar,
   loading,
+  t,
 }) {
   const serviceLinesDisponiveis = useMemo(() => {
     if (!form.id_learning_path) return serviceLines;
@@ -206,9 +212,9 @@ function FormNivel({
     <form onSubmit={onSubmit}>
       <div className="space-y-6 px-7 py-4">
         <div>
-          <div className="mb-3 text-sm font-medium text-slate-900">Dificuldade</div>
+          <div className="mb-3 text-sm font-medium text-slate-900">{t('admin_niveis_dificuldade')}</div>
           <div className="flex flex-wrap gap-5 text-base text-slate-700">
-            {Object.keys(NIVEIS).map((codigo) => (
+            {CODIGOS_NIVEL.map((codigo) => (
               <label key={codigo} className="flex items-center gap-2">
                 <input
                   type="radio"
@@ -224,7 +230,7 @@ function FormNivel({
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Learning Path<span className="text-red-600">*</span>
+            {t('admin_rel_col_lp')}<span className="text-red-600">*</span>
           </label>
           <select
             className="input"
@@ -232,7 +238,7 @@ function FormNivel({
             value={form.id_learning_path}
             onChange={(e) => atualizar('id_learning_path', e.target.value)}
           >
-            <option value="">Selecione um Learning Path</option>
+            <option value="">{t('admin_sl_select_lp')}</option>
             {learningPaths.map((lp) => (
               <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>
             ))}
@@ -249,7 +255,7 @@ function FormNivel({
             value={form.id_service_line}
             onChange={(e) => atualizar('id_service_line', e.target.value)}
           >
-            <option value="">Selecione uma Service Line</option>
+            <option value="">{t('admin_areas_select_sl')}</option>
             {serviceLinesDisponiveis.map((sl) => (
               <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>
             ))}
@@ -258,7 +264,7 @@ function FormNivel({
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Área<span className="text-red-600">*</span>
+            {t('admin_rel_col_area')}<span className="text-red-600">*</span>
           </label>
           <select
             className="input"
@@ -266,7 +272,7 @@ function FormNivel({
             value={form.id_area}
             onChange={(e) => atualizar('id_area', e.target.value)}
           >
-            <option value="">Selecione uma Área</option>
+            <option value="">{t('admin_niveis_select_area')}</option>
             {areasDisponiveis.map((area) => (
               <option key={area.id_area} value={area.id_area}>{area.nome}</option>
             ))}
@@ -276,9 +282,9 @@ function FormNivel({
       </div>
 
       <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">
-        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>Cancelar</button>
+        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>{t('admin_cancel')}</button>
         <button type="submit" className="btn-primary min-w-32" disabled={loading}>
-          {loading ? 'A guardar...' : modo === 'criar' ? 'Criar Nível' : 'Editar Nível'}
+          {loading ? t('admin_lp_a_guardar') : modo === 'criar' ? t('admin_niveis_criar') : t('admin_niveis_editar')}
         </button>
       </div>
     </form>
@@ -286,6 +292,7 @@ function FormNivel({
 }
 
 export default function AdminNiveis() {
+  const { t } = useLanguage();
   const qc = useQueryClient();
   const [filtros, setFiltros] = useState({ pesquisa: '', id_learning_path: '', id_service_line: '', id_area: '', ativo: '' });
   const [pagina, setPagina] = useState(1);
@@ -323,9 +330,9 @@ export default function AdminNiveis() {
   });
 
   const criar = useMutation({
-    mutationFn: async () => (await api.post('/api/niveis', prepararPayload(form))).data,
+    mutationFn: async () => (await api.post('/api/niveis', prepararPayload(form, t))).data,
     onSuccess: () => {
-      toast.success('Nível criado.');
+      toast.success(t('admin_niveis_toast_criado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
       qc.invalidateQueries({ queryKey: ['admin', 'areas'] });
@@ -335,9 +342,9 @@ export default function AdminNiveis() {
   });
 
   const atualizar = useMutation({
-    mutationFn: async () => (await api.put(`/api/niveis/${modal.nivel.id_nivel}`, prepararPayload(form))).data,
+    mutationFn: async () => (await api.put(`/api/niveis/${modal.nivel.id_nivel}`, prepararPayload(form, t))).data,
     onSuccess: () => {
-      toast.success('Nível atualizado.');
+      toast.success(t('admin_niveis_toast_atualizado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
       qc.invalidateQueries({ queryKey: ['admin', 'areas'] });
@@ -349,7 +356,7 @@ export default function AdminNiveis() {
   const alternarEstado = useMutation({
     mutationFn: async (nivel) => (await api.put(`/api/niveis/${nivel.id_nivel}`, { ativo: !(nivel.ativo !== 0) })).data,
     onSuccess: () => {
-      toast.success('Estado atualizado.');
+      toast.success(t('admin_lp_toast_estado_atualizado'));
       qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
@@ -359,7 +366,7 @@ export default function AdminNiveis() {
   const eliminar = useMutation({
     mutationFn: async () => (await api.delete(`/api/niveis/${modal.nivel.id_nivel}`)).data,
     onSuccess: () => {
-      toast.success('Nível eliminado.');
+      toast.success(t('admin_niveis_toast_eliminado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'niveis'] });
       qc.invalidateQueries({ queryKey: ['admin', 'areas'] });
@@ -428,19 +435,19 @@ export default function AdminNiveis() {
 
   function abrirCriacao() {
     if (learningPaths.isLoading || serviceLines.isLoading || areas.isLoading) {
-      toast('A carregar a hierarquia. Tenta novamente dentro de instantes.');
+      toast(t('admin_areas_a_carregar_hierarquia'));
       return;
     }
     if (lps.length === 0) {
-      toast.error('Antes de criar um Nível, cria primeiro um Learning Path.');
+      toast.error(t('admin_niveis_erro_sem_lp'));
       return;
     }
     if (sls.length === 0) {
-      toast.error('Antes de criar um Nível, cria primeiro uma Service Line.');
+      toast.error(t('admin_niveis_erro_sem_sl'));
       return;
     }
     if (listaAreas.length === 0) {
-      toast.error('Antes de criar um Nível, cria primeiro uma Área.');
+      toast.error(t('admin_niveis_erro_sem_area'));
       return;
     }
 
@@ -472,36 +479,36 @@ export default function AdminNiveis() {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosNiveis(todos);
+      const { headers, linhas } = dadosNiveis(todos, t);
       descarregarCsv('niveis.csv', headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível exportar os níveis.'));
+      toast.error(extrairErro(err, t('admin_niveis_erro_exportar_excel')));
     }
   }
 
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosNiveis(todos);
-      imprimirTabela('Gestão de Níveis', headers, linhas);
+      const { headers, linhas } = dadosNiveis(todos, t);
+      imprimirTabela(t('admin_menu_niveis'), headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
+      toast.error(extrairErro(err, t('admin_lp_erro_exportar_pdf')));
     }
   }
 
   return (
     <div className="mx-auto max-w-[1560px] space-y-7">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Níveis</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_niveis')}</h1>
         <div className="flex flex-wrap gap-3">
           <button type="button" className="btn-secondary" onClick={exportarExcel}>
-            <Icon nome="download" className="h-4 w-4" /> Exportar Excel
+            <Icon nome="download" className="h-4 w-4" /> {t('admin_sla_export_excel')}
           </button>
           <button type="button" className="btn-secondary" onClick={exportarPdf}>
-            <Icon nome="file" className="h-4 w-4" /> Exportar PDF
+            <Icon nome="file" className="h-4 w-4" /> {t('admin_sla_export_pdf')}
           </button>
           <button type="button" className="btn-primary" onClick={abrirCriacao}>
-            <Icon nome="plus" className="h-4 w-4" /> Criar Nível
+            <Icon nome="plus" className="h-4 w-4" /> {t('admin_niveis_criar')}
           </button>
         </div>
       </header>
@@ -512,25 +519,25 @@ export default function AdminNiveis() {
             <Icon nome="search" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
               className="input pl-10"
-              placeholder="Pesquisar Nível..."
+              placeholder={t('admin_niveis_pesquisar')}
               value={filtros.pesquisa}
               onChange={(e) => atualizarFiltro('pesquisa', e.target.value)}
             />
           </label>
           <select className="input" value={filtros.id_learning_path} onChange={(e) => atualizarFiltro('id_learning_path', e.target.value)}>
-            <option value="">Learning paths (Todos)</option>
+            <option value="">{t('admin_sl_lps_todos')}</option>
             {lps.map((lp) => <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>)}
           </select>
           <select className="input" value={filtros.id_service_line} onChange={(e) => atualizarFiltro('id_service_line', e.target.value)}>
-            <option value="">Service Lines (Todas)</option>
+            <option value="">{t('admin_areas_sls_todas')}</option>
             {serviceLinesFiltro.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
           </select>
           <select className="input" value={filtros.id_area} onChange={(e) => atualizarFiltro('id_area', e.target.value)}>
-            <option value="">Área (Todas)</option>
+            <option value="">{t('admin_cand_area_todas')}</option>
             {areasFiltro.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
           </select>
           <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
-            <Icon nome="x" className="h-4 w-4" /> Limpar Filtros
+            <Icon nome="x" className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}
           </button>
         </div>
       </section>
@@ -540,20 +547,20 @@ export default function AdminNiveis() {
           <table className="min-w-[1280px] w-full text-sm">
             <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-6 py-4 text-center">Dificuldade</th>
-                <th className="px-6 py-4 text-center">Área</th>
+                <th className="px-6 py-4 text-center">{t('admin_niveis_dificuldade')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_rel_col_area')}</th>
                 <th className="px-6 py-4 text-center">Service Line</th>
-                <th className="px-6 py-4 text-center">Learning Path</th>
-                <th className="px-6 py-4 text-center">Nº Requisitos</th>
-                <th className="px-6 py-4 text-center">Badge</th>
-                <th className="px-6 py-4 text-center">Data Criação</th>
-                <th className="px-6 py-4 text-center">Estado</th>
-                <th className="px-6 py-4 text-center">Ações</th>
+                <th className="px-6 py-4 text-center">{t('admin_rel_col_lp')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_rel_col_nr_req')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_dash_col_badge')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_lp_col_data_criacao')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_dash_col_state')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_sla_col_acoes')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {niveis.isLoading ? (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">A carregar níveis...</td></tr>
+                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">{t('admin_niveis_a_carregar')}</td></tr>
               ) : lista.map((nivel) => (
                 <tr key={nivel.id_nivel} className="text-slate-700">
                   <td className="px-6 py-5 text-center font-semibold text-slate-800">{dificuldade(nivel)}</td>
@@ -561,30 +568,30 @@ export default function AdminNiveis() {
                   <td className="px-6 py-5 text-center text-slate-500">{nivel.nome_service_line}</td>
                   <td className="px-6 py-5 text-center text-slate-500">{nivel.nome_learning_path}</td>
                   <td className="px-6 py-5 text-center font-semibold text-slate-800">{nivel.total_requisitos || 0}</td>
-                  <td className="px-6 py-5 text-center">{badgeNivel(nivel)}</td>
+                  <td className="px-6 py-5 text-center">{badgeNivel(nivel, t)}</td>
                   <td className="px-6 py-5 text-center text-slate-600">{formatarData(nivel.created_at)}</td>
                   <td className="px-6 py-5 text-center">
                     <span className={`badge-pill ${nivel.ativo !== 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                      {nivel.ativo !== 0 ? 'Ativo' : 'Inativo'}
+                      {nivel.ativo !== 0 ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}
                     </span>
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex items-center justify-center gap-4 text-softinsa-700">
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Ver" onClick={() => setModal({ tipo: 'ver', nivel })}>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_ver')} onClick={() => setModal({ tipo: 'ver', nivel })}>
                         <Icon nome="eye" className="h-5 w-5" />
                       </button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Editar" onClick={() => abrirEdicao(nivel)}>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_editar')} onClick={() => abrirEdicao(nivel)}>
                         <Icon nome="edit" className="h-5 w-5" />
                       </button>
                       <button
                         type="button"
                         className="rounded-md p-1 hover:bg-blue-50"
-                        title={nivel.ativo !== 0 ? 'Desativar' : 'Ativar'}
+                        title={nivel.ativo !== 0 ? t('admin_lp_desativar') : t('admin_lp_ativar')}
                         onClick={() => (nivel.ativo !== 0 ? setModal({ tipo: 'desativar', nivel }) : alternarEstado.mutate(nivel))}
                       >
                         <Icon nome="power" className="h-5 w-5" />
                       </button>
-                      <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title="Eliminar" onClick={() => setModal({ tipo: 'eliminar', nivel })}>
+                      <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title={t('admin_notif_eliminar')} onClick={() => setModal({ tipo: 'eliminar', nivel })}>
                         <Icon nome="trash" className="h-5 w-5" />
                       </button>
                     </div>
@@ -592,7 +599,7 @@ export default function AdminNiveis() {
                 </tr>
               ))}
               {!niveis.isLoading && lista.length === 0 && (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">Nenhum nível encontrado.</td></tr>
+                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">{t('admin_niveis_vazio')}</td></tr>
               )}
             </tbody>
           </table>
@@ -608,7 +615,7 @@ export default function AdminNiveis() {
       </section>
 
       {modal?.tipo === 'criar' && (
-        <Modal titulo="Criar Nível" onFechar={() => setModal(null)} size="lg">
+        <Modal titulo={t('admin_niveis_criar')} onFechar={() => setModal(null)} size="lg">
           <FormNivel
             form={form}
             setForm={setForm}
@@ -620,12 +627,13 @@ export default function AdminNiveis() {
             onSubmit={(e) => { e.preventDefault(); criar.mutate(); }}
             onCancelar={() => setModal(null)}
             loading={criar.isPending}
+            t={t}
           />
         </Modal>
       )}
 
       {modal?.tipo === 'editar' && (
-        <Modal titulo="Editar Nível" onFechar={() => setModal(null)} size="lg">
+        <Modal titulo={t('admin_niveis_editar')} onFechar={() => setModal(null)} size="lg">
           <FormNivel
             form={form}
             setForm={setForm}
@@ -637,35 +645,36 @@ export default function AdminNiveis() {
             onSubmit={(e) => { e.preventDefault(); atualizar.mutate(); }}
             onCancelar={() => setModal(null)}
             loading={atualizar.isPending}
+            t={t}
           />
         </Modal>
       )}
 
       {modal?.tipo === 'ver' && (
-        <Modal titulo="Detalhe do Nível" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_niveis_modal_detalhe_titulo')} onFechar={() => setModal(null)}>
           <div className="grid grid-cols-1 gap-4 px-7 py-5 text-sm md:grid-cols-2">
-            <div><div className="text-slate-500">Dificuldade</div><div className="font-semibold">{dificuldade(modal.nivel)}</div></div>
-            <div><div className="text-slate-500">Área</div><div className="font-semibold">{modal.nivel.nome_area}</div></div>
+            <div><div className="text-slate-500">{t('admin_niveis_dificuldade')}</div><div className="font-semibold">{dificuldade(modal.nivel)}</div></div>
+            <div><div className="text-slate-500">{t('admin_rel_col_area')}</div><div className="font-semibold">{modal.nivel.nome_area}</div></div>
             <div><div className="text-slate-500">Service Line</div><div className="font-semibold">{modal.nivel.nome_service_line}</div></div>
-            <div><div className="text-slate-500">Learning Path</div><div className="font-semibold">{modal.nivel.nome_learning_path}</div></div>
-            <div><div className="text-slate-500">Requisitos</div><div className="font-semibold">{modal.nivel.total_requisitos || 0}</div></div>
-            <div><div className="text-slate-500">Badge</div><div className="font-semibold">{modal.nivel.titulo_badge || '—'}</div></div>
-            <div><div className="text-slate-500">Data de Criação</div><div className="font-semibold">{formatarData(modal.nivel.created_at)}</div></div>
-            <div><div className="text-slate-500">Estado</div><div className="font-semibold">{modal.nivel.ativo !== 0 ? 'Ativo' : 'Inativo'}</div></div>
-            <div className="md:col-span-2"><div className="text-slate-500">Descrição</div><div className="font-semibold">{modal.nivel.descricao || '—'}</div></div>
+            <div><div className="text-slate-500">{t('admin_rel_col_lp')}</div><div className="font-semibold">{modal.nivel.nome_learning_path}</div></div>
+            <div><div className="text-slate-500">{t('admin_short_requisitos')}</div><div className="font-semibold">{modal.nivel.total_requisitos || 0}</div></div>
+            <div><div className="text-slate-500">{t('admin_dash_col_badge')}</div><div className="font-semibold">{modal.nivel.titulo_badge || '—'}</div></div>
+            <div><div className="text-slate-500">{t('admin_lp_col_data_criacao')}</div><div className="font-semibold">{formatarData(modal.nivel.created_at)}</div></div>
+            <div><div className="text-slate-500">{t('admin_dash_col_state')}</div><div className="font-semibold">{modal.nivel.ativo !== 0 ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}</div></div>
+            <div className="md:col-span-2"><div className="text-slate-500">{t('admin_lp_descricao')}</div><div className="font-semibold">{modal.nivel.descricao || '—'}</div></div>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'desativar' && (
-        <Modal titulo="Desativar Nível" icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_niveis_modal_desativar_titulo')} icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
           <div className="px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende desativar o nível “{dificuldade(modal.nivel)}”?
+              {t('admin_niveis_desativar_confirm').replace('{nome}', dificuldade(modal.nivel))}
             </p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button
               type="button"
               className="btn bg-orange-500 px-7 text-white hover:bg-orange-600"
@@ -674,24 +683,24 @@ export default function AdminNiveis() {
                 alternarEstado.mutate(modal.nivel, { onSuccess: () => setModal(null) });
               }}
             >
-              {alternarEstado.isPending ? 'A confirmar...' : 'Confirmar'}
+              {alternarEstado.isPending ? t('admin_lp_a_confirmar') : t('admin_lp_confirmar')}
             </button>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'eliminar' && (
-        <Modal titulo="Eliminar Nível" icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_niveis_modal_eliminar_titulo')} icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
           <div className="space-y-4 px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende eliminar o nível “{dificuldade(modal.nivel)}”?
+              {t('admin_niveis_eliminar_confirm').replace('{nome}', dificuldade(modal.nivel))}
             </p>
-            <p className="font-medium text-red-500">Esta ação não pode ser revertida!</p>
+            <p className="font-medium text-red-500">{t('admin_notif_irreversivel')}</p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button type="button" className="btn bg-red-600 px-7 text-white hover:bg-red-700" disabled={eliminar.isPending} onClick={() => eliminar.mutate()}>
-              {eliminar.isPending ? 'A eliminar...' : 'Eliminar'}
+              {eliminar.isPending ? t('admin_notif_a_eliminar') : t('admin_notif_eliminar')}
             </button>
           </div>
         </Modal>

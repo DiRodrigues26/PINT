@@ -15,6 +15,7 @@ import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData, formatarDataHora } from '../../lib/formatar';
 import Paginacao from '../../components/admin/Paginacao';
+import { useLanguage } from '../../context/LanguageContext';
 
 const PERFIS = ['Consultor', 'Talent Manager', 'Service Line', 'Administrador'];
 const ESTADO_INICIAL = {
@@ -45,9 +46,19 @@ function Icon({ nome, className = 'h-5 w-5' }) {
   return <Componente className={className} aria-hidden="true" strokeWidth={1.8} />;
 }
 
-function perfisComoTexto(perfis) {
-  if (Array.isArray(perfis)) return perfis.join(', ');
-  return perfis || '—';
+function perfilLabel(perfil, t) {
+  const labels = {
+    Consultor: t('admin_util_perfil_consultor'),
+    'Talent Manager': t('admin_util_perfil_talent'),
+    'Service Line': t('admin_util_perfil_sl'),
+    Administrador: t('admin_role_long'),
+  };
+  return labels[perfil] || perfil || '—';
+}
+
+function perfisComoTexto(perfis, t) {
+  if (Array.isArray(perfis)) return perfis.map((perfil) => perfilLabel(perfil, t)).join(', ');
+  return perfilLabel(perfis, t);
 }
 
 function perfilPrincipal(perfis) {
@@ -85,16 +96,16 @@ function prepararPayload(form, incluirPassword = false) {
   return payload;
 }
 
-function dadosUtilizadores(utilizadores) {
-  const headers = ['Nome', 'Email', 'Perfil', 'Service Line', 'Área', 'Data Registo', 'Estado', 'Último Login'];
+function dadosUtilizadores(utilizadores, t) {
+  const headers = [t('admin_lp_lbl_nome'), t('admin_rel_col_email'), t('admin_util_perfil'), 'Service Line', t('admin_rel_col_area'), t('admin_util_data_registo'), t('admin_dash_col_state'), t('admin_util_ultimo_login')];
   const linhas = utilizadores.map((u) => [
     u.nome,
     u.email,
-    perfisComoTexto(u.perfis),
+    perfisComoTexto(u.perfis, t),
     u.nome_service_line || '',
     u.nome_area || '',
     formatarData(u.created_at),
-    u.ativo ? 'Ativo' : 'Inativo',
+    u.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive'),
     formatarDataHora(u.ultimo_login),
   ]);
   return { headers, linhas };
@@ -130,7 +141,7 @@ function Modal({ titulo, children, onFechar, icon, iconTone = 'blue', size = 'md
   );
 }
 
-function FormUtilizador({ form, setForm, serviceLines, areas, modo, onSubmit, onCancelar, loading }) {
+function FormUtilizador({ form, setForm, serviceLines, areas, modo, onSubmit, onCancelar, loading, t }) {
   const areasFiltradas = useMemo(() => {
     if (!form.id_service_line) return areas;
     return areas.filter((a) => String(a.id_service_line) === String(form.id_service_line));
@@ -144,48 +155,48 @@ function FormUtilizador({ form, setForm, serviceLines, areas, modo, onSubmit, on
     <form onSubmit={onSubmit}>
       <div className="space-y-5 px-7 py-4">
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-900">Nome completo<span className="text-red-600">*</span></label>
-          <input className="input" required placeholder="Digite o nome completo" value={form.nome} onChange={(e) => atualizar('nome', e.target.value)} />
+          <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_util_nome_completo')}<span className="text-red-600">*</span></label>
+          <input className="input" required placeholder={t('admin_util_placeholder_nome')} value={form.nome} onChange={(e) => atualizar('nome', e.target.value)} />
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">Email<span className="text-red-600">*</span></label>
           <input className="input" type="email" required placeholder="email@softinsa.pt" value={form.email} onChange={(e) => atualizar('email', e.target.value)} />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-900">Perfil<span className="text-red-600">*</span></label>
+          <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_util_perfil')}<span className="text-red-600">*</span></label>
           <select className="input" required value={form.perfil} onChange={(e) => setForm((atual) => ({ ...atual, perfil: e.target.value, id_area: '', id_service_line: '' }))}>
-            <option value="">Selecione um perfil</option>
-            {PERFIS.map((p) => <option key={p} value={p}>{p}</option>)}
+            <option value="">{t('admin_util_select_perfil')}</option>
+            {PERFIS.map((p) => <option key={p} value={p}>{perfilLabel(p, t)}</option>)}
           </select>
         </div>
         {(form.perfil === 'Consultor' || form.perfil === 'Service Line') && (
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-900">Sevice Line<span className="text-red-600">*</span></label>
+            <label className="mb-2 block text-sm font-medium text-slate-900">Service Line<span className="text-red-600">*</span></label>
             <select className="input" value={form.id_service_line} onChange={(e) => setForm((atual) => ({ ...atual, id_service_line: e.target.value, id_area: '' }))}>
-              <option value="">Selecionar</option>
+              <option value="">{t('admin_util_selecionar')}</option>
               {serviceLines.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
             </select>
           </div>
         )}
         {form.perfil === 'Consultor' && (
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-900">Área<span className="text-red-600">*</span></label>
+            <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_rel_col_area')}<span className="text-red-600">*</span></label>
             <select className="input" value={form.id_area} onChange={(e) => atualizar('id_area', e.target.value)}>
-              <option value="">Selecionar</option>
+              <option value="">{t('admin_util_selecionar')}</option>
               {areasFiltradas.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
             </select>
           </div>
         )}
         <div>
-          <div className="mb-3 text-sm font-medium text-slate-900">Estado</div>
+          <div className="mb-3 text-sm font-medium text-slate-900">{t('admin_dash_col_state')}</div>
           <div className="flex gap-4 text-base text-slate-700">
             <label className="flex items-center gap-2">
               <input type="radio" className="h-4 w-4 text-softinsa-600" checked={form.ativo} onChange={() => atualizar('ativo', true)} />
-              Ativo
+              {t('admin_dash_notice_active')}
             </label>
             <label className="flex items-center gap-2">
               <input type="radio" className="h-4 w-4 text-softinsa-600" checked={!form.ativo} onChange={() => atualizar('ativo', false)} />
-              Inativo
+              {t('admin_dash_notice_inactive')}
             </label>
           </div>
         </div>
@@ -195,23 +206,23 @@ function FormUtilizador({ form, setForm, serviceLines, areas, modo, onSubmit, on
           <label className="flex items-start gap-2 text-sm font-semibold text-slate-900">
             <input type="checkbox" className="mt-1 h-4 w-4 rounded border-slate-300 text-softinsa-600" checked={form.forcar_alteracao_password} onChange={(e) => atualizar('forcar_alteracao_password', e.target.checked)} />
             <span>
-              Forçar alteração password no primeiro login
-              <span className="block text-xs font-normal text-slate-500">O utilizador será obrigado a alterar a password no primeiro acesso</span>
+              {t('admin_util_forcar_password')}
+              <span className="block text-xs font-normal text-slate-500">{t('admin_util_forcar_password_desc')}</span>
             </span>
           </label>
           <label className="flex items-start gap-2 text-sm font-semibold text-slate-900">
             <input type="checkbox" className="mt-1 h-4 w-4 rounded border-slate-300 text-softinsa-600" checked={form.enviar_email_confirmacao} onChange={(e) => atualizar('enviar_email_confirmacao', e.target.checked)} />
             <span>
-              Enviar email automático de confirmação
-              <span className="block text-xs font-normal text-slate-500">Será enviado um email com as credenciais de acesso</span>
+              {t('admin_util_enviar_email')}
+              <span className="block text-xs font-normal text-slate-500">{t('admin_util_enviar_email_desc')}</span>
             </span>
           </label>
         </div>
       )}
       <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">
-        <button type="button" className="btn-secondary" onClick={onCancelar}>Cancelar</button>
+        <button type="button" className="btn-secondary" onClick={onCancelar}>{t('admin_cancel')}</button>
         <button type="submit" className="btn-primary min-w-44" disabled={loading}>
-          {loading ? 'A guardar...' : modo === 'criar' ? 'Criar Utilizador' : 'Atualizar Utilizador'}
+          {loading ? t('admin_lp_a_guardar') : modo === 'criar' ? t('admin_util_criar') : t('admin_util_atualizar')}
         </button>
       </div>
     </form>
@@ -219,6 +230,7 @@ function FormUtilizador({ form, setForm, serviceLines, areas, modo, onSubmit, on
 }
 
 export default function AdminUtilizadores() {
+  const { t } = useLanguage();
   const qc = useQueryClient();
   const [filtros, setFiltros] = useState({ pesquisa: '', perfil: '', id_service_line: '', ativo: '' });
   const [pagina, setPagina] = useState(1);
@@ -252,7 +264,7 @@ export default function AdminUtilizadores() {
   const criar = useMutation({
     mutationFn: async () => (await api.post('/api/utilizadores', prepararPayload(form, true))).data,
     onSuccess: () => {
-      toast.success('Utilizador criado.');
+      toast.success(t('admin_util_toast_criado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'utilizadores'] });
     },
@@ -262,7 +274,7 @@ export default function AdminUtilizadores() {
   const atualizar = useMutation({
     mutationFn: async () => (await api.put(`/api/utilizadores/${modal.utilizador.id_utilizador}`, prepararPayload(form))).data,
     onSuccess: () => {
-      toast.success('Utilizador atualizado.');
+      toast.success(t('admin_util_toast_atualizado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'utilizadores'] });
     },
@@ -272,7 +284,7 @@ export default function AdminUtilizadores() {
   const alternarEstado = useMutation({
     mutationFn: async (u) => (await api.put(`/api/utilizadores/${u.id_utilizador}`, { ativo: !u.ativo })).data,
     onSuccess: () => {
-      toast.success('Estado atualizado.');
+      toast.success(t('admin_lp_toast_estado_atualizado'));
       qc.invalidateQueries({ queryKey: ['admin', 'utilizadores'] });
     },
     onError: (err) => toast.error(extrairErro(err)),
@@ -281,7 +293,7 @@ export default function AdminUtilizadores() {
   const reporPassword = useMutation({
     mutationFn: async () => (await api.post(`/api/utilizadores/${modal.utilizador.id_utilizador}/repor-password`)).data,
     onSuccess: () => {
-      toast.success('Password reposta. Email de instruções preparado.');
+      toast.success(t('admin_util_toast_password'));
       setModal(null);
     },
     onError: (err) => toast.error(extrairErro(err)),
@@ -335,35 +347,35 @@ export default function AdminUtilizadores() {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosUtilizadores(todos);
+      const { headers, linhas } = dadosUtilizadores(todos, t);
       descarregarCsv('utilizadores.csv', headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível exportar os utilizadores.'));
+      toast.error(extrairErro(err, t('admin_util_erro_exportar_excel')));
     }
   }
 
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosUtilizadores(todos);
-      imprimirTabela('Gestão de Utilizadores', headers, linhas);
+      const { headers, linhas } = dadosUtilizadores(todos, t);
+      imprimirTabela(t('admin_menu_utilizadores'), headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
+      toast.error(extrairErro(err, t('admin_lp_erro_exportar_pdf')));
     }
   }
 
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-[1560px] space-y-7">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <h1 className="text-2xl font-bold text-slate-900">Gestão de Utilizadores</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_utilizadores')}</h1>
         <div className="flex flex-wrap gap-3">
           <button type="button" className="btn-secondary" onClick={exportarExcel}>
-            <Icon nome="file" className="h-4 w-4" /> Exportar Excel
+            <Icon nome="file" className="h-4 w-4" /> {t('admin_sla_export_excel')}
           </button>
           <button type="button" className="btn-secondary" onClick={exportarPdf}>
-            <Icon nome="file" className="h-4 w-4" /> Exportar PDF
+            <Icon nome="file" className="h-4 w-4" /> {t('admin_sla_export_pdf')}
           </button>
-          <button type="button" className="btn-primary" onClick={abrirCriacao}>Criar Utilizador</button>
+          <button type="button" className="btn-primary" onClick={abrirCriacao}>{t('admin_util_criar')}</button>
         </div>
       </header>
 
@@ -373,26 +385,26 @@ export default function AdminUtilizadores() {
             <Icon nome="search" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
               className="input pl-10"
-              placeholder="Pesquisar utilizador"
+              placeholder={t('admin_util_pesquisar')}
               value={filtros.pesquisa}
               onChange={(e) => { setFiltros((f) => ({ ...f, pesquisa: e.target.value })); setPagina(1); }}
             />
           </label>
           <select className="input" value={filtros.perfil} onChange={(e) => { setFiltros((f) => ({ ...f, perfil: e.target.value })); setPagina(1); }}>
-            <option value="">Perfil (Todos)</option>
-            {PERFIS.map((p) => <option key={p} value={p}>{p}</option>)}
+            <option value="">{t('admin_util_perfil_todos')}</option>
+            {PERFIS.map((p) => <option key={p} value={p}>{perfilLabel(p, t)}</option>)}
           </select>
           <select className="input" value={filtros.id_service_line} onChange={(e) => { setFiltros((f) => ({ ...f, id_service_line: e.target.value })); setPagina(1); }}>
-            <option value="">Service line (Todas)</option>
+            <option value="">{t('admin_areas_sls_todas')}</option>
             {sls.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
           </select>
           <select className="input" value={filtros.ativo} onChange={(e) => { setFiltros((f) => ({ ...f, ativo: e.target.value })); setPagina(1); }}>
-            <option value="">Estado (Todos)</option>
-            <option value="1">Ativo</option>
-            <option value="0">Inativo</option>
+            <option value="">{t('admin_notif_estado_todos')}</option>
+            <option value="1">{t('admin_dash_notice_active')}</option>
+            <option value="0">{t('admin_dash_notice_inactive')}</option>
           </select>
           <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
-            <Icon nome="x" className="h-4 w-4" /> Limpar Filtros
+            <Icon nome="x" className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}
           </button>
         </div>
       </section>
@@ -400,48 +412,48 @@ export default function AdminUtilizadores() {
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-[1320px] w-full text-sm">
-            <thead className="bg-slate-50 text-xs font-bold text-slate-600">
+            <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-5 py-4 text-left">Nome</th>
-                <th className="px-5 py-4 text-left">Email</th>
-                <th className="px-5 py-4 text-left">Perfil</th>
-                <th className="px-5 py-4 text-left">Service Line</th>
-                <th className="px-5 py-4 text-left">Área</th>
-                <th className="px-5 py-4 text-left">Data Registo</th>
-                <th className="px-5 py-4 text-left">Estado</th>
-                <th className="px-5 py-4 text-left">Último Login</th>
-                <th className="px-5 py-4 text-center">Ações</th>
+                <th className="px-4 py-4 text-left">{t('admin_lp_lbl_nome')}</th>
+                <th className="px-4 py-4 text-left">{t('admin_rel_col_email')}</th>
+                <th className="px-4 py-4 text-left">{t('admin_util_perfil')}</th>
+                <th className="px-4 py-4 text-left">Service Line</th>
+                <th className="px-4 py-4 text-left">{t('admin_rel_col_area')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_util_data_registo')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_dash_col_state')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_util_ultimo_login')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_sla_col_acoes')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {carregando ? (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">A carregar utilizadores...</td></tr>
+                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">{t('admin_util_a_carregar')}</td></tr>
               ) : lista.map((u) => (
                 <tr key={u.id_utilizador} className="text-slate-700">
-                  <td className="px-5 py-4 font-medium text-slate-800">{u.nome}</td>
-                  <td className="px-5 py-4 text-slate-500">{u.email}</td>
-                  <td className="px-5 py-4">{perfisComoTexto(u.perfis)}</td>
-                  <td className="px-5 py-4 text-slate-500">{u.nome_service_line || '—'}</td>
-                  <td className="px-5 py-4 text-slate-500">{u.nome_area || '—'}</td>
-                  <td className="px-5 py-4 text-slate-500">{formatarData(u.created_at)}</td>
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-5 font-medium text-slate-800">{u.nome}</td>
+                  <td className="px-4 py-5 text-slate-500">{u.email}</td>
+                  <td className="px-4 py-5">{perfisComoTexto(u.perfis, t)}</td>
+                  <td className="px-4 py-5 text-slate-500">{u.nome_service_line || '—'}</td>
+                  <td className="px-4 py-5 text-slate-500">{u.nome_area || '—'}</td>
+                  <td className="px-4 py-5 text-center text-slate-600">{formatarData(u.created_at)}</td>
+                  <td className="px-4 py-5 text-center">
                     <span className={`badge-pill ${u.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                      {u.ativo ? 'Ativo' : 'Inativo'}
+                      {u.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}
                     </span>
                   </td>
-                  <td className="px-5 py-4 text-slate-500">{formatarDataHora(u.ultimo_login)}</td>
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-5 text-center text-slate-600">{formatarDataHora(u.ultimo_login)}</td>
+                  <td className="px-4 py-5 text-center">
                     <div className="flex items-center justify-center gap-4 text-softinsa-700">
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Ver" onClick={() => setModal({ tipo: 'ver', utilizador: u })}><Icon nome="eye" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Editar" onClick={() => abrirEdicao(u)}><Icon nome="edit" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={u.ativo ? 'Desativar' : 'Ativar'} onClick={() => u.ativo ? setModal({ tipo: 'desativar', utilizador: u }) : alternarEstado.mutate(u)}><Icon nome="power" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Repor password" onClick={() => setModal({ tipo: 'password', utilizador: u })}><Icon nome="key" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_ver')} onClick={() => setModal({ tipo: 'ver', utilizador: u })}><Icon nome="eye" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_editar')} onClick={() => abrirEdicao(u)}><Icon nome="edit" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={u.ativo ? t('admin_lp_desativar') : t('admin_lp_ativar')} onClick={() => u.ativo ? setModal({ tipo: 'desativar', utilizador: u }) : alternarEstado.mutate(u)}><Icon nome="power" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_util_repor_password')} onClick={() => setModal({ tipo: 'password', utilizador: u })}><Icon nome="key" className="h-5 w-5" /></button>
                     </div>
                   </td>
                 </tr>
               ))}
               {!carregando && lista.length === 0 && (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">Nenhum utilizador encontrado.</td></tr>
+                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">{t('admin_util_vazio')}</td></tr>
               )}
             </tbody>
           </table>
@@ -453,13 +465,12 @@ export default function AdminUtilizadores() {
           porPagina={porPagina}
           itensNaPagina={linhasMostradas}
           onMudarPagina={setPagina}
-          rotulo="utilizadores"
-          className="px-5"
+          rotulo={t('admin_short_utilizadores').toLowerCase()}
         />
       </section>
 
       {modal?.tipo === 'criar' && (
-        <Modal titulo="Criar Utilizador" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_util_criar')} onFechar={() => setModal(null)}>
           <FormUtilizador
             form={form}
             setForm={setForm}
@@ -469,12 +480,13 @@ export default function AdminUtilizadores() {
             onSubmit={(e) => { e.preventDefault(); criar.mutate(); }}
             onCancelar={() => setModal(null)}
             loading={criar.isPending}
+            t={t}
           />
         </Modal>
       )}
 
       {modal?.tipo === 'editar' && (
-        <Modal titulo="Editar Utilizador" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_util_editar')} onFechar={() => setModal(null)}>
           <FormUtilizador
             form={form}
             setForm={setForm}
@@ -484,50 +496,51 @@ export default function AdminUtilizadores() {
             onSubmit={(e) => { e.preventDefault(); atualizar.mutate(); }}
             onCancelar={() => setModal(null)}
             loading={atualizar.isPending}
+            t={t}
           />
         </Modal>
       )}
 
       {modal?.tipo === 'ver' && (
-        <Modal titulo="Detalhe do Utilizador" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_util_detalhe')} onFechar={() => setModal(null)}>
           <div className="grid grid-cols-1 gap-4 px-6 py-5 text-sm md:grid-cols-2">
-            <div><div className="text-slate-500">Nome</div><div className="font-semibold">{modal.utilizador.nome}</div></div>
-            <div><div className="text-slate-500">Email</div><div className="font-semibold">{modal.utilizador.email}</div></div>
-            <div><div className="text-slate-500">Perfil</div><div className="font-semibold">{perfisComoTexto(modal.utilizador.perfis)}</div></div>
+            <div><div className="text-slate-500">{t('admin_lp_lbl_nome')}</div><div className="font-semibold">{modal.utilizador.nome}</div></div>
+            <div><div className="text-slate-500">{t('admin_rel_col_email')}</div><div className="font-semibold">{modal.utilizador.email}</div></div>
+            <div><div className="text-slate-500">{t('admin_util_perfil')}</div><div className="font-semibold">{perfisComoTexto(modal.utilizador.perfis, t)}</div></div>
             <div><div className="text-slate-500">Service Line</div><div className="font-semibold">{modal.utilizador.nome_service_line || '—'}</div></div>
-            <div><div className="text-slate-500">Área</div><div className="font-semibold">{modal.utilizador.nome_area || '—'}</div></div>
-            <div><div className="text-slate-500">Data Registo</div><div className="font-semibold">{formatarData(modal.utilizador.created_at)}</div></div>
-            <div><div className="text-slate-500">Último Login</div><div className="font-semibold">{formatarDataHora(modal.utilizador.ultimo_login)}</div></div>
-            <div><div className="text-slate-500">Estado</div><div className="font-semibold">{modal.utilizador.ativo ? 'Ativo' : 'Inativo'}</div></div>
+            <div><div className="text-slate-500">{t('admin_rel_col_area')}</div><div className="font-semibold">{modal.utilizador.nome_area || '—'}</div></div>
+            <div><div className="text-slate-500">{t('admin_util_data_registo')}</div><div className="font-semibold">{formatarData(modal.utilizador.created_at)}</div></div>
+            <div><div className="text-slate-500">{t('admin_util_ultimo_login')}</div><div className="font-semibold">{formatarDataHora(modal.utilizador.ultimo_login)}</div></div>
+            <div><div className="text-slate-500">{t('admin_dash_col_state')}</div><div className="font-semibold">{modal.utilizador.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}</div></div>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'password' && (
-        <Modal titulo="Reset Password" icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_util_reset_password')} icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
           <div className="px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza de que pretende fazer o reset da password do utilizador “{modal.utilizador.nome}”? Será enviado um email com as instruções.
+              {t('admin_util_reset_confirm').replace('{nome}', modal.utilizador.nome)}
             </p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button type="button" className="btn bg-orange-500 px-7 text-white hover:bg-orange-600" disabled={reporPassword.isPending} onClick={() => reporPassword.mutate()}>
-              {reporPassword.isPending ? 'A confirmar...' : 'Confirmar'}
+              {reporPassword.isPending ? t('admin_lp_a_confirmar') : t('admin_lp_confirmar')}
             </button>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'desativar' && (
-        <Modal titulo="Desativar Utilizador" icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_util_desativar')} icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
           <div className="px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende desativar o utilizador “{modal.utilizador.nome}”?
+              {t('admin_util_desativar_confirm').replace('{nome}', modal.utilizador.nome)}
             </p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button
               type="button"
               className="btn bg-orange-500 px-7 text-white hover:bg-orange-600"
@@ -536,7 +549,7 @@ export default function AdminUtilizadores() {
                 alternarEstado.mutate(modal.utilizador, { onSuccess: () => setModal(null) });
               }}
             >
-              {alternarEstado.isPending ? 'A desativar...' : 'Desativar'}
+              {alternarEstado.isPending ? t('admin_areas_a_desativar') : t('admin_lp_desativar')}
             </button>
           </div>
         </Modal>

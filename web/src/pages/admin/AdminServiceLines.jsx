@@ -17,6 +17,7 @@ import { api, extrairErro } from '../../lib/api';
 import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
 import Paginacao from '../../components/admin/Paginacao';
+import { useLanguage } from '../../context/LanguageContext';
 
 const ESTADO_INICIAL = {
   nome: '',
@@ -52,15 +53,22 @@ function prepararPayload(form) {
   };
 }
 
-function dadosServiceLines(items) {
-  const headers = ['Nome da Service Line', 'Learning Path', 'Nº de Áreas', 'Nº de Badges', 'Data de Criação', 'Estado'];
+function dadosServiceLines(items, t) {
+  const headers = [
+    t('admin_sl_col_nome'),
+    t('admin_rel_col_lp'),
+    t('admin_rel_col_nr_areas'),
+    t('admin_rel_col_nr_badges'),
+    t('admin_lp_col_data_criacao'),
+    t('admin_dash_col_state'),
+  ];
   const linhas = items.map((sl) => [
     sl.nome,
     sl.nome_learning_path || '',
     sl.total_areas || 0,
     sl.total_badges || 0,
     formatarData(sl.created_at),
-    sl.ativo ? 'Ativo' : 'Inativo',
+    sl.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive'),
   ]);
   return { headers, linhas };
 }
@@ -95,7 +103,7 @@ function Modal({ titulo, children, onFechar, icon, iconTone = 'blue', size = 'md
   );
 }
 
-function FormServiceLine({ form, setForm, learningPaths, modo, onSubmit, onCancelar, loading }) {
+function FormServiceLine({ form, setForm, learningPaths, modo, onSubmit, onCancelar, loading, t }) {
   function atualizar(campo, valor) {
     setForm((atual) => ({ ...atual, [campo]: valor }));
   }
@@ -105,7 +113,7 @@ function FormServiceLine({ form, setForm, learningPaths, modo, onSubmit, onCance
       <div className="space-y-5 px-7 py-4">
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Nome da Service Line<span className="text-red-600">*</span>
+            {t('admin_sl_col_nome')}<span className="text-red-600">*</span>
           </label>
           <input
             className="input"
@@ -117,7 +125,7 @@ function FormServiceLine({ form, setForm, learningPaths, modo, onSubmit, onCance
         </div>
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Learning Path<span className="text-red-600">*</span>
+            {t('admin_rel_col_lp')}<span className="text-red-600">*</span>
           </label>
           <select
             className="input"
@@ -125,7 +133,7 @@ function FormServiceLine({ form, setForm, learningPaths, modo, onSubmit, onCance
             value={form.id_learning_path}
             onChange={(e) => atualizar('id_learning_path', e.target.value)}
           >
-            <option value="">Selecione um Learning Path</option>
+            <option value="">{t('admin_sl_select_lp')}</option>
             {learningPaths.map((lp) => (
               <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>
             ))}
@@ -133,33 +141,33 @@ function FormServiceLine({ form, setForm, learningPaths, modo, onSubmit, onCance
         </div>
         {modo === 'editar' && (
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-900">Descrição</label>
+            <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_lp_descricao')}</label>
             <textarea
               className="input min-h-24 resize-y"
-              placeholder="Descrição interna da service line"
+              placeholder={t('admin_sl_placeholder_descricao')}
               value={form.descricao || ''}
               onChange={(e) => atualizar('descricao', e.target.value)}
             />
           </div>
         )}
         <div>
-          <div className="mb-3 text-sm font-medium text-slate-900">Estado</div>
+          <div className="mb-3 text-sm font-medium text-slate-900">{t('admin_dash_col_state')}</div>
           <div className="flex gap-4 text-base text-slate-700">
             <label className="flex items-center gap-2">
               <input type="radio" className="h-4 w-4 text-softinsa-600" checked={form.ativo} onChange={() => atualizar('ativo', true)} />
-              Ativo
+              {t('admin_dash_notice_active')}
             </label>
             <label className="flex items-center gap-2">
               <input type="radio" className="h-4 w-4 text-softinsa-600" checked={!form.ativo} onChange={() => atualizar('ativo', false)} />
-              Inativo
+              {t('admin_dash_notice_inactive')}
             </label>
           </div>
         </div>
       </div>
       <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">
-        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>Cancelar</button>
+        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>{t('admin_cancel')}</button>
         <button type="submit" className="btn-primary min-w-44" disabled={loading}>
-          {loading ? 'A guardar...' : modo === 'criar' ? 'Criar Service Line' : 'Atualizar Service Line'}
+          {loading ? t('admin_lp_a_guardar') : modo === 'criar' ? t('admin_sl_criar') : t('admin_sl_btn_atualizar')}
         </button>
       </div>
     </form>
@@ -167,6 +175,7 @@ function FormServiceLine({ form, setForm, learningPaths, modo, onSubmit, onCance
 }
 
 export default function AdminServiceLines() {
+  const { t } = useLanguage();
   const qc = useQueryClient();
   const [filtros, setFiltros] = useState({ pesquisa: '', id_learning_path: '', ativo: '' });
   const [pagina, setPagina] = useState(1);
@@ -194,7 +203,7 @@ export default function AdminServiceLines() {
   const criar = useMutation({
     mutationFn: async () => (await api.post('/api/service-lines', prepararPayload(form))).data,
     onSuccess: () => {
-      toast.success('Service Line criada.');
+      toast.success(t('admin_sl_toast_criada'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'service-lines'] });
       qc.invalidateQueries({ queryKey: ['admin', 'learning-paths'] });
@@ -206,7 +215,7 @@ export default function AdminServiceLines() {
   const atualizar = useMutation({
     mutationFn: async () => (await api.put(`/api/service-lines/${modal.serviceLine.id_service_line}`, prepararPayload(form))).data,
     onSuccess: () => {
-      toast.success('Service Line atualizada.');
+      toast.success(t('admin_sl_toast_atualizada'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'service-lines'] });
       qc.invalidateQueries({ queryKey: ['admin', 'learning-paths'] });
@@ -218,7 +227,7 @@ export default function AdminServiceLines() {
   const alternarEstado = useMutation({
     mutationFn: async (sl) => (await api.put(`/api/service-lines/${sl.id_service_line}`, { ativo: !sl.ativo })).data,
     onSuccess: () => {
-      toast.success('Estado atualizado.');
+      toast.success(t('admin_lp_toast_estado_atualizado'));
       qc.invalidateQueries({ queryKey: ['admin', 'service-lines'] });
     },
     onError: (err) => toast.error(extrairErro(err)),
@@ -227,7 +236,7 @@ export default function AdminServiceLines() {
   const eliminar = useMutation({
     mutationFn: async () => (await api.delete(`/api/service-lines/${modal.serviceLine.id_service_line}`)).data,
     onSuccess: () => {
-      toast.success('Service Line eliminada.');
+      toast.success(t('admin_sl_toast_eliminada'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'service-lines'] });
       qc.invalidateQueries({ queryKey: ['admin', 'learning-paths'] });
@@ -264,30 +273,30 @@ export default function AdminServiceLines() {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosServiceLines(todos);
+      const { headers, linhas } = dadosServiceLines(todos, t);
       descarregarCsv('service-lines.csv', headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível exportar as service lines.'));
+      toast.error(extrairErro(err, t('admin_sl_erro_exportar_excel')));
     }
   }
 
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosServiceLines(todos);
-      imprimirTabela('Gestão de Service Lines', headers, linhas);
+      const { headers, linhas } = dadosServiceLines(todos, t);
+      imprimirTabela(t('admin_menu_service_lines'), headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
+      toast.error(extrairErro(err, t('admin_lp_erro_exportar_pdf')));
     }
   }
 
   function abrirCriacao() {
     if (learningPaths.isLoading) {
-      toast('A carregar Learning Paths. Tenta novamente dentro de instantes.');
+      toast(t('admin_sl_a_carregar_lps'));
       return;
     }
     if (lps.length === 0) {
-      toast.error('Antes de criar uma Service Line, cria primeiro um Learning Path.');
+      toast.error(t('admin_sl_erro_sem_lp'));
       return;
     }
 
@@ -313,16 +322,16 @@ export default function AdminServiceLines() {
   return (
     <div className="mx-auto max-w-[1420px] space-y-7">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Service Lines</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_service_lines')}</h1>
         <div className="flex flex-wrap gap-3">
           <button type="button" className="btn-secondary" onClick={exportarExcel}>
-            <Icon nome="file" className="h-4 w-4" /> Exportar Excel
+            <Icon nome="file" className="h-4 w-4" /> {t('admin_sla_export_excel')}
           </button>
           <button type="button" className="btn-secondary" onClick={exportarPdf}>
-            <Icon nome="download" className="h-4 w-4" /> Exportar PDF
+            <Icon nome="download" className="h-4 w-4" /> {t('admin_sla_export_pdf')}
           </button>
           <button type="button" className="btn-primary" onClick={abrirCriacao}>
-            <Icon nome="plus" className="h-4 w-4" /> Criar Service Line
+            <Icon nome="plus" className="h-4 w-4" /> {t('admin_sl_criar')}
           </button>
         </div>
       </header>
@@ -333,45 +342,45 @@ export default function AdminServiceLines() {
             <Icon nome="search" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
               className="input pl-10"
-              placeholder="Pesquisar service line..."
+              placeholder={t('admin_sl_pesquisar')}
               value={filtros.pesquisa}
               onChange={(e) => { setFiltros((f) => ({ ...f, pesquisa: e.target.value })); setPagina(1); }}
             />
           </label>
           <select className="input" value={filtros.id_learning_path} onChange={(e) => { setFiltros((f) => ({ ...f, id_learning_path: e.target.value })); setPagina(1); }}>
-            <option value="">Learning paths (Todos)</option>
+            <option value="">{t('admin_sl_lps_todos')}</option>
             {lps.map((lp) => <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>)}
           </select>
           <select className="input" value={filtros.ativo} onChange={(e) => { setFiltros((f) => ({ ...f, ativo: e.target.value })); setPagina(1); }}>
-            <option value="">Estado (Todos)</option>
-            <option value="1">Ativo</option>
-            <option value="0">Inativo</option>
+            <option value="">{t('admin_notif_estado_todos')}</option>
+            <option value="1">{t('admin_dash_notice_active')}</option>
+            <option value="0">{t('admin_dash_notice_inactive')}</option>
           </select>
           <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
-            <Icon nome="x" className="h-4 w-4" /> Limpar Filtros
+            <Icon nome="x" className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}
           </button>
         </div>
       </section>
 
-      <div className="text-sm text-slate-500">{total} resultados encontrados</div>
+      <div className="text-sm text-slate-500">{t('admin_sl_resultados').replace('{total}', total)}</div>
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-[1120px] w-full text-sm">
             <thead className="bg-slate-50 text-sm font-bold text-slate-700">
               <tr>
-                <th className="px-6 py-4 text-left">Nome da Service Line</th>
-                <th className="px-6 py-4 text-left">Learning Path</th>
-                <th className="px-6 py-4 text-center">Nº de Áreas</th>
-                <th className="px-6 py-4 text-center">Nº de Badges</th>
-                <th className="px-6 py-4 text-center">Data de Criação</th>
-                <th className="px-6 py-4 text-center">Estado</th>
-                <th className="px-6 py-4 text-center">Ações</th>
+                <th className="px-6 py-4 text-left">{t('admin_sl_col_nome')}</th>
+                <th className="px-6 py-4 text-left">{t('admin_rel_col_lp')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_rel_col_nr_areas')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_rel_col_nr_badges')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_lp_col_data_criacao')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_dash_col_state')}</th>
+                <th className="px-6 py-4 text-center">{t('admin_sla_col_acoes')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {serviceLines.isLoading ? (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500">A carregar service lines...</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500">{t('admin_sl_a_carregar')}</td></tr>
               ) : lista.map((sl) => (
                 <tr key={sl.id_service_line} className="text-slate-700">
                   <td className="px-6 py-5 font-medium text-slate-800">{sl.nome}</td>
@@ -381,21 +390,21 @@ export default function AdminServiceLines() {
                   <td className="px-6 py-5 text-center text-slate-600">{formatarData(sl.created_at)}</td>
                   <td className="px-6 py-5 text-center">
                     <span className={`badge-pill ${sl.ativo ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                      {sl.ativo ? 'Ativo' : 'Inativo'}
+                      {sl.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}
                     </span>
                   </td>
                   <td className="px-6 py-5">
                     <div className="flex items-center justify-center gap-4 text-softinsa-700">
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Ver" onClick={() => setModal({ tipo: 'ver', serviceLine: sl })}><Icon nome="eye" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Editar" onClick={() => abrirEdicao(sl)}><Icon nome="edit" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={sl.ativo ? 'Desativar' : 'Ativar'} onClick={() => sl.ativo ? setModal({ tipo: 'desativar', serviceLine: sl }) : alternarEstado.mutate(sl)}><Icon nome="power" className="h-5 w-5" /></button>
-                      <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title="Eliminar" onClick={() => setModal({ tipo: 'eliminar', serviceLine: sl })}><Icon nome="trash" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_ver')} onClick={() => setModal({ tipo: 'ver', serviceLine: sl })}><Icon nome="eye" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_editar')} onClick={() => abrirEdicao(sl)}><Icon nome="edit" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={sl.ativo ? t('admin_lp_desativar') : t('admin_lp_ativar')} onClick={() => sl.ativo ? setModal({ tipo: 'desativar', serviceLine: sl }) : alternarEstado.mutate(sl)}><Icon nome="power" className="h-5 w-5" /></button>
+                      <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title={t('admin_notif_eliminar')} onClick={() => setModal({ tipo: 'eliminar', serviceLine: sl })}><Icon nome="trash" className="h-5 w-5" /></button>
                     </div>
                   </td>
                 </tr>
               ))}
               {!serviceLines.isLoading && lista.length === 0 && (
-                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500">Nenhuma service line encontrada.</td></tr>
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-slate-500">{t('admin_sl_vazio')}</td></tr>
               )}
             </tbody>
           </table>
@@ -414,7 +423,7 @@ export default function AdminServiceLines() {
       />
 
       {modal?.tipo === 'criar' && (
-        <Modal titulo="Criar Service Line" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_sl_criar')} onFechar={() => setModal(null)}>
           <FormServiceLine
             form={form}
             setForm={setForm}
@@ -423,12 +432,13 @@ export default function AdminServiceLines() {
             onSubmit={(e) => { e.preventDefault(); criar.mutate(); }}
             onCancelar={() => setModal(null)}
             loading={criar.isPending}
+            t={t}
           />
         </Modal>
       )}
 
       {modal?.tipo === 'editar' && (
-        <Modal titulo="Editar Service Line" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_sl_modal_editar_titulo')} onFechar={() => setModal(null)}>
           <FormServiceLine
             form={form}
             setForm={setForm}
@@ -437,33 +447,34 @@ export default function AdminServiceLines() {
             onSubmit={(e) => { e.preventDefault(); atualizar.mutate(); }}
             onCancelar={() => setModal(null)}
             loading={atualizar.isPending}
+            t={t}
           />
         </Modal>
       )}
 
       {modal?.tipo === 'ver' && (
-        <Modal titulo="Detalhe da Service Line" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_sl_modal_detalhe_titulo')} onFechar={() => setModal(null)}>
           <div className="grid grid-cols-1 gap-4 px-7 py-5 text-sm md:grid-cols-2">
-            <div><div className="text-slate-500">Nome</div><div className="font-semibold">{modal.serviceLine.nome}</div></div>
-            <div><div className="text-slate-500">Learning Path</div><div className="font-semibold">{modal.serviceLine.nome_learning_path}</div></div>
-            <div><div className="text-slate-500">Áreas</div><div className="font-semibold">{modal.serviceLine.total_areas || 0}</div></div>
-            <div><div className="text-slate-500">Badges</div><div className="font-semibold">{modal.serviceLine.total_badges || 0}</div></div>
-            <div><div className="text-slate-500">Data de Criação</div><div className="font-semibold">{formatarData(modal.serviceLine.created_at)}</div></div>
-            <div><div className="text-slate-500">Estado</div><div className="font-semibold">{modal.serviceLine.ativo ? 'Ativo' : 'Inativo'}</div></div>
-            <div className="md:col-span-2"><div className="text-slate-500">Descrição</div><div className="font-semibold">{modal.serviceLine.descricao || '—'}</div></div>
+            <div><div className="text-slate-500">{t('admin_lp_lbl_nome')}</div><div className="font-semibold">{modal.serviceLine.nome}</div></div>
+            <div><div className="text-slate-500">{t('admin_rel_col_lp')}</div><div className="font-semibold">{modal.serviceLine.nome_learning_path}</div></div>
+            <div><div className="text-slate-500">{t('admin_sl_lbl_areas')}</div><div className="font-semibold">{modal.serviceLine.total_areas || 0}</div></div>
+            <div><div className="text-slate-500">{t('admin_lp_lbl_badges')}</div><div className="font-semibold">{modal.serviceLine.total_badges || 0}</div></div>
+            <div><div className="text-slate-500">{t('admin_lp_col_data_criacao')}</div><div className="font-semibold">{formatarData(modal.serviceLine.created_at)}</div></div>
+            <div><div className="text-slate-500">{t('admin_dash_col_state')}</div><div className="font-semibold">{modal.serviceLine.ativo ? t('admin_dash_notice_active') : t('admin_dash_notice_inactive')}</div></div>
+            <div className="md:col-span-2"><div className="text-slate-500">{t('admin_lp_descricao')}</div><div className="font-semibold">{modal.serviceLine.descricao || '—'}</div></div>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'desativar' && (
-        <Modal titulo="Desativar Service Line" icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_sl_modal_desativar_titulo')} icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
           <div className="px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende desativar a Service Line “{modal.serviceLine.nome}”?
+              {t('admin_sl_desativar_confirm').replace('{nome}', modal.serviceLine.nome)}
             </p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button
               type="button"
               className="btn bg-orange-500 px-7 text-white hover:bg-orange-600"
@@ -472,24 +483,24 @@ export default function AdminServiceLines() {
                 alternarEstado.mutate(modal.serviceLine, { onSuccess: () => setModal(null) });
               }}
             >
-              {alternarEstado.isPending ? 'A confirmar...' : 'Confirmar'}
+              {alternarEstado.isPending ? t('admin_lp_a_confirmar') : t('admin_lp_confirmar')}
             </button>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'eliminar' && (
-        <Modal titulo="Eliminar Service Line" icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_sl_modal_eliminar_titulo')} icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
           <div className="space-y-4 px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende eliminar a Service Line “{modal.serviceLine.nome}”?
+              {t('admin_sl_eliminar_confirm').replace('{nome}', modal.serviceLine.nome)}
             </p>
-            <p className="font-medium text-red-500">Esta ação não pode ser revertida!</p>
+            <p className="font-medium text-red-500">{t('admin_notif_irreversivel')}</p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button type="button" className="btn bg-red-600 px-7 text-white hover:bg-red-700" disabled={eliminar.isPending} onClick={() => eliminar.mutate()}>
-              {eliminar.isPending ? 'A eliminar...' : 'Eliminar'}
+              {eliminar.isPending ? t('admin_notif_a_eliminar') : t('admin_notif_eliminar')}
             </button>
           </div>
         </Modal>

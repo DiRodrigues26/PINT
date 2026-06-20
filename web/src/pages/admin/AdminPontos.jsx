@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { formatarData } from '../../lib/formatar';
 import Paginacao from '../../components/admin/Paginacao';
+import { useLanguage } from '../../context/LanguageContext';
 
 const POR_PAGINA = 8;
 
@@ -50,26 +51,34 @@ function dataExpiracao(badge) {
   return data.toISOString();
 }
 
-function estadoBadge(badge) {
-  if (badge.estado_badge) return badge.estado_badge;
-  if (badge.ativo === 0 || badge.ativo === false) return 'Inativo';
+function estadoBadgeValor(badge) {
+  if (badge.estado_badge === 'Inativo' || badge.estado_badge === 'INATIVO') return 'INATIVO';
+  if (badge.estado_badge === 'Expirado' || badge.estado_badge === 'EXPIRADO') return 'EXPIRADO';
+  if (badge.estado_badge === 'Ativo' || badge.estado_badge === 'ATIVO') return 'ATIVO';
+  if (badge.ativo === 0 || badge.ativo === false) return 'INATIVO';
   const expira = dataExpiracao(badge);
-  if (expira && new Date(expira).getTime() < Date.now()) return 'Expirado';
-  return 'Ativo';
+  if (expira && new Date(expira).getTime() < Date.now()) return 'EXPIRADO';
+  return 'ATIVO';
 }
 
 function estadoClasses(estado) {
-  if (estado === 'Inativo') return 'bg-rose-100 text-rose-700';
-  if (estado === 'Expirado') return 'bg-yellow-100 text-yellow-800';
+  if (estado === 'INATIVO') return 'bg-rose-100 text-rose-700';
+  if (estado === 'EXPIRADO') return 'bg-yellow-100 text-yellow-800';
   return 'bg-emerald-100 text-emerald-700';
+}
+
+function estadoLabel(estado, t) {
+  if (estado === 'INATIVO') return t('admin_dash_notice_inactive');
+  if (estado === 'EXPIRADO') return t('admin_pontos_expirado');
+  return t('admin_dash_notice_active');
 }
 
 function numero(valor) {
   return new Intl.NumberFormat('pt-PT').format(Number(valor) || 0);
 }
 
-function dadosPontos(items) {
-  const headers = ['Nome do Badge', 'Learning Path', 'Service Line', 'Área', 'Nível', 'Pontos atuais', 'Estado'];
+function dadosPontos(items, t) {
+  const headers = [t('admin_pontos_col_badge'), t('admin_rel_col_lp'), 'Service Line', t('admin_rel_col_area'), t('admin_dash_level'), t('admin_pontos_atuais'), t('admin_dash_col_state')];
   const linhas = items.map((badge) => [
     badge.titulo,
     badge.nome_learning_path || '',
@@ -77,12 +86,13 @@ function dadosPontos(items) {
     badge.nome_area || '',
     dificuldade(badge),
     badge.pontos || 0,
-    estadoBadge(badge),
+    estadoLabel(estadoBadgeValor(badge), t),
   ]);
   return { headers, linhas };
 }
 
 export default function AdminPontos({ onEditarBadge }) {
+  const { t } = useLanguage();
   const [filtros, setFiltros] = useState({
     pesquisa: '',
     id_learning_path: '',
@@ -213,20 +223,20 @@ export default function AdminPontos({ onEditarBadge }) {
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosPontos(todos);
+      const { headers, linhas } = dadosPontos(todos, t);
       descarregarCsv('gestao-pontos.csv', headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível exportar os pontos.'));
+      toast.error(extrairErro(err, t('admin_pontos_erro_exportar_excel')));
     }
   }
 
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosPontos(todos);
-      imprimirTabela('Gestão de Pontos', headers, linhas);
+      const { headers, linhas } = dadosPontos(todos, t);
+      imprimirTabela(t('admin_menu_pontos'), headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
+      toast.error(extrairErro(err, t('admin_lp_erro_exportar_pdf')));
     }
   }
 
@@ -235,13 +245,13 @@ export default function AdminPontos({ onEditarBadge }) {
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
         <div className="space-y-6">
           <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Pontos</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_pontos')}</h1>
             <div className="flex flex-wrap gap-3">
               <button type="button" className="btn-secondary" onClick={exportarExcel}>
-                <Icon icon={Download} className="h-4 w-4" /> Exportar Excel
+                <Icon icon={Download} className="h-4 w-4" /> {t('admin_sla_export_excel')}
               </button>
               <button type="button" className="btn-secondary" onClick={exportarPdf}>
-                <Icon icon={FileText} className="h-4 w-4" /> Exportar PDF
+                <Icon icon={FileText} className="h-4 w-4" /> {t('admin_sla_export_pdf')}
               </button>
             </div>
           </header>
@@ -252,25 +262,25 @@ export default function AdminPontos({ onEditarBadge }) {
                 <Icon icon={Search} className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
                 <input
                   className="input pl-10"
-                  placeholder="Pesquisar badge..."
+                  placeholder={t('admin_pontos_pesquisar')}
                   value={filtros.pesquisa}
                   onChange={(e) => atualizarFiltro('pesquisa', e.target.value)}
                 />
               </label>
               <select className="input" value={filtros.id_learning_path} onChange={(e) => atualizarFiltro('id_learning_path', e.target.value)}>
-                <option value="">Learning paths (Todos)</option>
+                <option value="">{t('admin_sl_lps_todos')}</option>
                 {lps.map((lp) => <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>)}
               </select>
               <select className="input" value={filtros.id_service_line} onChange={(e) => atualizarFiltro('id_service_line', e.target.value)}>
-                <option value="">Service Lines (Todas)</option>
+                <option value="">{t('admin_areas_sls_todas')}</option>
                 {serviceLinesFiltro.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
               </select>
               <select className="input" value={filtros.id_area} onChange={(e) => atualizarFiltro('id_area', e.target.value)}>
-                <option value="">Área (Todas)</option>
+                <option value="">{t('admin_cand_area_todas')}</option>
                 {areasFiltro.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
               </select>
               <select className="input" value={filtros.id_nivel} onChange={(e) => atualizarFiltro('id_nivel', e.target.value)}>
-                <option value="">Nível (Todos)</option>
+                <option value="">{t('admin_req_nivel_todos')}</option>
                 {niveisFiltro.map((nivel) => (
                   <option key={nivel.id_nivel} value={nivel.id_nivel}>
                     {nivel.codigo_nivel} - {nivel.nome_nivel}
@@ -278,7 +288,7 @@ export default function AdminPontos({ onEditarBadge }) {
                 ))}
               </select>
               <button type="button" className="btn-secondary w-full border-softinsa-600 text-softinsa-700 sm:w-fit xl:col-start-1" onClick={limparFiltros}>
-                <Icon icon={X} className="h-4 w-4" /> Limpar Filtros
+                <Icon icon={X} className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}
               </button>
             </div>
           </section>
@@ -288,21 +298,21 @@ export default function AdminPontos({ onEditarBadge }) {
               <table className="min-w-[1180px] w-full text-sm">
                 <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="px-4 py-4 text-left">Nome do Badge</th>
-                    <th className="px-4 py-4 text-left">Learning Path</th>
+                    <th className="px-4 py-4 text-left">{t('admin_pontos_col_badge')}</th>
+                    <th className="px-4 py-4 text-left">{t('admin_rel_col_lp')}</th>
                     <th className="px-4 py-4 text-left">Service Line</th>
-                    <th className="px-4 py-4 text-left">Área</th>
-                    <th className="px-4 py-4 text-left">Nível</th>
-                    <th className="px-4 py-4 text-center">Pontos atuais</th>
-                    <th className="px-4 py-4 text-center">Estado</th>
-                    <th className="px-4 py-4 text-center">Ações</th>
+                    <th className="px-4 py-4 text-left">{t('admin_rel_col_area')}</th>
+                    <th className="px-4 py-4 text-left">{t('admin_dash_level')}</th>
+                    <th className="px-4 py-4 text-center">{t('admin_pontos_atuais')}</th>
+                    <th className="px-4 py-4 text-center">{t('admin_dash_col_state')}</th>
+                    <th className="px-4 py-4 text-center">{t('admin_sla_col_acoes')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   {badges.isLoading ? (
-                    <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">A carregar pontos...</td></tr>
+                    <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">{t('admin_pontos_a_carregar')}</td></tr>
                   ) : lista.map((badge) => {
-                    const estado = estadoBadge(badge);
+                    const estado = estadoBadgeValor(badge);
                     return (
                       <tr key={badge.id_badge} className="text-slate-700">
                         <td className="px-4 py-5 font-semibold text-slate-800">{badge.titulo}</td>
@@ -316,7 +326,7 @@ export default function AdminPontos({ onEditarBadge }) {
                           </span>
                         </td>
                         <td className="px-4 py-5 text-center">
-                          <span className={`badge-pill ${estadoClasses(estado)}`}>{estado}</span>
+                          <span className={`badge-pill ${estadoClasses(estado)}`}>{estadoLabel(estado, t)}</span>
                         </td>
                         <td className="px-4 py-5 text-center">
                           <button
@@ -325,14 +335,14 @@ export default function AdminPontos({ onEditarBadge }) {
                             onClick={() => onEditarBadge?.(badge.id_badge)}
                           >
                             <Icon icon={Pencil} className="h-4 w-4" />
-                            Editar Badge
+                            {t('admin_pontos_editar_badge')}
                           </button>
                         </td>
                       </tr>
                     );
                   })}
                   {!badges.isLoading && lista.length === 0 && (
-                    <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">Nenhum badge encontrado.</td></tr>
+                    <tr><td colSpan={8} className="px-5 py-12 text-center text-slate-500">{t('admin_pontos_vazio')}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -352,7 +362,7 @@ export default function AdminPontos({ onEditarBadge }) {
           <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center gap-2 text-base font-bold text-slate-800">
               <Icon icon={Trophy} className="h-5 w-5 text-softinsa-600" />
-              Top 5 Consultores
+              {t('admin_pontos_top_consultores')}
             </div>
             <div className="space-y-4">
               {(stats.ranking || []).map((item, idx) => (
@@ -362,32 +372,32 @@ export default function AdminPontos({ onEditarBadge }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium text-slate-800">{item.nome}</div>
-                    <div className="text-xs text-slate-400">{numero(item.total_badges)} badges</div>
+                    <div className="text-xs text-slate-400">{t('admin_pontos_badges_count').replace('{total}', numero(item.total_badges))}</div>
                   </div>
                   <div className="font-bold text-softinsa-700">{numero(item.pontos_totais)}</div>
                 </div>
               ))}
-              {(stats.ranking || []).length === 0 && <div className="text-sm text-slate-500">Sem pontos atribuídos.</div>}
+              {(stats.ranking || []).length === 0 && <div className="text-sm text-slate-500">{t('admin_pontos_sem_pontos')}</div>}
             </div>
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-2 text-base font-bold text-slate-800">
               <Icon icon={TrendingUp} className="h-5 w-5 text-softinsa-600" />
-              Total de Pontos
+              {t('admin_pontos_total')}
             </div>
             <div className="text-4xl font-bold text-softinsa-700">{numero(stats.total_pontos)}</div>
-            <div className="mt-2 text-sm text-slate-400">Distribuídos na plataforma</div>
+            <div className="mt-2 text-sm text-slate-400">{t('admin_pontos_distribuidos')}</div>
           </section>
 
           <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-2 text-base font-bold text-slate-800">
               <Icon icon={Medal} className="h-5 w-5 text-softinsa-600" />
-              Badge Mais Valioso
+              {t('admin_pontos_badge_valioso')}
             </div>
             <div className="text-xl font-bold text-slate-800">{stats.badge_mais_valioso?.titulo || '-'}</div>
             <div className="mt-2 text-3xl font-bold text-softinsa-700">
-              {numero(stats.badge_mais_valioso?.pontos)} pontos
+              {t('admin_pontos_pontos_count').replace('{total}', numero(stats.badge_mais_valioso?.pontos))}
             </div>
             {stats.badge_mais_valioso?.nome_area && (
               <div className="mt-3 text-sm text-slate-500">

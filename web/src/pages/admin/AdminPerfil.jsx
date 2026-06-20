@@ -7,14 +7,14 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { ModalAlterarPassword, Modal2FA, ModalDesativar2FA } from '../../components/PerfilSeguranca';
 
-/* Modal de editar dados (admin só altera o nome) */
 function ModalEditarNome({ utilizador, onFechar, onSucesso }) {
+  const { t } = useLanguage();
   const [nome, setNome] = useState(utilizador?.nome || '');
 
   const guardar = useMutation({
     mutationFn: () => api.put('/api/utilizadores/eu/perfil', { nome: nome.trim() }),
-    onSuccess: () => { toast.success('Perfil atualizado.'); onSucesso(); onFechar(); },
-    onError: (err) => toast.error(extrairErro(err, 'Erro ao atualizar perfil.')),
+    onSuccess: () => { toast.success(t('admin_perfil_sucesso_atualizado')); onSucesso(); onFechar(); },
+    onError: (err) => toast.error(extrairErro(err, t('admin_perfil_erro_atualizar'))),
   });
 
   return (
@@ -22,8 +22,8 @@ function ModalEditarNome({ utilizador, onFechar, onSucesso }) {
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Editar Perfil</h2>
-            <p className="mt-0.5 text-xs text-slate-500">Atualize as suas informações pessoais.</p>
+            <h2 className="text-base font-bold text-slate-900">{t('admin_perfil_editar_titulo')}</h2>
+            <p className="mt-0.5 text-xs text-slate-500">{t('admin_perfil_editar_subtitulo')}</p>
           </div>
           <button type="button" onClick={onFechar} className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 transition">
             <X className="h-5 w-5" strokeWidth={2} />
@@ -32,7 +32,7 @@ function ModalEditarNome({ utilizador, onFechar, onSucesso }) {
 
         <div className="space-y-4 px-6 py-5">
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Nome Completo</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('admin_perfil_nome_completo')}</label>
             <input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
@@ -40,19 +40,19 @@ function ModalEditarNome({ utilizador, onFechar, onSucesso }) {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Email</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('admin_perfil_email')}</label>
             <input
               value={utilizador?.email || ''}
               disabled
               className="w-full rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm text-slate-400"
             />
-            <p className="mt-1 text-[11px] text-slate-400">O email não pode ser alterado aqui.</p>
+            <p className="mt-1 text-[11px] text-slate-400">{t('admin_perfil_email_aviso')}</p>
           </div>
         </div>
 
         <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
           <button type="button" onClick={onFechar} className="flex-1 rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-            Cancelar
+            {t('admin_perfil_cancelar')}
           </button>
           <button
             type="button"
@@ -60,7 +60,7 @@ function ModalEditarNome({ utilizador, onFechar, onSucesso }) {
             disabled={guardar.isPending || !nome.trim()}
             className="flex-1 rounded-lg bg-softinsa-700 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-800 disabled:opacity-60"
           >
-            {guardar.isPending ? 'A guardar...' : 'Guardar Alterações'}
+            {guardar.isPending ? t('admin_perfil_a_guardar') : t('admin_perfil_guardar_alteracoes')}
           </button>
         </div>
       </div>
@@ -70,7 +70,7 @@ function ModalEditarNome({ utilizador, onFechar, onSucesso }) {
 
 export default function AdminPerfil() {
   const { utilizador, recarregar } = useAuth();
-  const { idioma, mudarIdioma } = useLanguage();
+  const { idioma, mudarIdioma, t } = useLanguage();
   const queryClient = useQueryClient();
 
   const [modalEditar, setModalEditar] = useState(false);
@@ -80,7 +80,7 @@ export default function AdminPerfil() {
 
   const nome = utilizador?.nome || 'Admin';
   const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0].toUpperCase()).join('');
-  const perfis = utilizador?.perfis?.join(', ') || 'Administrador';
+  const perfis = utilizador?.perfis?.join(', ') || t('admin_role_long');
 
   const { data: totpData, refetch: refetchTotp } = useQuery({
     queryKey: ['totp-estado'],
@@ -97,14 +97,14 @@ export default function AdminPerfil() {
       {modalDesativar2FA && <ModalDesativar2FA onFechar={() => setModalDesativar2FA(false)} onSucesso={() => { refetchTotp(); recarregar(); queryClient.invalidateQueries({ queryKey: ['totp-estado'] }); }} />}
 
       <header>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Perfil</h1>
-        <p className="mt-1 text-sm text-slate-500">Gira os seus dados de conta, segurança e preferências.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_perfil_titulo')}</h1>
+        <p className="mt-1 text-sm text-slate-500">{t('admin_perfil_subtitulo')}</p>
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Informações */}
         <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">Informações da Conta</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">{t('admin_perfil_info_conta')}</p>
           <div className="mt-4 flex items-start gap-4">
             <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-softinsa-600 text-xl font-bold text-white">
               {iniciais}
@@ -120,11 +120,11 @@ export default function AdminPerfil() {
                   onClick={() => setModalEditar(true)}
                   className="flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
                 >
-                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} /> Editar Perfil
+                  <Pencil className="h-3.5 w-3.5" strokeWidth={1.8} /> {t('admin_perfil_editar_perfil')}
                 </button>
               </div>
               <div className="mt-3 text-xs">
-                <span className="text-slate-400">Perfil</span>
+                <span className="text-slate-400">{t('admin_perfil_perfil_label')}</span>
                 <p className="font-semibold text-slate-700">{perfis}</p>
               </div>
             </div>
@@ -133,9 +133,9 @@ export default function AdminPerfil() {
 
         {/* Preferências */}
         <section className="rounded-2xl bg-white p-6 shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">Preferências</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">{t('admin_perfil_preferencias')}</p>
           <div className="mt-4">
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Idioma da Plataforma</label>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700">{t('admin_perfil_idioma_plataforma')}</label>
             <select
               value={idioma}
               onChange={(e) => mudarIdioma(e.target.value)}
@@ -151,7 +151,7 @@ export default function AdminPerfil() {
 
       {/* Segurança */}
       <section className="rounded-2xl bg-white p-6 shadow-sm">
-        <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">Segurança</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-softinsa-700">{t('admin_perfil_seguranca')}</p>
         <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
           {/* Alterar Password */}
           <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-4">
@@ -160,12 +160,12 @@ export default function AdminPerfil() {
                 <KeyRound className="h-5 w-5 text-slate-500" strokeWidth={1.8} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-800">Alterar Password</p>
-                <p className="text-xs text-slate-500">Atualize a sua palavra-passe.</p>
+                <p className="text-sm font-semibold text-slate-800">{t('admin_perfil_alterar_password')}</p>
+                <p className="text-xs text-slate-500">{t('admin_perfil_atualize_password')}</p>
               </div>
             </div>
             <button type="button" onClick={() => setModalPassword(true)} className="rounded-lg border border-slate-200 bg-white px-4 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-              Alterar
+              {t('admin_perfil_alterar')}
             </button>
           </div>
 
@@ -177,21 +177,21 @@ export default function AdminPerfil() {
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-800">
-                  Autenticação de Dois Fatores
+                  {t('admin_perfil_2fa_titulo')}
                   <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${totpAtivo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
-                    {totpAtivo ? 'Ativo' : 'Desativado'}
+                    {totpAtivo ? t('admin_perfil_2fa_ativo') : t('admin_perfil_2fa_desativado')}
                   </span>
                 </p>
-                <p className="text-xs text-slate-500">{totpAtivo ? 'A sua conta está protegida.' : 'Adicione uma camada extra de segurança.'}</p>
+                <p className="text-xs text-slate-500">{totpAtivo ? t('admin_perfil_2fa_protegida') : t('admin_perfil_2fa_adicionar_camada')}</p>
               </div>
             </div>
             {totpAtivo ? (
               <button type="button" onClick={() => setModalDesativar2FA(true)} className="rounded-lg border border-red-200 bg-white px-4 py-1.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition">
-                Desativar
+                {t('admin_perfil_desativar')}
               </button>
             ) : (
               <button type="button" onClick={() => setModal2FA(true)} className="rounded-lg bg-softinsa-700 px-4 py-1.5 text-sm font-semibold text-white hover:bg-softinsa-800 transition">
-                Ativar
+                {t('admin_perfil_ativar')}
               </button>
             )}
           </div>

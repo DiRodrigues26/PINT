@@ -20,6 +20,7 @@ import { descarregarCsv, imprimirTabela } from '../../lib/exportar';
 import { formatarData } from '../../lib/formatar';
 import UploadImagemAdmin from '../../components/UploadImagemAdmin';
 import Paginacao from '../../components/admin/Paginacao';
+import { useLanguage } from '../../context/LanguageContext';
 
 const ICONES = {
   calendar: CalendarDays,
@@ -35,13 +36,7 @@ const ICONES = {
   x: X,
 };
 
-const NIVEIS = {
-  A: 'Júnior',
-  B: 'Intermédio',
-  C: 'Sénior',
-  D: 'Especialista',
-  E: 'Líder de conhecimento',
-};
+const CODIGOS_NIVEL = ['A', 'B', 'C', 'D', 'E'];
 
 const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Badge', 'Outro'];
 
@@ -142,21 +137,32 @@ function dataExpiracao(badge) {
 
 function estadoBadge(badge) {
   if (badge.estado_badge) return badge.estado_badge;
-  if (badge.ativo === 0 || badge.ativo === false) return 'Inativo';
+  if (badge.ativo === 0 || badge.ativo === false) return 'INATIVO';
   const expira = dataExpiracao(badge);
-  if (expira && new Date(expira).getTime() < Date.now()) return 'Expirado';
-  return 'Ativo';
+  if (expira && new Date(expira).getTime() < Date.now()) return 'EXPIRADO';
+  return 'ATIVO';
 }
 
 function estadoClasses(estado) {
-  if (estado === 'Inativo') return 'bg-rose-100 text-rose-700';
-  if (estado === 'Expirado') return 'bg-yellow-100 text-yellow-800';
+  if (estado === 'INATIVO' || estado === 'Inativo') return 'bg-rose-100 text-rose-700';
+  if (estado === 'EXPIRADO' || estado === 'Expirado') return 'bg-yellow-100 text-yellow-800';
   return 'bg-emerald-100 text-emerald-700';
 }
 
-function expiracaoTexto(badge) {
+function estadoLabel(estado, t) {
+  return {
+    ATIVO: t('admin_dash_notice_active'),
+    Ativo: t('admin_dash_notice_active'),
+    INATIVO: t('admin_dash_notice_inactive'),
+    Inativo: t('admin_dash_notice_inactive'),
+    EXPIRADO: t('admin_pontos_expirado'),
+    Expirado: t('admin_pontos_expirado'),
+  }[estado] || estado;
+}
+
+function expiracaoTexto(badge, t) {
   const expira = dataExpiracao(badge);
-  return expira ? formatarData(expira) : 'Não tem';
+  return expira ? formatarData(expira) : t('admin_badges_sem_expiracao');
 }
 
 function formatarDataInput(valor) {
@@ -176,21 +182,21 @@ function adicionarDias(dataBase, dias) {
   return formatarDataInput(data);
 }
 
-function calcularValidadeDias(form, badgeAtual = null) {
+function calcularValidadeDias(form, badgeAtual = null, t) {
   if (!form.tem_expiracao) return null;
 
   if (form.tipo_expiracao === 'data') {
-    if (!form.data_expiracao) throw new Error('Seleciona a data específica de expiração.');
+    if (!form.data_expiracao) throw new Error(t('admin_badges_erro_data_expiracao'));
     const base = badgeAtual?.created_at ? new Date(badgeAtual.created_at) : new Date();
     const alvo = new Date(`${form.data_expiracao}T23:59:59`);
-    if (Number.isNaN(alvo.getTime())) throw new Error('Seleciona uma data de expiração válida.');
+    if (Number.isNaN(alvo.getTime())) throw new Error(t('admin_badges_erro_data_valida'));
     const dias = Math.ceil((alvo.getTime() - base.getTime()) / 86400000);
-    if (dias < 1) throw new Error('A data de expiração tem de ser posterior à data de criação do badge.');
+    if (dias < 1) throw new Error(t('admin_badges_erro_data_posterior'));
     return dias;
   }
 
   const valor = Number(form.valor_expiracao);
-  if (!Number.isFinite(valor) || valor < 1) throw new Error('A duração da expiração deve ser superior a zero.');
+  if (!Number.isFinite(valor) || valor < 1) throw new Error(t('admin_badges_erro_duracao'));
   if (form.tipo_expiracao === 'meses') return valor * 30;
   if (form.tipo_expiracao === 'anos') return valor * 365;
   return valor;
@@ -223,17 +229,17 @@ function encontrarNivelNoContexto({ codigo, nivelAtual, filtros, niveis }) {
   return niveis.find((item) => item.codigo_nivel === codigo) || null;
 }
 
-function prepararPayload(form, niveis, badgeAtual = null) {
+function prepararPayload(form, niveis, badgeAtual = null, t) {
   const nivel = form.id_nivel
     ? niveis.find((item) => String(item.id_nivel) === String(form.id_nivel))
     : null;
 
   if (!form.id_area || !nivel || String(nivel.id_area) !== String(form.id_area)) {
-    throw new Error('Seleciona o Learning Path, Service Line, Área e Nível onde este badge vai ficar.');
+    throw new Error(t('admin_badges_erro_hierarquia'));
   }
 
   if ((form.requisitos.length + form.requisitosNovos.length) === 0) {
-    throw new Error('O badge deve ter pelo menos um requisito.');
+    throw new Error(t('admin_badges_erro_requisito'));
   }
 
   return {
@@ -243,7 +249,7 @@ function prepararPayload(form, niveis, badgeAtual = null) {
     pontos: Number(form.pontos) || 0,
     imagem_url: form.imagem_url || null,
     tem_expiracao: form.tem_expiracao,
-    validade_dias: calcularValidadeDias(form, badgeAtual),
+    validade_dias: calcularValidadeDias(form, badgeAtual, t),
     ativo: form.ativo,
     requisitos: form.requisitos,
     requisitosNovos: form.requisitosNovos,
@@ -255,8 +261,18 @@ function separarPayloadBadge(payload) {
   return { dadosBadge, requisitosNovos };
 }
 
-function dadosBadges(items) {
-  const headers = ['Nome do Badge', 'Nível Associado', 'Área', 'Service Line', 'Learning Path', 'Pontos', 'Expiração', 'Data Criação', 'Estado'];
+function dadosBadges(items, t) {
+  const headers = [
+    t('admin_pontos_col_badge'),
+    t('admin_badges_col_nivel_associado'),
+    t('admin_rel_col_area'),
+    t('admin_dash_col_service_line'),
+    t('admin_rel_col_lp'),
+    t('admin_pontos_atuais'),
+    t('admin_eventos_expiracao'),
+    t('admin_lp_col_data_criacao'),
+    t('admin_dash_col_state'),
+  ];
   const linhas = items.map((badge) => [
     badge.titulo,
     dificuldade(badge),
@@ -264,11 +280,21 @@ function dadosBadges(items) {
     badge.nome_service_line || '',
     badge.nome_learning_path || '',
     badge.pontos || 0,
-    expiracaoTexto(badge),
+    expiracaoTexto(badge, t),
     formatarData(badge.created_at),
-    estadoBadge(badge),
+    estadoLabel(estadoBadge(badge), t),
   ]);
   return { headers, linhas };
+}
+
+function tipoEvidenciaLabel(tipo, t) {
+  return {
+    Certificado: t('admin_badges_tipo_certificado'),
+    Curso: t('admin_eventos_tipo_curso'),
+    Documento: t('admin_badges_tipo_documento'),
+    Badge: t('admin_dash_col_badge'),
+    Outro: t('admin_badges_tipo_outro'),
+  }[tipo] || tipo;
 }
 
 function FormBadge({
@@ -285,6 +311,7 @@ function FormBadge({
   onSubmit,
   onCancelar,
   loading,
+  t,
 }) {
   const serviceLinesDoForm = useMemo(() => {
     if (!form.id_learning_path) return serviceLines;
@@ -427,7 +454,7 @@ function FormBadge({
   function adicionarNovoRequisito() {
     const novo = form.novoRequisito;
     if (!novo.titulo.trim()) {
-      toast.error('Título do requisito é obrigatório.');
+      toast.error(t('admin_badges_erro_titulo_requisito'));
       return;
     }
 
@@ -465,22 +492,22 @@ function FormBadge({
       <div className="max-h-[72vh] space-y-6 overflow-y-auto px-7 py-4">
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Título do badge<span className="text-red-600">*</span>
+            {t('admin_badges_titulo_badge')}<span className="text-red-600">*</span>
           </label>
           <input
             className="input"
             required
-            placeholder="Badge"
+            placeholder={t('admin_dash_col_badge')}
             value={form.titulo}
             onChange={(e) => setForm((atual) => ({ ...atual, titulo: e.target.value }))}
           />
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-900">Descrição</label>
+          <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_lp_descricao')}</label>
           <textarea
             className="input min-h-24 resize-y"
-            placeholder="Descrição do badge (mostrada aos consultores no catálogo)"
+            placeholder={t('admin_badges_placeholder_descricao')}
             value={form.descricao}
             onChange={(e) => setForm((atual) => ({ ...atual, descricao: e.target.value }))}
           />
@@ -490,7 +517,7 @@ function FormBadge({
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-900">
-                Learning Path<span className="text-red-600">*</span>
+                {t('admin_rel_col_lp')}<span className="text-red-600">*</span>
               </label>
               <select
                 className="input"
@@ -498,13 +525,13 @@ function FormBadge({
                 value={form.id_learning_path}
                 onChange={(e) => atualizarHierarquia('id_learning_path', e.target.value)}
               >
-                <option value="">Selecione um Learning Path</option>
+                <option value="">{t('admin_sl_select_lp')}</option>
                 {learningPaths.map((lp) => <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>)}
               </select>
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-900">
-                Service Line<span className="text-red-600">*</span>
+                {t('admin_dash_col_service_line')}<span className="text-red-600">*</span>
               </label>
               <select
                 className="input"
@@ -512,13 +539,13 @@ function FormBadge({
                 value={form.id_service_line}
                 onChange={(e) => atualizarHierarquia('id_service_line', e.target.value)}
               >
-                <option value="">Selecione uma Service Line</option>
+                <option value="">{t('admin_areas_select_sl')}</option>
                 {serviceLinesDoForm.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
               </select>
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-slate-900">
-                Área<span className="text-red-600">*</span>
+                {t('admin_rel_col_area')}<span className="text-red-600">*</span>
               </label>
               <select
                 className="input"
@@ -526,7 +553,7 @@ function FormBadge({
                 value={form.id_area}
                 onChange={(e) => atualizarHierarquia('id_area', e.target.value)}
               >
-                <option value="">Selecione uma Área</option>
+                <option value="">{t('admin_niveis_select_area')}</option>
                 {areasDoForm.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
               </select>
             </div>
@@ -535,7 +562,7 @@ function FormBadge({
 
         <div>
           <label className="mb-2 block text-sm font-medium text-slate-900">
-            Nível<span className="text-red-600">*</span>
+            {t('admin_dash_level')}<span className="text-red-600">*</span>
           </label>
           <select
             className="input"
@@ -544,7 +571,7 @@ function FormBadge({
             value={form.id_nivel}
             onChange={(e) => atualizarHierarquia('id_nivel', e.target.value)}
           >
-            <option value="">{form.id_area ? 'Selecione um nível da área escolhida' : 'Selecione primeiro uma Área'}</option>
+            <option value="">{form.id_area ? t('admin_badges_select_nivel_area') : t('admin_badges_select_area_primeiro')}</option>
             {niveisDoForm.map((nivel) => (
               <option key={nivel.id_nivel} value={nivel.id_nivel}>
                 {nivel.codigo_nivel} - {nivel.nome_nivel}
@@ -554,7 +581,7 @@ function FormBadge({
         </div>
 
         <div>
-          <label className="mb-2 block text-sm font-medium text-slate-900">Pontos do badge</label>
+          <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_badges_pontos')}</label>
           <input
             type="number"
             min="0"
@@ -566,7 +593,7 @@ function FormBadge({
 
         <div>
           <label className="mb-3 block text-sm font-medium text-slate-900">
-            Imagem do badge<span className="text-red-600">*</span>
+            {t('admin_badges_imagem')}<span className="text-red-600">*</span>
           </label>
           <UploadImagemAdmin
             contexto="badges"
@@ -584,7 +611,7 @@ function FormBadge({
               checked={form.tem_expiracao}
               onChange={(e) => setForm((atual) => ({ ...atual, tem_expiracao: e.target.checked }))}
             />
-            Data expiração
+            {t('admin_badges_data_expiracao')}
           </label>
           <div className="grid grid-cols-[140px_1fr] gap-5">
             <select
@@ -598,10 +625,10 @@ function FormBadge({
                 data_expiracao: atual.data_expiracao || adicionarDias(new Date(), atual.valor_expiracao || 30),
               }))}
             >
-              <option value="dias">Dias</option>
-              <option value="meses">Meses</option>
-              <option value="anos">Anos</option>
-              <option value="data">Data específica</option>
+              <option value="dias">{t('admin_badges_exp_dias')}</option>
+              <option value="meses">{t('admin_badges_exp_meses')}</option>
+              <option value="anos">{t('admin_badges_exp_anos')}</option>
+              <option value="data">{t('admin_badges_exp_data')}</option>
             </select>
             {form.tipo_expiracao === 'data' ? (
               <label className="relative block">
@@ -633,29 +660,25 @@ function FormBadge({
 
         <div>
           <label className="mb-3 block text-sm font-medium text-slate-900">
-            Requisitos<span className="text-red-600">*</span>
+            {t('admin_badges_requisitos')}<span className="text-red-600">*</span>
           </label>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-[1fr_180px_220px]">
             <label className="relative block">
               <Icon nome="search" className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
               <input
                 className="input pl-11"
-                placeholder="Pesquisar requisitos..."
+                placeholder={t('admin_eventos_pesquisar_requisitos')}
                 value={form.pesquisaRequisito}
                 onChange={(e) => atualizarFiltroRequisitos('pesquisaRequisito', e.target.value)}
               />
             </label>
             <select className="input" value={form.filtroNivelRequisito} onChange={(e) => atualizarFiltroRequisitos('filtroNivelRequisito', e.target.value)}>
-              <option value="">Nível (Todos)</option>
-              {Object.keys(NIVEIS).map((codigo) => <option key={codigo} value={codigo}>{codigo}</option>)}
+              <option value="">{t('admin_req_nivel_todos')}</option>
+              {CODIGOS_NIVEL.map((codigo) => <option key={codigo} value={codigo}>{codigo}</option>)}
             </select>
             <select className="input" value={form.filtroTipoRequisito} onChange={(e) => atualizarFiltroRequisitos('filtroTipoRequisito', e.target.value)}>
-              <option value="">Tipo evidência (Todos)</option>
-              <option value="Certificado">Certificado</option>
-              <option value="Curso">Curso</option>
-              <option value="Documento">Documento</option>
-              <option value="Badge">Badge</option>
-              <option value="Outro">Outro</option>
+              <option value="">{t('admin_req_tipo_todos')}</option>
+              {TIPOS_EVIDENCIA.map((tipo) => <option key={tipo} value={tipo}>{tipoEvidenciaLabel(tipo, t)}</option>)}
             </select>
           </div>
 
@@ -664,10 +687,10 @@ function FormBadge({
               <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="w-16 px-4 py-4 text-center"></th>
-                  <th className="px-4 py-4 text-center">Título</th>
-                  <th className="px-4 py-4 text-center">Descrição</th>
-                  <th className="px-4 py-4 text-center">Nível</th>
-                  <th className="px-4 py-4 text-center">Tipo evidência</th>
+                  <th className="px-4 py-4 text-center">{t('admin_rel_col_titulo')}</th>
+                  <th className="px-4 py-4 text-center">{t('admin_lp_descricao')}</th>
+                  <th className="px-4 py-4 text-center">{t('admin_dash_level')}</th>
+                  <th className="px-4 py-4 text-center">{t('admin_req_tipo_evidencia')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
@@ -684,7 +707,7 @@ function FormBadge({
                     <td className="px-4 py-4 text-center font-medium text-slate-800">{req.titulo}</td>
                     <td className="px-4 py-4 text-center text-slate-600" title={req.descricao || ''}>{descricaoCurta(req.descricao)}</td>
                     <td className="px-4 py-4 text-center text-slate-600">{dificuldade(req)}</td>
-                    <td className="px-4 py-4 text-center text-slate-600">{req.tipo_evidencia || '—'}</td>
+                    <td className="px-4 py-4 text-center text-slate-600">{tipoEvidenciaLabel(req.tipo_evidencia, t) || '—'}</td>
                   </tr>
                 ))}
                 {form.requisitosNovos.map((req) => (
@@ -697,13 +720,13 @@ function FormBadge({
                     <td className="px-4 py-4 text-center text-slate-600">{form.codigo_nivel}</td>
                     <td className="px-4 py-4 text-center text-slate-600">
                       <button type="button" className="font-semibold text-red-600 hover:underline" onClick={() => removerNovoRequisito(req.id_temporario)}>
-                        Remover
+                        {t('admin_badges_remover')}
                       </button>
                     </td>
                   </tr>
                 ))}
                 {requisitosFiltrados.length === 0 && form.requisitosNovos.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Sem requisitos disponíveis.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">{t('admin_badges_sem_requisitos')}</td></tr>
                 )}
               </tbody>
             </table>
@@ -722,45 +745,45 @@ function FormBadge({
                 className="btn-primary"
                 onClick={() => setForm((atual) => ({ ...atual, novoRequisito: { ...atual.novoRequisito, aberto: true } }))}
               >
-                <Icon nome="plus" className="h-4 w-4" /> Criar Requisito
+                <Icon nome="plus" className="h-4 w-4" /> {t('admin_eventos_criar_requisito')}
               </button>
             </Paginacao>
           </div>
 
           {form.novoRequisito.aberto && (
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-4 text-sm font-bold text-slate-900">Novo requisito deste badge</div>
+              <div className="mb-4 text-sm font-bold text-slate-900">{t('admin_badges_novo_requisito')}</div>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-900">Título<span className="text-red-600">*</span></label>
+                  <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_rel_col_titulo')}<span className="text-red-600">*</span></label>
                   <input
                     className="input bg-white"
                     value={form.novoRequisito.titulo}
                     onChange={(e) => atualizarNovoRequisito('titulo', e.target.value)}
-                    placeholder="Título do requisito"
+                    placeholder={t('admin_req_placeholder_titulo')}
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-900">Tipo de evidência</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_req_tipo_evidencia')}</label>
                   <select
                     className="input bg-white"
                     value={form.novoRequisito.tipo_evidencia}
                     onChange={(e) => atualizarNovoRequisito('tipo_evidencia', e.target.value)}
                   >
-                    {TIPOS_EVIDENCIA.map((tipo) => <option key={tipo} value={tipo}>{tipo}</option>)}
+                    {TIPOS_EVIDENCIA.map((tipo) => <option key={tipo} value={tipo}>{tipoEvidenciaLabel(tipo, t)}</option>)}
                   </select>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-slate-900">Descrição</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_lp_descricao')}</label>
                   <textarea
                     className="input min-h-[84px] bg-white py-3"
                     value={form.novoRequisito.descricao}
                     onChange={(e) => atualizarNovoRequisito('descricao', e.target.value)}
-                    placeholder="Descreve a evidência necessária."
+                    placeholder={t('admin_badges_placeholder_evidencia')}
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-slate-900">Imagem</label>
+                  <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_req_imagem')}</label>
                   <UploadImagemAdmin
                     contexto="requisitos"
                     valor={form.novoRequisito.imagem_url}
@@ -769,32 +792,32 @@ function FormBadge({
                 </div>
               </div>
               <div className="mt-4 flex justify-end gap-3">
-                <button type="button" className="btn-secondary" onClick={limparNovoRequisito}>Cancelar</button>
-                <button type="button" className="btn-primary" onClick={adicionarNovoRequisito}>Adicionar ao Badge</button>
+                <button type="button" className="btn-secondary" onClick={limparNovoRequisito}>{t('admin_cancel')}</button>
+                <button type="button" className="btn-primary" onClick={adicionarNovoRequisito}>{t('admin_badges_adicionar_badge')}</button>
               </div>
             </div>
           )}
         </div>
 
         <div>
-          <div className="mb-3 text-sm font-medium text-slate-900">Estado</div>
+          <div className="mb-3 text-sm font-medium text-slate-900">{t('admin_dash_col_state')}</div>
           <div className="flex gap-5 text-base text-slate-700">
             <label className="flex items-center gap-2">
               <input type="radio" className="h-4 w-4 text-softinsa-600" checked={form.ativo} onChange={() => setForm((atual) => ({ ...atual, ativo: true }))} />
-              Ativo
+              {t('admin_dash_notice_active')}
             </label>
             <label className="flex items-center gap-2">
               <input type="radio" className="h-4 w-4 text-softinsa-600" checked={!form.ativo} onChange={() => setForm((atual) => ({ ...atual, ativo: false }))} />
-              Inativo
+              {t('admin_dash_notice_inactive')}
             </label>
           </div>
         </div>
       </div>
 
       <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">
-        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>Cancelar</button>
+        <button type="button" className="btn-secondary px-6" onClick={onCancelar}>{t('admin_cancel')}</button>
         <button type="submit" className="btn-primary min-w-36" disabled={loading}>
-          {loading ? 'A guardar...' : modo === 'criar' ? 'Criar Badge' : 'Editar Badge'}
+          {loading ? t('admin_lp_a_guardar') : modo === 'criar' ? t('admin_eventos_criar_badge') : t('admin_pontos_editar_badge')}
         </button>
       </div>
     </form>
@@ -802,6 +825,7 @@ function FormBadge({
 }
 
 export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumido }) {
+  const { t } = useLanguage();
   const location = useLocation();
   const qc = useQueryClient();
   const [filtros, setFiltros] = useState({
@@ -859,7 +883,7 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
 
   const criar = useMutation({
     mutationFn: async () => {
-      const { dadosBadge, requisitosNovos } = separarPayloadBadge(prepararPayload(form, listaNiveis));
+      const { dadosBadge, requisitosNovos } = separarPayloadBadge(prepararPayload(form, listaNiveis, null, t));
       const criado = (await api.post('/api/badges', dadosBadge)).data;
       await Promise.all((requisitosNovos || []).map((req, idx) => api.post('/api/requisitos', {
         id_badge: criado.id_badge,
@@ -874,7 +898,7 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
       return criado;
     },
     onSuccess: () => {
-      toast.success('Badge criado.');
+      toast.success(t('admin_badges_toast_criado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'badges'] });
       qc.invalidateQueries({ queryKey: ['admin', 'requisitos'] });
@@ -886,7 +910,7 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
 
   const atualizar = useMutation({
     mutationFn: async () => {
-      const { dadosBadge, requisitosNovos } = separarPayloadBadge(prepararPayload(form, listaNiveis, modal.badge));
+      const { dadosBadge, requisitosNovos } = separarPayloadBadge(prepararPayload(form, listaNiveis, modal.badge, t));
       const atualizado = (await api.put(`/api/badges/${modal.badge.id_badge}`, dadosBadge)).data;
       await Promise.all((requisitosNovos || []).map((req, idx) => api.post('/api/requisitos', {
         id_badge: modal.badge.id_badge,
@@ -901,7 +925,7 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
       return atualizado;
     },
     onSuccess: () => {
-      toast.success('Badge atualizado.');
+      toast.success(t('admin_badges_toast_atualizado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'badges'] });
       qc.invalidateQueries({ queryKey: ['admin', 'requisitos'] });
@@ -914,7 +938,7 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
   const alternarEstado = useMutation({
     mutationFn: async (badge) => (await api.put(`/api/badges/${badge.id_badge}`, { ativo: !(badge.ativo !== 0) })).data,
     onSuccess: () => {
-      toast.success('Estado atualizado.');
+      toast.success(t('admin_lp_toast_estado_atualizado'));
       qc.invalidateQueries({ queryKey: ['admin', 'badges'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
@@ -924,7 +948,7 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
   const eliminar = useMutation({
     mutationFn: async () => (await api.delete(`/api/badges/${modal.badge.id_badge}`)).data,
     onSuccess: () => {
-      toast.success('Badge eliminado.');
+      toast.success(t('admin_badges_toast_eliminado'));
       setModal(null);
       qc.invalidateQueries({ queryKey: ['admin', 'badges'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
@@ -1012,13 +1036,13 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
 
   function abrirCriacao() {
     if (learningPaths.isLoading || serviceLines.isLoading || areas.isLoading || niveis.isLoading || requisitos.isLoading) {
-      toast('A carregar a hierarquia. Tenta novamente dentro de instantes.');
+      toast(t('admin_areas_a_carregar_hierarquia'));
       return;
     }
-    if (lps.length === 0) return toast.error('Antes de criar um Badge, cria primeiro um Learning Path.');
-    if (sls.length === 0) return toast.error('Antes de criar um Badge, cria primeiro uma Service Line.');
-    if (listaAreas.length === 0) return toast.error('Antes de criar um Badge, cria primeiro uma Área.');
-    if (listaNiveis.length === 0) return toast.error('Antes de criar um Badge, cria primeiro um Nível.');
+    if (lps.length === 0) return toast.error(t('admin_badges_erro_sem_lp'));
+    if (sls.length === 0) return toast.error(t('admin_badges_erro_sem_sl'));
+    if (listaAreas.length === 0) return toast.error(t('admin_badges_erro_sem_area'));
+    if (listaNiveis.length === 0) return toast.error(t('admin_badges_erro_sem_nivel'));
 
     const nivelBase = filtros.id_nivel
       ? listaNiveis.find((nivel) => String(nivel.id_nivel) === String(filtros.id_nivel))
@@ -1062,7 +1086,7 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
       setModal({ tipo: 'editar', badge: item });
     } catch (err) {
       setModal(null);
-      toast.error(extrairErro(err, 'Não foi possível abrir o badge.'));
+      toast.error(extrairErro(err, t('admin_badges_erro_abrir')));
     }
   }
 
@@ -1080,36 +1104,36 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
   async function exportarExcel() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosBadges(todos);
+      const { headers, linhas } = dadosBadges(todos, t);
       descarregarCsv('badges.csv', headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível exportar os badges.'));
+      toast.error(extrairErro(err, t('admin_badges_erro_exportar_excel')));
     }
   }
 
   async function exportarPdf() {
     try {
       const todos = await obterTodosFiltrados();
-      const { headers, linhas } = dadosBadges(todos);
-      imprimirTabela('Gestão de Badges', headers, linhas);
+      const { headers, linhas } = dadosBadges(todos, t);
+      imprimirTabela(t('admin_menu_badges'), headers, linhas);
     } catch (err) {
-      toast.error(extrairErro(err, 'Não foi possível preparar o PDF.'));
+      toast.error(extrairErro(err, t('admin_lp_erro_exportar_pdf')));
     }
   }
 
   return (
     <div className="mx-auto max-w-[1560px] space-y-7">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Gestão de Badges</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_badges')}</h1>
         <div className="flex flex-wrap gap-3">
           <button type="button" className="btn-secondary" onClick={exportarExcel}>
-            <Icon nome="file" className="h-4 w-4" /> Exportar Excel
+            <Icon nome="file" className="h-4 w-4" /> {t('admin_sla_export_excel')}
           </button>
           <button type="button" className="btn-secondary" onClick={exportarPdf}>
-            <Icon nome="file" className="h-4 w-4" /> Exportar PDF
+            <Icon nome="file" className="h-4 w-4" /> {t('admin_sla_export_pdf')}
           </button>
           <button type="button" className="btn-primary" onClick={abrirCriacao}>
-            <Icon nome="plus" className="h-4 w-4" /> Criar Badge
+            <Icon nome="plus" className="h-4 w-4" /> {t('admin_eventos_criar_badge')}
           </button>
         </div>
       </header>
@@ -1120,25 +1144,25 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
             <Icon nome="search" className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
               className="input pl-10"
-              placeholder="Pesquisar badge..."
+              placeholder={t('admin_pontos_pesquisar')}
               value={filtros.pesquisa}
               onChange={(e) => atualizarFiltro('pesquisa', e.target.value)}
             />
           </label>
           <select className="input" value={filtros.id_learning_path} onChange={(e) => atualizarFiltro('id_learning_path', e.target.value)}>
-            <option value="">Learning paths (Todos)</option>
+            <option value="">{t('admin_sl_lps_todos')}</option>
             {lps.map((lp) => <option key={lp.id_learning_path} value={lp.id_learning_path}>{lp.nome}</option>)}
           </select>
           <select className="input" value={filtros.id_service_line} onChange={(e) => atualizarFiltro('id_service_line', e.target.value)}>
-            <option value="">Service Lines (Todas)</option>
+            <option value="">{t('admin_areas_sls_todas')}</option>
             {serviceLinesFiltro.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
           </select>
           <select className="input" value={filtros.id_area} onChange={(e) => atualizarFiltro('id_area', e.target.value)}>
-            <option value="">Área (Todas)</option>
+            <option value="">{t('admin_cand_area_todas')}</option>
             {areasFiltro.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
           </select>
           <select className="input" value={filtros.id_nivel} onChange={(e) => atualizarFiltro('id_nivel', e.target.value)}>
-            <option value="">Nível (Todos)</option>
+            <option value="">{t('admin_req_nivel_todos')}</option>
             {niveisFiltro.map((nivel) => (
               <option key={nivel.id_nivel} value={nivel.id_nivel}>
                 {nivel.codigo_nivel} - {nivel.nome_nivel}
@@ -1146,13 +1170,13 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
             ))}
           </select>
           <select className="input" value={filtros.estado} onChange={(e) => atualizarFiltro('estado', e.target.value)}>
-            <option value="">Estado (Todos)</option>
-            <option value="ativo">Ativo</option>
-            <option value="expirado">Expirado</option>
-            <option value="inativo">Inativo</option>
+            <option value="">{t('admin_notif_estado_todos')}</option>
+            <option value="ativo">{t('admin_dash_notice_active')}</option>
+            <option value="expirado">{t('admin_pontos_expirado')}</option>
+            <option value="inativo">{t('admin_dash_notice_inactive')}</option>
           </select>
           <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
-            <Icon nome="x" className="h-4 w-4" /> Limpar Filtros
+            <Icon nome="x" className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}
           </button>
         </div>
       </section>
@@ -1162,21 +1186,21 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
           <table className="min-w-[1360px] w-full text-sm">
             <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-4 text-left">Nome do Badge</th>
-                <th className="px-4 py-4 text-left">Nível Associado</th>
-                <th className="px-4 py-4 text-left">Área</th>
-                <th className="px-4 py-4 text-left">Service Line</th>
-                <th className="px-4 py-4 text-left">Learning Path</th>
-                <th className="px-4 py-4 text-center">Pontos</th>
-                <th className="px-4 py-4 text-center">Expiração</th>
-                <th className="px-4 py-4 text-center">Data Criação</th>
-                <th className="px-4 py-4 text-center">Estado</th>
-                <th className="px-4 py-4 text-center">Ações</th>
+                <th className="px-4 py-4 text-left">{t('admin_pontos_col_badge')}</th>
+                <th className="px-4 py-4 text-left">{t('admin_badges_col_nivel_associado')}</th>
+                <th className="px-4 py-4 text-left">{t('admin_rel_col_area')}</th>
+                <th className="px-4 py-4 text-left">{t('admin_dash_col_service_line')}</th>
+                <th className="px-4 py-4 text-left">{t('admin_rel_col_lp')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_pontos_atuais')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_eventos_expiracao')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_lp_col_data_criacao')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_dash_col_state')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_sla_col_acoes')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {badges.isLoading ? (
-                <tr><td colSpan={10} className="px-5 py-12 text-center text-slate-500">A carregar badges...</td></tr>
+                <tr><td colSpan={10} className="px-5 py-12 text-center text-slate-500">{t('admin_badges_a_carregar')}</td></tr>
               ) : lista.map((badge) => {
                 const estado = estadoBadge(badge);
                 return (
@@ -1187,24 +1211,24 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
                     <td className="px-4 py-5 text-slate-500">{badge.nome_service_line}</td>
                     <td className="px-4 py-5 text-slate-500">{badge.nome_learning_path}</td>
                     <td className="px-4 py-5 text-center font-semibold text-slate-800">{badge.pontos || 0}</td>
-                    <td className="px-4 py-5 text-center text-slate-600">{expiracaoTexto(badge)}</td>
+                    <td className="px-4 py-5 text-center text-slate-600">{expiracaoTexto(badge, t)}</td>
                     <td className="px-4 py-5 text-center text-slate-600">{formatarData(badge.created_at)}</td>
                     <td className="px-4 py-5 text-center">
-                      <span className={`badge-pill ${estadoClasses(estado)}`}>{estado}</span>
+                      <span className={`badge-pill ${estadoClasses(estado)}`}>{estadoLabel(estado, t)}</span>
                     </td>
                     <td className="px-4 py-5">
                       <div className="flex items-center justify-center gap-4 text-softinsa-700">
-                        <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Ver" onClick={() => setModal({ tipo: 'ver', badge })}><Icon nome="eye" className="h-5 w-5" /></button>
-                        <button type="button" className="rounded-md p-1 hover:bg-blue-50" title="Editar" onClick={() => abrirEdicao(badge)}><Icon nome="edit" className="h-5 w-5" /></button>
-                        <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={badge.ativo !== 0 ? 'Desativar' : 'Ativar'} onClick={() => badge.ativo !== 0 ? setModal({ tipo: 'desativar', badge }) : alternarEstado.mutate(badge)}><Icon nome="power" className="h-5 w-5" /></button>
-                        <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title="Eliminar" onClick={() => setModal({ tipo: 'eliminar', badge })}><Icon nome="trash" className="h-5 w-5" /></button>
+                        <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_ver')} onClick={() => setModal({ tipo: 'ver', badge })}><Icon nome="eye" className="h-5 w-5" /></button>
+                        <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={t('admin_lp_editar')} onClick={() => abrirEdicao(badge)}><Icon nome="edit" className="h-5 w-5" /></button>
+                        <button type="button" className="rounded-md p-1 hover:bg-blue-50" title={badge.ativo !== 0 ? t('admin_lp_desativar') : t('admin_lp_ativar')} onClick={() => badge.ativo !== 0 ? setModal({ tipo: 'desativar', badge }) : alternarEstado.mutate(badge)}><Icon nome="power" className="h-5 w-5" /></button>
+                        <button type="button" className="rounded-md p-1 text-red-600 hover:bg-red-50" title={t('admin_notif_eliminar')} onClick={() => setModal({ tipo: 'eliminar', badge })}><Icon nome="trash" className="h-5 w-5" /></button>
                       </div>
                     </td>
                   </tr>
                 );
               })}
               {!badges.isLoading && lista.length === 0 && (
-                <tr><td colSpan={10} className="px-5 py-12 text-center text-slate-500">Nenhum badge encontrado.</td></tr>
+                <tr><td colSpan={10} className="px-5 py-12 text-center text-slate-500">{t('admin_pontos_vazio')}</td></tr>
               )}
             </tbody>
           </table>
@@ -1220,9 +1244,9 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
       </section>
 
       {['criar', 'editar'].includes(modal?.tipo) && (
-        <Modal titulo={modal.tipo === 'criar' ? 'Criar Badge' : 'Editar Badge'} onFechar={() => setModal(null)} size="lg">
+        <Modal titulo={modal.tipo === 'criar' ? t('admin_eventos_criar_badge') : t('admin_pontos_editar_badge')} onFechar={() => setModal(null)} size="lg">
           {modal.carregando ? (
-            <div className="px-7 py-12 text-center text-slate-500">A carregar badge...</div>
+            <div className="px-7 py-12 text-center text-slate-500">{t('admin_badges_a_carregar_badge')}</div>
           ) : (
             <FormBadge
               form={form}
@@ -1238,60 +1262,61 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
               onSubmit={(e) => { e.preventDefault(); modal.tipo === 'criar' ? criar.mutate() : atualizar.mutate(); }}
               onCancelar={() => setModal(null)}
               loading={modal.tipo === 'criar' ? criar.isPending : atualizar.isPending}
+              t={t}
             />
           )}
         </Modal>
       )}
 
       {modal?.tipo === 'ver' && (
-        <Modal titulo="Detalhe do Badge" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_badges_modal_detalhe_titulo')} onFechar={() => setModal(null)}>
           <div className="grid grid-cols-1 gap-4 px-7 py-5 text-sm md:grid-cols-2">
-            <div><div className="text-slate-500">Nome</div><div className="font-semibold">{modal.badge.titulo}</div></div>
-            <div><div className="text-slate-500">Nível</div><div className="font-semibold">{dificuldade(modal.badge)}</div></div>
-            <div><div className="text-slate-500">Área</div><div className="font-semibold">{modal.badge.nome_area}</div></div>
+            <div><div className="text-slate-500">{t('admin_rel_col_nome')}</div><div className="font-semibold">{modal.badge.titulo}</div></div>
+            <div><div className="text-slate-500">{t('admin_dash_level')}</div><div className="font-semibold">{dificuldade(modal.badge)}</div></div>
+            <div><div className="text-slate-500">{t('admin_rel_col_area')}</div><div className="font-semibold">{modal.badge.nome_area}</div></div>
             <div><div className="text-slate-500">Service Line</div><div className="font-semibold">{modal.badge.nome_service_line}</div></div>
             <div><div className="text-slate-500">Learning Path</div><div className="font-semibold">{modal.badge.nome_learning_path}</div></div>
-            <div><div className="text-slate-500">Pontos</div><div className="font-semibold">{modal.badge.pontos || 0}</div></div>
-            <div><div className="text-slate-500">Expiração</div><div className="font-semibold">{expiracaoTexto(modal.badge)}</div></div>
-            <div><div className="text-slate-500">Estado</div><div className="font-semibold">{estadoBadge(modal.badge)}</div></div>
-            <div className="md:col-span-2"><div className="text-slate-500">Descrição</div><div className="font-semibold">{modal.badge.descricao || '—'}</div></div>
+            <div><div className="text-slate-500">{t('admin_pontos_atuais')}</div><div className="font-semibold">{modal.badge.pontos || 0}</div></div>
+            <div><div className="text-slate-500">{t('admin_eventos_expiracao')}</div><div className="font-semibold">{expiracaoTexto(modal.badge, t)}</div></div>
+            <div><div className="text-slate-500">{t('admin_dash_col_state')}</div><div className="font-semibold">{estadoLabel(estadoBadge(modal.badge), t)}</div></div>
+            <div className="md:col-span-2"><div className="text-slate-500">{t('admin_lp_descricao')}</div><div className="font-semibold">{modal.badge.descricao || '—'}</div></div>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'desativar' && (
-        <Modal titulo="Desativar Badge" icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_badges_modal_desativar_titulo')} icon="warning" iconTone="amber" size="sm" onFechar={() => setModal(null)}>
           <div className="px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende desativar o badge “{modal.badge.titulo}”?
+              {t('admin_badges_desativar_confirm').replace('{titulo}', modal.badge.titulo)}
             </p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button
               type="button"
               className="btn bg-orange-500 px-7 text-white hover:bg-orange-600"
               disabled={alternarEstado.isPending}
               onClick={() => alternarEstado.mutate(modal.badge, { onSuccess: () => setModal(null) })}
             >
-              {alternarEstado.isPending ? 'A confirmar...' : 'Confirmar'}
+              {alternarEstado.isPending ? t('admin_lp_a_confirmar') : t('admin_lp_confirmar')}
             </button>
           </div>
         </Modal>
       )}
 
       {modal?.tipo === 'eliminar' && (
-        <Modal titulo="Eliminar Badge" icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
+        <Modal titulo={t('admin_badges_modal_eliminar_titulo')} icon="warning" iconTone="rose" size="sm" onFechar={() => setModal(null)}>
           <div className="space-y-4 px-7 py-6">
             <p className="text-base leading-7 text-slate-600">
-              Tem a certeza que pretende eliminar o badge “{modal.badge.titulo}”?
+              {t('admin_badges_eliminar_confirm').replace('{titulo}', modal.badge.titulo)}
             </p>
-            <p className="font-medium text-red-500">Esta ação não pode ser revertida!</p>
+            <p className="font-medium text-red-500">{t('admin_notif_irreversivel')}</p>
           </div>
           <div className="flex justify-end gap-3 px-7 pb-6">
-            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>Cancelar</button>
+            <button type="button" className="btn-secondary px-6" onClick={() => setModal(null)}>{t('admin_cancel')}</button>
             <button type="button" className="btn bg-red-600 px-7 text-white hover:bg-red-700" disabled={eliminar.isPending} onClick={() => eliminar.mutate()}>
-              {eliminar.isPending ? 'A eliminar...' : 'Eliminar'}
+              {eliminar.isPending ? t('admin_notif_a_eliminar') : t('admin_notif_eliminar')}
             </button>
           </div>
         </Modal>

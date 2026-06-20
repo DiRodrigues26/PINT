@@ -5,38 +5,40 @@ import { ClipboardCheck, Eye, Search, X, Clock } from 'lucide-react';
 import { api } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
-
-const ESTADO_CFG = {
-  OPEN:                   { label: 'Aberta',                    cls: 'bg-slate-100 text-slate-600' },
-  SUBMITTED:              { label: 'A aguardar validação',      cls: 'bg-amber-100 text-amber-700' },
-  IN_TALENT_REVIEW:       { label: 'Em revisão (Talent)',       cls: 'bg-blue-100 text-blue-700' },
-  IN_SERVICE_LINE_REVIEW: { label: 'Em validação SL',           cls: 'bg-orange-100 text-orange-700' },
-  APPROVED:               { label: 'Aprovada',                  cls: 'bg-emerald-100 text-emerald-700' },
-  REJECTED:               { label: 'Rejeitada',                 cls: 'bg-rose-100 text-rose-700' },
-  SENT_BACK:              { label: 'Devolvida',                 cls: 'bg-orange-100 text-orange-600' },
-  CLOSED:                 { label: 'Fechada',                   cls: 'bg-slate-100 text-slate-500' },
-};
-
-const NIVEL_COR = { A: 'text-blue-500', B: 'text-blue-600', C: 'text-softinsa-600', D: 'text-indigo-700', E: 'text-purple-700' };
+import { useTM } from './i18n';
 
 function formatarData(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-const TABS = [
-  { key: 'PENDENTES', label: 'A validar' },
-  { key: 'SUBMITTED', label: 'Submetidas' },
-  { key: 'IN_SERVICE_LINE_REVIEW', label: 'Em validação SL' },
-  { key: 'SENT_BACK', label: 'Devolvidas' },
-  { key: '', label: 'Todas' },
-];
-
 export default function TalentPedidos() {
   const navigate = useNavigate();
+  const tt = useTM();
   const [tab, setTab] = useState('PENDENTES');
   const [pesquisa, setPesquisa] = useState('');
   const [filtroArea, setFiltroArea] = useState('');
+
+  const ESTADO_CFG = {
+    OPEN:                   { label: tt('pest_open'),          cls: 'bg-slate-100 text-slate-600' },
+    SUBMITTED:              { label: tt('pest_submitted'),      cls: 'bg-amber-100 text-amber-700' },
+    IN_TALENT_REVIEW:       { label: tt('pest_talent_review'),  cls: 'bg-blue-100 text-blue-700' },
+    IN_SERVICE_LINE_REVIEW: { label: tt('pest_sl_review'),      cls: 'bg-orange-100 text-orange-700' },
+    APPROVED:               { label: tt('pest_approved'),       cls: 'bg-emerald-100 text-emerald-700' },
+    REJECTED:               { label: tt('pest_rejected'),       cls: 'bg-rose-100 text-rose-700' },
+    SENT_BACK:              { label: tt('pest_sent_back'),      cls: 'bg-orange-100 text-orange-600' },
+    CLOSED:                 { label: tt('pest_closed'),         cls: 'bg-slate-100 text-slate-500' },
+  };
+
+  const NIVEL_COR = { A: 'text-blue-500', B: 'text-blue-600', C: 'text-softinsa-600', D: 'text-indigo-700', E: 'text-purple-700' };
+
+  const TABS = [
+    { key: 'PENDENTES', label: tt('tab_a_validar') },
+    { key: 'SUBMITTED', label: tt('tab_submetidas') },
+    { key: 'IN_SERVICE_LINE_REVIEW', label: tt('tab_em_validacao_sl') },
+    { key: 'SENT_BACK', label: tt('tab_devolvidas') },
+    { key: '', label: tt('tab_todas') },
+  ];
 
   const { data, isLoading } = useQuery({
     queryKey: ['tm-candidaturas'],
@@ -69,18 +71,18 @@ export default function TalentPedidos() {
     <div className="min-h-screen bg-[#f3f6fa]">
       <TalentManagerSidebar />
       <div className="lg:pl-[260px]">
-        <TalentManagerTopbar subtitulo="Validação de evidências" />
+        <TalentManagerTopbar subtitulo={tt('pedidos_subtitulo')} />
 
         <main className="px-5 py-8 lg:px-10 pb-24 lg:pb-10">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-slate-900">Validações</h2>
+            <h2 className="text-2xl font-bold text-slate-900">{tt('pedidos_titulo')}</h2>
             {contPendentes > 0 && (
               <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-700">
-                {contPendentes} a aguardar
+                {contPendentes} {tt('a_aguardar')}
               </span>
             )}
           </div>
-          <p className="mt-1 text-sm text-slate-500">Vês todas as submissões da plataforma, independentemente da área ou Service Line.</p>
+          <p className="mt-1 text-sm text-slate-500">{tt('pedidos_desc')}</p>
 
           {/* Tabs */}
           <div className="mt-6 flex flex-wrap gap-2">
@@ -98,18 +100,18 @@ export default function TalentPedidos() {
           <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="relative min-w-[200px] flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" strokeWidth={1.8} />
-              <input value={pesquisa} onChange={e => setPesquisa(e.target.value)} placeholder="Pesquisar badge ou consultor"
+              <input value={pesquisa} onChange={e => setPesquisa(e.target.value)} placeholder={tt('pesquisar_badge_cons')}
                 className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm outline-none focus:border-softinsa-400" />
             </div>
             <select value={filtroArea} onChange={e => setFiltroArea(e.target.value)}
               className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-softinsa-400">
-              <option value="">Todas as áreas</option>
+              <option value="">{tt('todas_areas')}</option>
               {areas.map(a => <option key={a} value={a}>{a}</option>)}
             </select>
             {(pesquisa || filtroArea) && (
               <button type="button" onClick={() => { setPesquisa(''); setFiltroArea(''); }}
                 className="flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
-                <X className="h-4 w-4" /> Limpar
+                <X className="h-4 w-4" /> {tt('limpar')}
               </button>
             )}
           </div>
@@ -120,8 +122,8 @@ export default function TalentPedidos() {
           ) : lista.length === 0 ? (
             <div className="mt-16 flex flex-col items-center text-center">
               <ClipboardCheck className="h-14 w-14 text-slate-300" strokeWidth={1} />
-              <p className="mt-4 text-base font-semibold text-slate-600">Nada por aqui</p>
-              <p className="mt-1 text-sm text-slate-400">Não há candidaturas neste estado.</p>
+              <p className="mt-4 text-base font-semibold text-slate-600">{tt('nada_por_aqui')}</p>
+              <p className="mt-1 text-sm text-slate-400">{tt('sem_candidaturas_estado')}</p>
             </div>
           ) : (
             <div className="mt-5 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -129,14 +131,14 @@ export default function TalentPedidos() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                      <th className="px-5 py-3.5 text-left">Badge</th>
-                      <th className="px-4 py-3.5 text-left">Consultor</th>
-                      <th className="px-4 py-3.5 text-left">Área</th>
-                      <th className="px-4 py-3.5 text-center">Nível</th>
-                      <th className="px-4 py-3.5 text-center">Evidências</th>
-                      <th className="px-4 py-3.5 text-left">Submetida</th>
-                      <th className="px-4 py-3.5 text-left">Estado</th>
-                      <th className="px-4 py-3.5 text-right">Ação</th>
+                      <th className="px-5 py-3.5 text-left">{tt('col_badge')}</th>
+                      <th className="px-4 py-3.5 text-left">{tt('col_consultor')}</th>
+                      <th className="px-4 py-3.5 text-left">{tt('col_area')}</th>
+                      <th className="px-4 py-3.5 text-center">{tt('nivel')}</th>
+                      <th className="px-4 py-3.5 text-center">{tt('col_evidencias')}</th>
+                      <th className="px-4 py-3.5 text-left">{tt('col_submetida')}</th>
+                      <th className="px-4 py-3.5 text-left">{tt('col_estado')}</th>
+                      <th className="px-4 py-3.5 text-right">{tt('col_acao')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -162,7 +164,7 @@ export default function TalentPedidos() {
                                 podeValidar ? 'bg-softinsa-600 text-white hover:bg-softinsa-700' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                               }`}>
                               {podeValidar ? <ClipboardCheck className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              {podeValidar ? 'Validar' : 'Ver'}
+                              {podeValidar ? tt('btn_validar') : tt('btn_ver')}
                             </button>
                           </td>
                         </tr>

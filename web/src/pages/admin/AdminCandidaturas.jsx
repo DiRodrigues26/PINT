@@ -15,19 +15,22 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
-import { estadoCandidatura, formatarData, formatarDataHora } from '../../lib/formatar';
+import { formatarData, formatarDataHora } from '../../lib/formatar';
 import Paginacao from '../../components/admin/Paginacao';
+import { useLanguage } from '../../context/LanguageContext';
 
-const ESTADOS = [
-  ['OPEN', 'Em preparação'],
-  ['SUBMITTED', 'Submetida'],
-  ['IN_TALENT_REVIEW', 'Em análise (Talent)'],
-  ['IN_SERVICE_LINE_REVIEW', 'Em análise (SL)'],
-  ['SENT_BACK', 'Devolvida'],
-  ['APPROVED', 'Aprovada'],
-  ['REJECTED', 'Rejeitada'],
-  ['CLOSED', 'Fechada'],
-];
+const ESTADOS = ['OPEN', 'SUBMITTED', 'IN_TALENT_REVIEW', 'IN_SERVICE_LINE_REVIEW', 'SENT_BACK', 'APPROVED', 'REJECTED', 'CLOSED'];
+
+const ESTADO_CORES = {
+  OPEN: 'bg-slate-100 text-slate-700',
+  SUBMITTED: 'bg-blue-100 text-blue-700',
+  IN_TALENT_REVIEW: 'bg-amber-100 text-amber-700',
+  IN_SERVICE_LINE_REVIEW: 'bg-violet-100 text-violet-700',
+  SENT_BACK: 'bg-orange-100 text-orange-700',
+  APPROVED: 'bg-emerald-100 text-emerald-700',
+  REJECTED: 'bg-red-100 text-red-700',
+  CLOSED: 'bg-slate-200 text-slate-700',
+};
 
 const ICONES = {
   check: CheckCircle,
@@ -88,8 +91,22 @@ function ficheiroHref(url) {
   return `${api.defaults.baseURL || ''}${url}`;
 }
 
-function estadoBadge(estado) {
-  const cfg = estadoCandidatura(estado);
+function estadoCandidaturaLocal(estado, t) {
+  const labels = {
+    OPEN: t('admin_dash_state_open'),
+    SUBMITTED: t('admin_rel_est_submitted'),
+    IN_TALENT_REVIEW: t('admin_rel_est_talent_review'),
+    IN_SERVICE_LINE_REVIEW: t('admin_rel_est_sl_review'),
+    SENT_BACK: t('admin_dash_state_sent_back'),
+    APPROVED: t('admin_dash_state_approved'),
+    REJECTED: t('admin_dash_state_rejected'),
+    CLOSED: t('admin_rel_est_closed'),
+  };
+  return { label: labels[estado] || estado || '—', cor: ESTADO_CORES[estado] || 'bg-slate-100 text-slate-700' };
+}
+
+function estadoBadge(estado, t) {
+  const cfg = estadoCandidaturaLocal(estado, t);
   return <span className={`badge-pill ${cfg.cor}`}>{cfg.label}</span>;
 }
 
@@ -115,6 +132,7 @@ function Secao({ titulo, icon, children }) {
 }
 
 export function DetalheCandidatura({ id, onFechar }) {
+  const { t } = useLanguage();
   const qc = useQueryClient();
   const [comentario, setComentario] = useState('');
 
@@ -131,13 +149,13 @@ export function DetalheCandidatura({ id, onFechar }) {
       comentario: comentario.trim() || null,
     }),
     onSuccess: () => {
-      toast.success('Avaliação Talent registada.');
+      toast.success(t('admin_cand_toast_talent'));
       setComentario('');
       qc.invalidateQueries({ queryKey: ['admin', 'candidaturas'] });
       qc.invalidateQueries({ queryKey: ['admin', 'candidatura', id] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
-    onError: (err) => toast.error(extrairErro(err, 'Não foi possível registar a avaliação.')),
+    onError: (err) => toast.error(extrairErro(err, t('admin_cand_erro_avaliacao'))),
   });
 
   const avaliarServiceLine = useMutation({
@@ -146,24 +164,24 @@ export function DetalheCandidatura({ id, onFechar }) {
       comentario: comentario.trim() || null,
     }),
     onSuccess: () => {
-      toast.success('Decisão final registada.');
+      toast.success(t('admin_cand_toast_decisao'));
       setComentario('');
       qc.invalidateQueries({ queryKey: ['admin', 'candidaturas'] });
       qc.invalidateQueries({ queryKey: ['admin', 'candidatura', id] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
     },
-    onError: (err) => toast.error(extrairErro(err, 'Não foi possível registar a decisão.')),
+    onError: (err) => toast.error(extrairErro(err, t('admin_cand_erro_decisao'))),
   });
 
   if (detalhe.isLoading) {
-    return <div className="px-7 py-12 text-center text-slate-500">A carregar processo...</div>;
+    return <div className="px-7 py-12 text-center text-slate-500">{t('admin_cand_a_carregar_processo')}</div>;
   }
 
   if (detalhe.isError) {
     return (
       <div className="px-7 py-8 text-center">
-        <p className="text-sm text-red-600">{extrairErro(detalhe.error, 'Não foi possível abrir o processo.')}</p>
-        <button type="button" className="btn-secondary mt-4" onClick={onFechar}>Fechar</button>
+        <p className="text-sm text-red-600">{extrairErro(detalhe.error, t('admin_cand_erro_abrir_processo'))}</p>
+        <button type="button" className="btn-secondary mt-4" onClick={onFechar}>{t('admin_close')}</button>
       </div>
     );
   }
@@ -188,23 +206,23 @@ export function DetalheCandidatura({ id, onFechar }) {
             <section className="rounded-xl border border-slate-200 bg-white p-5">
               <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                 <div>
-                  <div className="text-sm text-slate-500">Processo #{candidatura.id_candidatura}</div>
+                  <div className="text-sm text-slate-500">{t('admin_cand_processo_id').replace('{id}', candidatura.id_candidatura)}</div>
                   <h3 className="mt-1 text-2xl font-bold text-slate-900">{candidatura.titulo_badge}</h3>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {estadoBadge(estado)}
+                    {estadoBadge(estado, t)}
                     <span className="badge-pill bg-blue-50 text-softinsa-700">{dificuldade(candidatura)}</span>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm md:min-w-[320px]">
-                  <ResumoCampo label="Abertura" valor={formatarData(candidatura.data_abertura)} />
-                  <ResumoCampo label="Submissão" valor={formatarData(candidatura.data_submissao)} />
-                  <ResumoCampo label="Fecho" valor={formatarData(candidatura.data_fecho)} />
-                  <ResumoCampo label="Evidências" valor={`${evidencias.length}/${requisitos.length}`} />
+                  <ResumoCampo label={t('admin_cand_abertura')} valor={formatarData(candidatura.data_abertura)} />
+                  <ResumoCampo label={t('admin_rel_col_submissao')} valor={formatarData(candidatura.data_submissao)} />
+                  <ResumoCampo label={t('admin_cand_fecho')} valor={formatarData(candidatura.data_fecho)} />
+                  <ResumoCampo label={t('admin_cand_evidencias')} valor={`${evidencias.length}/${requisitos.length}`} />
                 </div>
               </div>
             </section>
 
-            <Secao titulo="Requisitos e Evidências" icon="file">
+            <Secao titulo={t('admin_cand_requisitos_evidencias')} icon="file">
               <div className="space-y-3">
                 {requisitos.map((req) => {
                   const reqEvidencias = evidencias.filter((ev) => Number(ev.id_requisito) === Number(req.id_requisito));
@@ -213,11 +231,11 @@ export function DetalheCandidatura({ id, onFechar }) {
                       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                         <div>
                           <div className="font-semibold text-slate-900">{req.titulo}</div>
-                          <p className="mt-1 text-sm leading-6 text-slate-600">{req.descricao || 'Sem descrição.'}</p>
-                          <div className="mt-2 text-xs font-semibold text-slate-500">Tipo evidência: {req.tipo_evidencia || '—'}</div>
+                          <p className="mt-1 text-sm leading-6 text-slate-600">{req.descricao || t('admin_cand_sem_descricao')}</p>
+                          <div className="mt-2 text-xs font-semibold text-slate-500">{t('admin_cand_tipo_evidencia').replace('{tipo}', req.tipo_evidencia || '—')}</div>
                         </div>
                         <span className={`badge-pill ${reqEvidencias.length ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
-                          {reqEvidencias.length ? `${reqEvidencias.length} evidência(s)` : 'Sem evidência'}
+                          {reqEvidencias.length ? t('admin_cand_evidencias_count').replace('{total}', reqEvidencias.length) : t('admin_cand_sem_evidencia')}
                         </span>
                       </div>
                       {reqEvidencias.length > 0 && (
@@ -239,45 +257,45 @@ export function DetalheCandidatura({ id, onFechar }) {
                     </div>
                   );
                 })}
-                {requisitos.length === 0 && <div className="py-8 text-center text-sm text-slate-500">Sem requisitos associados ao badge.</div>}
+                {requisitos.length === 0 && <div className="py-8 text-center text-sm text-slate-500">{t('admin_cand_sem_requisitos')}</div>}
               </div>
             </Secao>
 
-            <Secao titulo="Histórico / Auditoria" icon="history">
+            <Secao titulo={t('admin_cand_historico_auditoria')} icon="history">
               <div className="space-y-3">
                 {historico.map((h) => (
                   <div key={h.id_historico} className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
                     <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                       <div>
-                        <div className="font-semibold text-slate-900">{h.acao || 'Ação registada'}</div>
+                        <div className="font-semibold text-slate-900">{h.acao || t('admin_cand_acao_registada')}</div>
                         <div className="mt-1 text-sm text-slate-600">
                           {h.estado_origem || '—'} → {h.estado_destino || '—'}
                         </div>
                         {h.comentario && <p className="mt-2 text-sm leading-6 text-slate-600">{h.comentario}</p>}
                       </div>
                       <div className="text-right text-xs text-slate-500">
-                        <div className="font-semibold">{h.nome_responsavel || 'Sistema'}</div>
+                        <div className="font-semibold">{h.nome_responsavel || t('admin_cand_sistema')}</div>
                         <div>{formatarDataHora(h.data_evento)}</div>
                       </div>
                     </div>
                   </div>
                 ))}
-                {historico.length === 0 && <div className="py-8 text-center text-sm text-slate-500">Sem histórico registado.</div>}
+                {historico.length === 0 && <div className="py-8 text-center text-sm text-slate-500">{t('admin_cand_sem_historico')}</div>}
               </div>
             </Secao>
           </div>
 
           <aside className="space-y-5">
-            <Secao titulo="Consultor" icon="user">
+            <Secao titulo={t('admin_dash_col_consultant')} icon="user">
               <div className="space-y-4 text-sm">
-                <ResumoCampo label="Nome" valor={consultor.nome} />
+                <ResumoCampo label={t('admin_lp_lbl_nome')} valor={consultor.nome} />
                 <ResumoCampo label="Email" valor={consultor.email} />
                 <ResumoCampo label="Service Line" valor={candidatura.nome_service_line} />
-                <ResumoCampo label="Área" valor={candidatura.nome_area} />
+                <ResumoCampo label={t('admin_rel_col_area')} valor={candidatura.nome_area} />
               </div>
             </Secao>
 
-            <Secao titulo="Avaliações" icon="message">
+            <Secao titulo={t('admin_cand_avaliacoes')} icon="message">
               <div className="space-y-3">
                 {avaliacoes.map((av) => (
                   <div key={av.id_avaliacao} className="rounded-lg bg-slate-50 px-3 py-3 text-sm">
@@ -289,46 +307,46 @@ export function DetalheCandidatura({ id, onFechar }) {
                     {av.comentario && <p className="mt-2 leading-6 text-slate-600">{av.comentario}</p>}
                   </div>
                 ))}
-                {avaliacoes.length === 0 && <div className="py-4 text-sm text-slate-500">Sem avaliações registadas.</div>}
+                {avaliacoes.length === 0 && <div className="py-4 text-sm text-slate-500">{t('admin_cand_sem_avaliacoes')}</div>}
               </div>
             </Secao>
 
-            <Secao titulo="Decisão" icon="check">
+            <Secao titulo={t('admin_cand_decisao')} icon="check">
               {emTalent || emServiceLine ? (
                 <div className="space-y-4">
                   <textarea
                     className="input min-h-[110px] resize-y py-3"
-                    placeholder="Comentário obrigatório/recomendado para auditoria..."
+                    placeholder={t('admin_cand_comentario_placeholder')}
                     value={comentario}
                     onChange={(e) => setComentario(e.target.value)}
                   />
                   {emTalent && (
                     <div className="grid grid-cols-1 gap-3">
                       <button type="button" className="btn-primary justify-center" disabled={loadingAcao} onClick={() => avaliarTalent.mutate('CORRETO')}>
-                        <Icon nome="send" className="h-4 w-4" /> Enviar para Service Line
+                        <Icon nome="send" className="h-4 w-4" /> {t('admin_cand_enviar_sl')}
                       </button>
                       <button type="button" className="btn-secondary justify-center border-orange-300 text-orange-700 hover:bg-orange-50" disabled={loadingAcao} onClick={() => avaliarTalent.mutate('INCORRETO')}>
-                        <Icon nome="xcircle" className="h-4 w-4" /> Devolver ao Consultor
+                        <Icon nome="xcircle" className="h-4 w-4" /> {t('admin_cand_devolver_consultor')}
                       </button>
                     </div>
                   )}
                   {emServiceLine && (
                     <div className="grid grid-cols-1 gap-3">
                       <button type="button" className="btn-primary justify-center" disabled={loadingAcao} onClick={() => avaliarServiceLine.mutate('APROVAR')}>
-                        <Icon nome="check" className="h-4 w-4" /> Aprovar Badge
+                        <Icon nome="check" className="h-4 w-4" /> {t('admin_cand_aprovar_badge')}
                       </button>
                       <button type="button" className="btn-secondary justify-center border-orange-300 text-orange-700 hover:bg-orange-50" disabled={loadingAcao} onClick={() => avaliarServiceLine.mutate('SEND_BACK')}>
-                        <Icon nome="send" className="h-4 w-4" /> Send Back
+                        <Icon nome="send" className="h-4 w-4" /> {t('admin_cand_send_back')}
                       </button>
                       <button type="button" className="btn bg-red-600 text-white hover:bg-red-700" disabled={loadingAcao} onClick={() => avaliarServiceLine.mutate('REJEITAR')}>
-                        <Icon nome="xcircle" className="h-4 w-4" /> Rejeitar
+                        <Icon nome="xcircle" className="h-4 w-4" /> {t('admin_cand_rejeitar')}
                       </button>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="rounded-lg bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-600">
-                  Este processo está em modo de consulta. As ações só ficam disponíveis nos estados Submitted/Em revisão Talent ou Em validação Service Line.
+                  {t('admin_cand_modo_consulta')}
                 </div>
               )}
             </Secao>
@@ -336,13 +354,14 @@ export function DetalheCandidatura({ id, onFechar }) {
         </div>
       </div>
       <div className="flex justify-end border-t-4 border-slate-200 px-7 py-5">
-        <button type="button" className="btn-secondary px-6" onClick={onFechar}>Fechar</button>
+        <button type="button" className="btn-secondary px-6" onClick={onFechar}>{t('admin_close')}</button>
       </div>
     </>
   );
 }
 
 export default function AdminCandidaturas() {
+  const { t } = useLanguage();
   const [filtros, setFiltros] = useState({
     estado: '',
     id_consultor: '',
@@ -437,35 +456,35 @@ export default function AdminCandidaturas() {
     <div className="mx-auto max-w-[1560px] space-y-7">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">Pedidos de Badges</h1>
-          <p className="mt-2 text-sm text-slate-500">Consulta, audita e gere todas as candidaturas submetidas na plataforma.</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_candidaturas')}</h1>
+          <p className="mt-2 text-sm text-slate-500">{t('admin_cand_subtitulo')}</p>
         </div>
       </header>
 
       <section className="rounded-lg bg-white p-5 shadow-sm">
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[190px_1fr_1fr_220px_220px_190px]">
           <select className="input" value={filtros.estado} onChange={(e) => atualizarFiltro('estado', e.target.value)}>
-            <option value="">Estado (Todos)</option>
-            {ESTADOS.map(([valor, label]) => <option key={valor} value={valor}>{label}</option>)}
+            <option value="">{t('admin_notif_estado_todos')}</option>
+            {ESTADOS.map((valor) => <option key={valor} value={valor}>{estadoCandidaturaLocal(valor, t).label}</option>)}
           </select>
           <select className="input" value={filtros.id_consultor} onChange={(e) => atualizarFiltro('id_consultor', e.target.value)}>
-            <option value="">Consultor (Todos)</option>
+            <option value="">{t('admin_cand_consultor_todos')}</option>
             {listaConsultores.map((u) => <option key={u.id_utilizador} value={u.id_utilizador}>{u.nome}</option>)}
           </select>
           <select className="input" value={filtros.id_badge} onChange={(e) => atualizarFiltro('id_badge', e.target.value)}>
-            <option value="">Badge (Todos)</option>
+            <option value="">{t('admin_cand_badge_todos')}</option>
             {listaBadges.map((badge) => <option key={badge.id_badge} value={badge.id_badge}>{badge.titulo}</option>)}
           </select>
           <select className="input" value={filtros.id_service_line} onChange={(e) => atualizarFiltro('id_service_line', e.target.value)}>
-            <option value="">Service Line (Todas)</option>
+            <option value="">{t('admin_cand_sl_todas')}</option>
             {listaServiceLines.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
           </select>
           <select className="input" value={filtros.id_area} onChange={(e) => atualizarFiltro('id_area', e.target.value)}>
-            <option value="">Área (Todas)</option>
+            <option value="">{t('admin_cand_area_todas')}</option>
             {areasFiltro.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
           </select>
           <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
-            <Icon nome="x" className="h-4 w-4" /> Limpar Filtros
+            <Icon nome="x" className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}
           </button>
         </div>
       </section>
@@ -475,20 +494,20 @@ export default function AdminCandidaturas() {
           <table className="min-w-[1320px] w-full text-sm">
             <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
               <tr>
-                <th className="px-4 py-4 text-left">Consultor</th>
-                <th className="px-4 py-4 text-left">Badge</th>
+                <th className="px-4 py-4 text-left">{t('admin_dash_col_consultant')}</th>
+                <th className="px-4 py-4 text-left">{t('admin_dash_col_badge')}</th>
                 <th className="px-4 py-4 text-left">Service Line</th>
-                <th className="px-4 py-4 text-left">Área</th>
-                <th className="px-4 py-4 text-center">Nível</th>
-                <th className="px-4 py-4 text-center">Estado</th>
-                <th className="px-4 py-4 text-center">Evidências</th>
-                <th className="px-4 py-4 text-center">Data</th>
-                <th className="px-4 py-4 text-center">Ação</th>
+                <th className="px-4 py-4 text-left">{t('admin_rel_col_area')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_dash_level')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_dash_col_state')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_cand_evidencias')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_dash_col_date')}</th>
+                <th className="px-4 py-4 text-center">{t('admin_dash_col_action')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {candidaturas.isLoading ? (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">A carregar pedidos...</td></tr>
+                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">{t('admin_cand_a_carregar_pedidos')}</td></tr>
               ) : lista.map((item) => (
                 <tr key={item.id_candidatura} className="text-slate-700">
                   <td className="px-4 py-5">
@@ -499,18 +518,18 @@ export default function AdminCandidaturas() {
                   <td className="px-4 py-5 text-slate-500">{item.nome_service_line}</td>
                   <td className="px-4 py-5 text-slate-500">{item.nome_area}</td>
                   <td className="px-4 py-5 text-center text-slate-600">{dificuldade(item)}</td>
-                  <td className="px-4 py-5 text-center">{estadoBadge(item.estado_atual)}</td>
+                  <td className="px-4 py-5 text-center">{estadoBadge(item.estado_atual, t)}</td>
                   <td className="px-4 py-5 text-center font-semibold text-slate-800">{item.evidencias_count || 0}/{item.total_requisitos || 0}</td>
                   <td className="px-4 py-5 text-center text-slate-600">{formatarData(item.data_submissao || item.data_abertura)}</td>
                   <td className="px-4 py-5 text-center">
                     <button type="button" className="btn-secondary mx-auto px-3 py-2 text-softinsa-700" onClick={() => setModal({ tipo: 'detalhe', id: item.id_candidatura })}>
-                      <Icon nome="eye" className="h-4 w-4" /> Ver Processo
+                      <Icon nome="eye" className="h-4 w-4" /> {t('admin_dash_view_process')}
                     </button>
                   </td>
                 </tr>
               ))}
               {!candidaturas.isLoading && lista.length === 0 && (
-                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">Nenhum pedido encontrado.</td></tr>
+                <tr><td colSpan={9} className="px-5 py-12 text-center text-slate-500">{t('admin_cand_vazio')}</td></tr>
               )}
             </tbody>
           </table>
@@ -522,12 +541,12 @@ export default function AdminCandidaturas() {
           porPagina={porPagina}
           itensNaPagina={lista.length}
           onMudarPagina={setPagina}
-          rotulo="pedidos"
+          rotulo={t('admin_cand_pedidos')}
         />
       </section>
 
       {modal?.tipo === 'detalhe' && (
-        <Modal titulo="Detalhe do Processo" onFechar={() => setModal(null)} size="xl">
+        <Modal titulo={t('admin_sla_detalhe_processo')} onFechar={() => setModal(null)} size="xl">
           <DetalheCandidatura id={modal.id} onFechar={() => setModal(null)} />
         </Modal>
       )}
