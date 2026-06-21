@@ -469,7 +469,10 @@ async function avaliarTalent(req, res, next) {
           'SELECT nome, email FROM utilizador WHERE id_utilizador = ?',
           [candidatura.id_consultor]
         );
-        await notificarMudancaEstadoCandidatura(cons[0], novoEstado, candidatura.titulo_badge);
+        await notificarMudancaEstadoCandidatura(cons[0], novoEstado, candidatura.titulo_badge, {
+          idCandidatura: req.params.id,
+          comentario,
+        });
       } catch (_) { /* email é best-effort */ }
 
       res.json({ mensagem: 'Avaliação registada.', novo_estado: novoEstado });
@@ -594,6 +597,7 @@ async function avaliarServiceLine(req, res, next) {
 
       // se aprovado, criar badge_atribuido
       let idBadgeAtribuido = null;
+      let urlPublicaBadge = null;
       if (novoEstado === 'APPROVED') {
         const [badgeInfo] = await conn.query(
           'SELECT pontos, tem_expiracao, validade_dias FROM badge WHERE id_badge = ?',
@@ -624,10 +628,10 @@ async function avaliarServiceLine(req, res, next) {
 
         const codigoPublico = gerarCodigoPublico(idBadgeAtribuido);
         const baseFrontend = process.env.FRONTEND_URL || process.env.APP_URL || '';
-        const urlPublica = `${baseFrontend}/verificar/${token}`;
+        urlPublicaBadge = `${baseFrontend}/verificar/${token}`;
         await conn.query(
           `UPDATE badge_atribuido SET codigo_publico = ?, url_publica = ? WHERE id_badge_atribuido = ?`,
-          [codigoPublico, urlPublica, idBadgeAtribuido]
+          [codigoPublico, urlPublicaBadge, idBadgeAtribuido]
         );
       }
 
@@ -641,7 +645,11 @@ async function avaliarServiceLine(req, res, next) {
             'SELECT nome, email FROM utilizador WHERE id_utilizador = ?',
             [candidatura.id_consultor]
           );
-          await notificarMudancaEstadoCandidatura(cons[0], novoEstado, candidatura.titulo_badge);
+          await notificarMudancaEstadoCandidatura(cons[0], novoEstado, candidatura.titulo_badge, {
+            idCandidatura: req.params.id,
+            comentario,
+            urlPublica: urlPublicaBadge,
+          });
         }
       } catch (_) { /* email é best-effort */ }
 

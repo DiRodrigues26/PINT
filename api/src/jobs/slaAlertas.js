@@ -12,7 +12,7 @@
 const { pool } = require('../db/connection');
 const { listarForaSLA, responsaveisPorFase } = require('../controllers/slaController');
 const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
-const { enviarEmail } = require('../utils/email');
+const { notificarAlertaSla } = require('../utils/email');
 const { enviarPushParaUtilizadores } = require('../utils/push');
 
 const HORAS_DEDUP = parseInt(process.env.SLA_ALERT_DEDUP_HOURS || '24', 10);
@@ -89,11 +89,12 @@ async function executarVerificacaoSLA() {
           const destinatarios = responsaveis.filter((r) => !emailDesativado.has(r.id_utilizador));
 
           // O envio de email é best-effort e não deve impedir a contagem nem o tick.
-          await Promise.all(destinatarios.map((r) => enviarEmail({
+          await Promise.all(destinatarios.map((r) => notificarAlertaSla({
             para: r.email,
-            assunto: titulo,
-            texto: `${mensagem}\n\nConsultor: ${c.nome_consultor}\nBadge: ${c.titulo_badge}`,
-            html: `<p>${mensagem}</p><p><strong>Consultor:</strong> ${c.nome_consultor}</p><p><strong>Badge:</strong> ${c.titulo_badge}</p>`,
+            titulo,
+            mensagem,
+            consultor: c.nome_consultor,
+            badge: c.titulo_badge,
           }))).catch((errEmail) => console.warn(`⚠️ [SLA] Falha no email da candidatura #${c.id_candidatura}:`, errEmail.message));
         }
 

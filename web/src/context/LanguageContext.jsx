@@ -59,7 +59,7 @@ const T = {
     admin_notifdef_ev1_titulo: 'Email de confirmação de registo',
     admin_notifdef_ev1_desc: 'Enviado automaticamente quando um utilizador se regista na plataforma',
     admin_notifdef_ev2_titulo: 'Email de redefinição de password',
-    admin_notifdef_ev2_desc: 'Enviado quando o utilizador solicita recuperação de senha',
+    admin_notifdef_ev2_desc: 'Enviado quando o utilizador solicita recuperação de password',
     admin_notifdef_ev3_titulo: 'Email de candidatura a badge',
     admin_notifdef_ev3_desc: 'Notifica o utilizador quando submete uma candidatura',
     admin_notifdef_ev4_titulo: 'Notificação de aprovação de badge',

@@ -334,3 +334,4 @@ Administradores são redirecionados automaticamente para `/admin` após login e 
 - A área `/admin` bypassa o layout normal para usar uma shell própria de backoffice.
 - A fonte funcional para requisitos de um badge é `badge_requisito`, não `requisito.id_nivel`.
 - Exportação atual: CSV (Excel) implementado como CSV; PDF usa impressão de tabela em janela.
+- Templates de email (`api/src/utils/email.js`): layout HTML partilhado com a marca Softinsa (cabeçalho gradiente, botão CTA, cartão de informação), usado pelos 6 tipos de email — confirmação de registo, recuperação de password, mudança de estado de candidatura (4 variantes: avançou/devolvida/aprovada/rejeitada), alerta de SLA (job automático + notificação manual do admin) e email de teste. Adicionar novos tipos de email reutilizando `envolverEmail`/`corpoHtml`/`botaoHtml`/`cartaoInfoHtml`, não construir HTML solto.

@@ -1,5 +1,5 @@
 const { pool } = require('../db/connection');
-const { enviarEmail } = require('../utils/email');
+const { enviarEmailTeste } = require('../utils/email');
 const { invalidarCache } = require('../utils/configNotificacao');
 
 /* Colunas booleanas configuráveis da configuração global de notificações */
@@ -64,21 +64,11 @@ async function enviarTeste(req, res, next) {
       return res.status(400).json({ erro: 'Indique um email válido.' });
     }
 
-    const resultado = await enviarEmail({
-      para: email,
-      assunto: 'Email de teste — Softinsa Badges',
-      texto: 'Este é um email de teste enviado a partir das definições de notificações da plataforma Softinsa Badges.',
-      html: `
-        <div style="font-family: Arial, sans-serif; color: #1f2937;">
-          <h2 style="color:#39639c;">Softinsa Badges</h2>
-          <p>Este é um <strong>email de teste</strong> enviado a partir das definições de notificações.</p>
-          <p>Se recebeu esta mensagem, o envio de emails está a funcionar corretamente.</p>
-        </div>`,
-    });
+    const resultado = await enviarEmailTeste(email);
 
     res.json({
       mensagem: resultado?.stub
-        ? 'Email de teste registado no servidor (modo desenvolvimento — sem SMTP configurado).'
+        ? 'Email de teste registado no servidor (modo desenvolvimento — sem SendGrid configurado).'
         : 'Email de teste enviado com sucesso.',
       stub: Boolean(resultado?.stub),
     });

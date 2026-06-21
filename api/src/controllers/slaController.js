@@ -1,5 +1,5 @@
 const { pool } = require('../db/connection');
-const { enviarEmail } = require('../utils/email');
+const { notificarAlertaSla } = require('../utils/email');
 const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
 
 function faseDaCandidatura(estado) {
@@ -217,11 +217,12 @@ async function notificar(req, res, next) {
     }
 
     if (enviarEmailSla) {
-      await Promise.all(destinatarios.map(d => enviarEmail({
+      await Promise.all(destinatarios.map(d => notificarAlertaSla({
         para: d.email,
-        assunto: titulo,
-        texto: `${mensagem}\n\nConsultor: ${candidatura.nome_consultor}\nBadge: ${candidatura.titulo_badge}`,
-        html: `<p>${mensagem}</p><p><strong>Consultor:</strong> ${candidatura.nome_consultor}</p><p><strong>Badge:</strong> ${candidatura.titulo_badge}</p>`,
+        titulo,
+        mensagem,
+        consultor: candidatura.nome_consultor,
+        badge: candidatura.titulo_badge,
       })));
     }
 
