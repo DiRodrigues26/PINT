@@ -17,7 +17,8 @@ const {
   enviarRecuperacaoPassword,
 } = require('../utils/email');
 const { podeEnviarEmail } = require('../utils/configNotificacao');
-const { calcularSaudacao } = require('../utils/saudacao');
+const { calcularSaudacao, tipoSaudacao } = require('../utils/saudacao');
+const { contemEmoji } = require('../utils/validacao');
 const {
   dataExpiracaoConfirmacao,
   garantirColunaTokenConfirmacaoExpira,
@@ -47,6 +48,12 @@ async function registar(req, res, next) {
 
     if (!email || !password) {
       return res.status(400).json({ erro: 'Email e password são obrigatórios.' });
+    }
+    if (contemEmoji(email)) {
+      return res.status(400).json({ erro: 'O email não pode conter emojis.' });
+    }
+    if (contemEmoji(password)) {
+      return res.status(400).json({ erro: 'A password não pode conter emojis.' });
     }
     if (String(password).length < 8) {
       return res.status(400).json({ erro: 'Password deve ter pelo menos 8 caracteres.' });
@@ -249,6 +256,7 @@ async function completarPerfil(req, res, next) {
     const jwt = assinarToken({ id_utilizador: u.id_utilizador });
     // Após o registo o utilizador é sempre saudado com "Bem-vindo!" (enunciado, bónus)
     const saudacao = calcularSaudacao({ primeiroLoginPendente: true, idioma: u.idioma });
+    const saudacao_tipo = 'BEM_VINDO';
 
     await pool.query(
       'UPDATE utilizador SET ultimo_login = CURRENT_TIMESTAMP WHERE id_utilizador = ?',
@@ -259,6 +267,7 @@ async function completarPerfil(req, res, next) {
       mensagem: 'Registo concluído.',
       token: jwt,
       saudacao,
+      saudacao_tipo,
       utilizador: {
         id_utilizador: u.id_utilizador,
         nome,
@@ -318,11 +327,12 @@ async function login(req, res, next) {
     );
     const nomesPerfis = perfis.map(p => p.nome_perfil);
 
-    const saudacao = calcularSaudacao({
+    const saudacaoArgs = {
       ultimoLogin: u.ultimo_login,
       primeiroLoginPendente: !!u.primeiro_login_pendente,
-      idioma: u.idioma,
-    });
+    };
+    const saudacao = calcularSaudacao({ ...saudacaoArgs, idioma: u.idioma });
+    const saudacao_tipo = tipoSaudacao(saudacaoArgs);
 
     await pool.query(
       'UPDATE utilizador SET ultimo_login = CURRENT_TIMESTAMP WHERE id_utilizador = ?',
@@ -335,6 +345,7 @@ async function login(req, res, next) {
       mensagem: 'Login efetuado com sucesso.',
       token,
       saudacao,
+      saudacao_tipo,
       utilizador: {
         id_utilizador: u.id_utilizador,
         nome: u.nome,
@@ -500,11 +511,12 @@ async function verificarDoisFatores(req, res, next) {
       [id_utilizador]
     );
 
-    const saudacao = calcularSaudacao({
+    const saudacaoArgs = {
       ultimoLogin: u.ultimo_login,
       primeiroLoginPendente: !!u.primeiro_login_pendente,
-      idioma: u.idioma,
-    });
+    };
+    const saudacao = calcularSaudacao({ ...saudacaoArgs, idioma: u.idioma });
+    const saudacao_tipo = tipoSaudacao(saudacaoArgs);
 
     await pool.query(
       'UPDATE utilizador SET ultimo_login = CURRENT_TIMESTAMP WHERE id_utilizador = ?',
@@ -517,6 +529,7 @@ async function verificarDoisFatores(req, res, next) {
       mensagem: 'Login efetuado com sucesso.',
       token,
       saudacao,
+      saudacao_tipo,
       utilizador: {
         id_utilizador: u.id_utilizador,
         nome: u.nome,

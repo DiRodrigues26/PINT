@@ -4,13 +4,8 @@ import { Award, Bell, BookOpen, FileText, LayoutDashboard, LogOut, Trophy, User 
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { api } from '../lib/api';
-
-function getSaudacao(t) {
-  const h = new Date().getHours();
-  if (h < 12) return t('bom_dia');
-  if (h < 18) return t('boa_tarde');
-  return t('boa_noite');
-}
+import { saudacaoTexto } from '../lib/saudacao';
+import { UserMenu } from './UserMenu';
 
 export function ConsultorSidebar() {
   const { utilizador, logout } = useAuth();
@@ -105,11 +100,17 @@ export function ConsultorSidebar() {
 }
 
 export function ConsultorTopbar({ subtitulo }) {
-  const { utilizador } = useAuth();
+  const { utilizador, logout } = useAuth();
   const { idioma, mudarIdioma, t } = useLanguage();
+  const navigate = useNavigate();
   const nome = utilizador?.nome || 'Utilizador';
-  const saudacao = `${getSaudacao(t)}, ${nome}!`;
-  const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
+  const saudacao = `${saudacaoTexto(t)}, ${nome}!`;
+  const perfilLabel = utilizador?.perfis?.join(', ') || 'Consultor';
+
+  function handleLogout() {
+    logout();
+    navigate('/login');
+  }
 
   const IDIOMAS = ['pt', 'en', 'es'];
 
@@ -155,9 +156,7 @@ export function ConsultorTopbar({ subtitulo }) {
             )}
           </NavLink>
           <div className="hidden text-sm font-semibold text-white sm:block">{nome}</div>
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-softinsa-500 text-sm font-bold text-white">
-            {iniciais}
-          </div>
+          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} onLogout={handleLogout} />
         </div>
       </div>
     </header>

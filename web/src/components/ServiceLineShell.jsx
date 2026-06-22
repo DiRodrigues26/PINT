@@ -2,8 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, FileText, Award, Users, BarChart2, Trophy, Bell, User, LogOut, History, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-
-const SAUDACAO_HORA = (h) => h < 12 ? 'bom_dia' : h < 18 ? 'boa_tarde' : 'boa_noite';
+import { saudacaoTexto } from '../lib/saudacao';
+import { UserMenu } from './UserMenu';
 
 const MENU_KEYS = [
   { key: 'sl_menu_dashboard',  to: '/sl/dashboard',     icon: LayoutDashboard },
@@ -100,11 +100,18 @@ export function ServiceLineSidebar() {
 }
 
 export function ServiceLineTopbar({ subtitulo }) {
-  const { utilizador } = useAuth();
+  const { utilizador, logout } = useAuth();
   const { idioma, mudarIdioma, t } = useLanguage();
+  const navigate = useNavigate();
   const nome = utilizador?.nome || 'Utilizador';
-  const saudacao = `${t(SAUDACAO_HORA(new Date().getHours()))}, ${nome}!`;
-  const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
+  const saudacao = `${saudacaoTexto(t)}, ${nome}!`;
+  const perfilLabel = utilizador?.perfis?.join(', ') || 'Service Line';
+
+  function handleLogout() {
+    logout();
+    navigate('/login');
+  }
+
   const IDIOMAS = ['pt', 'en', 'es'];
 
   return (
@@ -134,10 +141,7 @@ export function ServiceLineTopbar({ subtitulo }) {
             <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
           </NavLink>
           <div className="hidden text-sm font-semibold text-white sm:block">{nome}</div>
-          <NavLink to="/sl/perfil" aria-label="Ir para o perfil"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-softinsa-500 text-sm font-bold text-white hover:bg-softinsa-400 transition">
-            {iniciais}
-          </NavLink>
+          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} onLogout={handleLogout} />
         </div>
       </div>
     </header>

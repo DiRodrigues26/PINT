@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppSidebar, AppTopbar, ShellIcon } from '../../components/AppShell';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { saudacaoTexto } from '../../lib/saudacao';
 
 export const ADMIN_MENU = [
   { chave: 'dashboard', labelKey: 'admin_menu_dashboard', icon: 'grid', to: '/admin', end: true },
@@ -28,12 +29,6 @@ export function caminhoAdmin(chave) {
   return ADMIN_MENU.find((item) => item.chave === chave)?.to || '/admin';
 }
 
-function saudacaoKey() {
-  const h = new Date().getHours();
-  if (h < 12) return 'admin_greeting_morning';
-  if (h < 20) return 'admin_greeting_afternoon';
-  return 'admin_greeting_night';
-}
 
 function secaoPorPath(pathname) {
   const segmentos = pathname.split('/').filter(Boolean);
@@ -99,7 +94,7 @@ export default function AdminLayout() {
       />
       <div className="lg:pl-[260px]">
         <AppTopbar
-          titulo={`${t(saudacaoKey())}, ${t('admin_role_short')}!`}
+          titulo={`${saudacaoTexto(t)}, ${t('admin_role_short')}!`}
           subtitulo={subtitulo}
           utilizador={utilizador}
           onLogout={() => setMostrarLogout(true)}

@@ -1,3 +1,27 @@
+/*
+ * Decide o TIPO de saudação a mostrar ao utilizador no login.
+ *
+ * Importante: a saudação por hora do dia (Bom dia/Boa Tarde/Boa Noite) NÃO é
+ * decidida aqui — depende do fuso horário do utilizador, não do servidor. Por
+ * isso devolvemos apenas 'HORA' e deixamos o frontend calcular a hora local.
+ * Já 'BEM_VINDO' (1.º login) e 'NOVAMENTE' (15+ dias sem login) dependem de
+ * dados que só o servidor conhece, por isso são decididos aqui.
+ */
+function tipoSaudacao({ ultimoLogin, primeiroLoginPendente } = {}) {
+  if (primeiroLoginPendente) return 'BEM_VINDO';
+
+  if (ultimoLogin) {
+    const diasDesde = (Date.now() - new Date(ultimoLogin).getTime()) / (1000 * 60 * 60 * 24);
+    if (diasDesde >= 15) return 'NOVAMENTE';
+  }
+
+  return 'HORA';
+}
+
+/*
+ * Texto da saudação (usado como fallback em texto simples, ex.: emails ou
+ * clientes sem i18n). O frontend prefere `tipoSaudacao` + renderização local.
+ */
 function calcularSaudacao({ ultimoLogin, primeiroLoginPendente, idioma = 'pt' } = {}) {
   const traducoes = {
     pt: { bemVindo: 'Bem-vindo!', novamente: 'Seja bem-vindo novamente', manha: 'Bom dia!', tarde: 'Boa Tarde!', noite: 'Boa Noite!' },
@@ -5,15 +29,10 @@ function calcularSaudacao({ ultimoLogin, primeiroLoginPendente, idioma = 'pt' } 
     es: { bemVindo: '¡Bienvenido!', novamente: 'Bienvenido de nuevo',  manha: '¡Buenos días!', tarde: '¡Buenas tardes!', noite: '¡Buenas noches!' },
   };
   const t = traducoes[idioma] || traducoes.pt;
+  const tipo = tipoSaudacao({ ultimoLogin, primeiroLoginPendente });
 
-  if (primeiroLoginPendente) return t.bemVindo;
-
-  if (ultimoLogin) {
-    const agora = Date.now();
-    const ultimo = new Date(ultimoLogin).getTime();
-    const diasDesde = (agora - ultimo) / (1000 * 60 * 60 * 24);
-    if (diasDesde >= 15) return t.novamente;
-  }
+  if (tipo === 'BEM_VINDO') return t.bemVindo;
+  if (tipo === 'NOVAMENTE') return t.novamente;
 
   const hora = new Date().getHours();
   if (hora >= 6 && hora < 13)  return t.manha;
@@ -21,4 +40,4 @@ function calcularSaudacao({ ultimoLogin, primeiroLoginPendente, idioma = 'pt' } 
   return t.noite;
 }
 
-module.exports = { calcularSaudacao };
+module.exports = { calcularSaudacao, tipoSaudacao };

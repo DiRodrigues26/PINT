@@ -4,6 +4,7 @@ import { LayoutDashboard, FileText, Award, BarChart3, Bell, User, LogOut } from 
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { api } from '../lib/api';
+import { UserMenu } from './UserMenu';
 
 const MENU = [
   { key: 'dashboard',     to: '/tm/dashboard',    icon: LayoutDashboard },
@@ -95,10 +96,17 @@ export function TalentManagerSidebar() {
 }
 
 export function TalentManagerTopbar({ titulo = 'Dashboard Talent Manager', subtitulo }) {
-  const { utilizador } = useAuth();
+  const { utilizador, logout } = useAuth();
   const { idioma, mudarIdioma } = useLanguage();
+  const navigate = useNavigate();
   const nome = utilizador?.nome || 'Utilizador';
-  const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0].toUpperCase()).join('');
+  const perfilLabel = utilizador?.perfis?.join(', ') || 'Talent Manager';
+
+  function handleLogout() {
+    logout();
+    navigate('/login');
+  }
+
   const IDIOMAS = ['pt', 'en', 'es'];
 
   const { data: notifData } = useQuery({
@@ -140,10 +148,7 @@ export function TalentManagerTopbar({ titulo = 'Dashboard Talent Manager', subti
             )}
           </NavLink>
           <div className="hidden text-sm font-semibold text-slate-700 sm:block">{nome}</div>
-          <NavLink to="/tm/perfil" aria-label="Ir para o perfil"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-softinsa-600 text-sm font-bold text-white transition hover:bg-softinsa-700">
-            {iniciais}
-          </NavLink>
+          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} onLogout={handleLogout} />
         </div>
       </div>
     </header>

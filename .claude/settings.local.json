@@ -25,7 +25,8 @@
       "Bash(npm install *)",
       "Bash(node -e \"require\\('./src/utils/email.js'\\); console.log\\('OK'\\)\")",
       "Bash(cd \"/c/Users/USER/Desktop/PINT\" && wc -l web/src/context/LanguageContext.jsx)",
-      "Bash(cd \"/c/Users/USER/Desktop/PINT/web/src\" && \\\\ *)"
+      "Bash(cd \"/c/Users/USER/Desktop/PINT/web/src\" && \\\\ *)",
+      "Bash(cd \"/c/Users/USER/Desktop/PINT/web/src/lib\" && ls -1)"
     ]
   }
 }

@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { saudacaoTexto } from '../../lib/saudacao';
 import SplitLayout from '../../components/SplitLayout';
 
 const PERFIL_PUBLICO = 'Consultor';
@@ -11,6 +13,7 @@ export default function CompletarPerfil() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { recarregar } = useAuth();
+  const { t } = useLanguage();
 
   const [nome, setNome] = useState('');
   const [idArea, setIdArea] = useState('');
@@ -42,7 +45,7 @@ export default function CompletarPerfil() {
       if (data.token) {
         localStorage.setItem('token', data.token);
         await recarregar();
-        toast.success(data.saudacao || 'Bem-vindo!');
+        toast.success(saudacaoTexto(t, data.saudacao_tipo));
         navigate('/');
       } else {
         toast.success('Registo concluído! Inicie sessão.');

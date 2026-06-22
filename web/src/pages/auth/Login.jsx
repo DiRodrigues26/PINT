@@ -3,7 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Shield } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { api, extrairErro, guardarToken } from '../../lib/api';
+import { saudacaoTexto } from '../../lib/saudacao';
 import SplitLayout from '../../components/SplitLayout';
 import InputPassword from '../../components/InputPassword';
 
@@ -29,6 +31,7 @@ export default function Login() {
   const [erro2fa, setErro2fa]               = useState('');
 
   const { login, logout, utilizador } = useAuth();
+  const { t } = useLanguage();
   const navigate  = useNavigate();
   const location  = useLocation();
 
@@ -74,7 +77,7 @@ export default function Login() {
       if (guardarLogin) localStorage.setItem('email_guardado', emailNormalizado);
       else localStorage.removeItem('email_guardado');
 
-      toast.success(r.dados?.saudacao || 'Bem-vindo!');
+      toast.success(saudacaoTexto(t, r.dados?.saudacao_tipo));
       if (r.dados?.utilizador?.primeiro_login_pendente) navigate('/alterar-password-inicial');
       else navigate(destinoAposLogin(r.dados?.utilizador));
     } else {
@@ -97,7 +100,7 @@ export default function Login() {
       guardarToken(data.token, guardarLogin);
       if (guardarLogin) localStorage.setItem('email_guardado', emailNormalizado);
       else localStorage.removeItem('email_guardado');
-      toast.success(data.saudacao || 'Bem-vindo!');
+      toast.success(saudacaoTexto(t, data.saudacao_tipo));
       /* Recarrega o utilizador via AuthContext */
       window.location.href = data.utilizador?.primeiro_login_pendente
         ? '/alterar-password-inicial'
