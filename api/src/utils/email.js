@@ -1,7 +1,14 @@
-const sgMail = require('@sendgrid/mail');
+const nodemailer = require('nodemailer');
 
+let sgMail = null;
 let configurado = false;
+let smtpTransporter = null;
 
+function remetente() {
+  return process.env.SMTP_FROM || process.env.EMAIL_FROM || 'no-reply@softinsa-badges.local';
+}
+
+// --- SendGrid (preferencial, se houver API key E o pacote instalado) ---
 function temConfigSendGrid() {
   return Boolean(process.env.SENDGRID_API_KEY);
 }
@@ -9,28 +16,54 @@ function temConfigSendGrid() {
 function obterCliente() {
   if (!temConfigSendGrid()) return null;
   if (!configurado) {
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    configurado = true;
+    try {
+      sgMail = require('@sendgrid/mail');
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      configurado = true;
+    } catch (err) {
+      console.warn('[EMAIL] SENDGRID_API_KEY definida mas o pacote @sendgrid/mail não está instalado — a usar SMTP.');
+      return null;
+    }
   }
   return sgMail;
 }
 
+// --- SMTP / Gmail (fallback com as credenciais SMTP_* do .env) ---
+function temConfigSmtp() {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+}
+
+function obterSmtp() {
+  if (!temConfigSmtp()) return null;
+  if (!smtpTransporter) {
+    smtpTransporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: String(process.env.SMTP_SECURE).toLowerCase() === 'true',
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+  }
+  return smtpTransporter;
+}
+
 async function enviarEmail({ para, assunto, html, texto }) {
-  const cliente = obterCliente();
-  if (!cliente) {
-    console.log('[EMAIL STUB] Para:', para);
-    console.log('   Assunto:', assunto);
-    console.log('   Conteúdo:', texto || html);
-    return { stub: true };
+  // 1) SendGrid, se configurado
+  const sg = obterCliente();
+  if (sg) {
+    return sg.send({ from: process.env.EMAIL_FROM || remetente(), to: para, subject: assunto, text: texto, html });
   }
 
-  return cliente.send({
-    from: process.env.EMAIL_FROM || 'no-reply@softinsa-badges.local',
-    to: para,
-    subject: assunto,
-    text: texto,
-    html,
-  });
+  // 2) SMTP / Gmail, se configurado
+  const smtp = obterSmtp();
+  if (smtp) {
+    return smtp.sendMail({ from: remetente(), to: para, subject: assunto, text: texto, html });
+  }
+
+  // 3) Sem transporte configurado — stub (apenas log)
+  console.log('[EMAIL STUB] Para:', para);
+  console.log('   Assunto:', assunto);
+  console.log('   Conteúdo:', texto || html);
+  return { stub: true };
 }
 
 function frontendUrl() {
@@ -330,6 +363,34 @@ async function notificarMudancaEstadoCandidatura(utilizador, estado, badgeTitulo
   });
 }
 
+async function notificarSubmissaoCandidatura(utilizador, badgeTitulo, opcoes = {}) {
+  const { idCandidatura } = opcoes;
+  const link = idCandidatura
+    ? `${frontendUrl()}/candidaturas/${idCandidatura}`
+    : `${frontendUrl()}/candidaturas`;
+
+  const html = envolverEmail({
+    preheader: `Recebemos a sua candidatura ao badge ${badgeTitulo}.`,
+    conteudoHtml: corpoHtml({
+      icone: { nome: 'check', cor: '#059669', fundo: '#d1fae5' },
+      etiqueta: { texto: 'CANDIDATURA SUBMETIDA', cor: '#059669', fundo: '#d1fae5' },
+      titulo: 'Recebemos a sua candidatura.',
+      paragrafos: [
+        `A sua candidatura ao badge <strong>${badgeTitulo}</strong> foi submetida com sucesso e está agora em análise pela equipa de validação.`,
+        'Vai receber novidades por email sempre que houver uma atualização ao estado da candidatura.',
+      ],
+      cta: { texto: 'Acompanhar candidatura', url: link, cor: '#059669' },
+    }),
+  });
+
+  return enviarEmail({
+    para: utilizador.email,
+    assunto: `Candidatura submetida — ${badgeTitulo}`,
+    texto: `Recebemos a sua candidatura ao badge "${badgeTitulo}". Está agora em análise pela equipa de validação.\n\nAcompanhar candidatura: ${link}`,
+    html,
+  });
+}
+
 async function notificarAlertaSla({ para, titulo, mensagem, consultor, badge }) {
   const html = envolverEmail({
     preheader: mensagem,
@@ -379,6 +440,7 @@ module.exports = {
   enviarConfirmacaoRegisto,
   enviarRecuperacaoPassword,
   notificarMudancaEstadoCandidatura,
+  notificarSubmissaoCandidatura,
   notificarAlertaSla,
   enviarEmailTeste,
 };

@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Award, Copy, ExternalLink, FileText,
-  KeyRound, Pencil, Shield, TrendingUp, Trophy, X,
+  KeyRound, LogOut, Pencil, Shield, TrendingUp, Trophy, X,
 } from 'lucide-react';
 import { api, extrairErro } from '../../lib/api';
 import { ModalAlterarPassword, Modal2FA, ModalDesativar2FA } from '../../components/PerfilSeguranca';
+import { ConfirmarLogoutModal } from '../../components/ConfirmarLogoutModal';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
 import { useAuth } from '../../context/AuthContext';
@@ -124,7 +125,7 @@ function ModalEditarPerfil({ utilizador, onFechar, onSucesso }) {
    Página principal
 ═══════════════════════════════════════════════════════════════════════════ */
 export default function Perfil() {
-  const { utilizador, recarregar } = useAuth();
+  const { utilizador, recarregar, logout } = useAuth();
   const { idioma, mudarIdioma, t } = useLanguage();
   const navigate  = useNavigate();
   const queryClient = useQueryClient();
@@ -133,6 +134,12 @@ export default function Perfil() {
   const [modalPassword, setModalPassword] = useState(false);
   const [modal2FA,      setModal2FA]      = useState(false);
   const [modalDesativar2FA, setModalDesativar2FA] = useState(false);
+  const [confirmarLogout, setConfirmarLogout] = useState(false);
+
+  function handleLogout() {
+    logout();
+    navigate('/login');
+  }
 
   const nome     = utilizador?.nome || '';
   const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map(n => n[0].toUpperCase()).join('');
@@ -413,8 +420,25 @@ export default function Perfil() {
               </div>
             </div>
           </div>
+
+          {/* Terminar sessão — visível no mobile, onde a sidebar (com logout) está escondida */}
+          <button
+            type="button"
+            onClick={() => setConfirmarLogout(true)}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 lg:hidden"
+          >
+            <LogOut className="h-4 w-4" strokeWidth={1.8} />
+            {t('terminar_sessao')}
+          </button>
         </main>
       </div>
+
+      {confirmarLogout && (
+        <ConfirmarLogoutModal
+          onConfirmar={() => { setConfirmarLogout(false); handleLogout(); }}
+          onCancelar={() => setConfirmarLogout(false)}
+        />
+      )}
     </div>
   );
 }

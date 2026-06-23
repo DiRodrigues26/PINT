@@ -17,7 +17,7 @@ async function autenticar(req, res, next) {
 
     const [linhas] = await pool.query(
       `SELECT u.id_utilizador, u.nome, u.email, u.ativo, u.email_confirmado,
-              u.primeiro_login_pendente, u.idioma, u.url_slug
+              u.primeiro_login_pendente, u.idioma, u.url_slug, u.created_at
          FROM utilizador u
         WHERE u.id_utilizador = ?`,
       [payload.id_utilizador]

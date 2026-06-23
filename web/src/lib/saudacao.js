@@ -9,9 +9,11 @@
  */
 
 function saudacaoHora(t) {
+  // Hora local do utilizador (não do servidor). Faixas alinhadas com o backend:
+  // 06–12h → manhã, 13–19h → tarde, restantes (20–23h e 00–05h) → noite.
   const h = new Date().getHours();
-  if (h < 12) return t('bom_dia');
-  if (h < 20) return t('boa_tarde');
+  if (h >= 6 && h < 13) return t('bom_dia');
+  if (h >= 13 && h < 20) return t('boa_tarde');
   return t('boa_noite');
 }
 

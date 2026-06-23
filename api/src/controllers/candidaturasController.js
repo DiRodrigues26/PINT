@@ -1,6 +1,6 @@
 const { pool } = require('../db/connection');
 const { gerarTokenAleatorio, gerarCodigoPublico } = require('../utils/tokens');
-const { notificarMudancaEstadoCandidatura } = require('../utils/email');
+const { notificarMudancaEstadoCandidatura, notificarSubmissaoCandidatura } = require('../utils/email');
 const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
 const { obterCandidaturaComAcesso } = require('../utils/candidaturasPermissoes');
 
@@ -346,6 +346,16 @@ async function submeter(req, res, next) {
       }
 
       await conn.commit();
+
+      // email de confirmação de candidatura ao consultor (não bloqueia a resposta)
+      if (req.utilizador?.email && await podeNotificarPlataforma('email_candidatura_badge')) {
+        notificarSubmissaoCandidatura(
+          { email: req.utilizador.email, nome: req.utilizador.nome },
+          candidatura.titulo_badge,
+          { idCandidatura: req.params.id },
+        ).catch((e) => console.error('[EMAIL] Falha ao enviar confirmação de candidatura:', e.message));
+      }
+
       res.json({ mensagem: 'Candidatura submetida.' });
     } catch (err) {
       await conn.rollback();

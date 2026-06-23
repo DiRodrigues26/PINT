@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, FileText, Award, BarChart3, Bell, User, LogOut } from 'lucide-react';
@@ -5,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { api } from '../lib/api';
 import { UserMenu } from './UserMenu';
+import { ConfirmarLogoutModal } from './ConfirmarLogoutModal';
 
 const MENU = [
   { key: 'dashboard',     to: '/tm/dashboard',    icon: LayoutDashboard },
@@ -19,6 +21,7 @@ export function TalentManagerSidebar() {
   const { utilizador, logout } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [confirmarLogout, setConfirmarLogout] = useState(false);
 
   function handleLogout() {
     logout();
@@ -63,7 +66,7 @@ export function TalentManagerSidebar() {
           <div className="mt-0.5 truncate text-[11px] text-slate-400">Talent Manager</div>
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => setConfirmarLogout(true)}
             className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-400 transition hover:text-rose-500"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
@@ -91,6 +94,13 @@ export function TalentManagerSidebar() {
           ))}
         </div>
       </nav>
+
+      {confirmarLogout && (
+        <ConfirmarLogoutModal
+          onConfirmar={() => { setConfirmarLogout(false); handleLogout(); }}
+          onCancelar={() => setConfirmarLogout(false)}
+        />
+      )}
     </>
   );
 }

@@ -231,13 +231,23 @@ export default function BadgeModal({ idBadge, onFechar }) {
         <div className="border-t border-slate-200 px-6 py-4">
           <div className="flex gap-3">
             {jaObtido ? (
-              <button
-                type="button"
-                onClick={() => { onFechar(); navigate('/meus-badges'); }}
-                className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
-              >
-                <CheckCircle className="h-4 w-4" /> Já tens este badge
-              </button>
+              obtido.token_publico ? (
+                <button
+                  type="button"
+                  onClick={() => window.open(`/verificar/${obtido.token_publico}`, '_blank')}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  <ExternalLink className="h-4 w-4" /> Ver página pública
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { onFechar(); navigate('/meus-badges'); }}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+                >
+                  <CheckCircle className="h-4 w-4" /> Já tens este badge
+                </button>
+              )
             ) : candidaturaAtiva ? (
               <button
                 type="button"

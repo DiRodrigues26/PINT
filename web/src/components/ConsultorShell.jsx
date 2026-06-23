@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Award, Bell, BookOpen, FileText, LayoutDashboard, LogOut, Trophy, User } from 'lucide-react';
@@ -6,11 +7,13 @@ import { useLanguage } from '../context/LanguageContext';
 import { api } from '../lib/api';
 import { saudacaoTexto } from '../lib/saudacao';
 import { UserMenu } from './UserMenu';
+import { ConfirmarLogoutModal } from './ConfirmarLogoutModal';
 
 export function ConsultorSidebar() {
   const { utilizador, logout } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [confirmarLogout, setConfirmarLogout] = useState(false);
   const perfis = utilizador?.perfis?.join(', ') || 'Consultor';
 
   const MENU = [
@@ -67,7 +70,7 @@ export function ConsultorSidebar() {
           <div className="mt-1.5 truncate text-[11px] font-medium text-white/60">{perfis}</div>
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => setConfirmarLogout(true)}
             className="mt-4 flex items-center gap-2 text-xs font-semibold text-white/70 hover:text-white transition"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
@@ -95,6 +98,13 @@ export function ConsultorSidebar() {
           ))}
         </div>
       </nav>
+
+      {confirmarLogout && (
+        <ConfirmarLogoutModal
+          onConfirmar={() => { setConfirmarLogout(false); handleLogout(); }}
+          onCancelar={() => setConfirmarLogout(false)}
+        />
+      )}
     </>
   );
 }

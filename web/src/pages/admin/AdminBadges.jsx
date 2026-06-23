@@ -40,6 +40,16 @@ const CODIGOS_NIVEL = ['A', 'B', 'C', 'D', 'E'];
 
 const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Badge', 'Outro'];
 
+/* Converte um campo guardado (JSON array ou texto multi-linha) em texto, uma linha por item. */
+function textoDeLista(campo) {
+  if (!campo) return '';
+  try {
+    const parsed = JSON.parse(campo);
+    if (Array.isArray(parsed)) return parsed.join('\n');
+  } catch { /* não é JSON — usa o texto tal como está */ }
+  return String(campo);
+}
+
 const FORM_INICIAL = {
   titulo: '',
   descricao: '',
@@ -50,6 +60,9 @@ const FORM_INICIAL = {
   id_nivel: '',
   pontos: 0,
   imagem_url: '',
+  is_conquista_especial: false,
+  competencias_certificadas: '',
+  beneficios: '',
   tem_expiracao: true,
   tipo_expiracao: 'dias',
   valor_expiracao: 30,
@@ -248,6 +261,9 @@ function prepararPayload(form, niveis, badgeAtual = null, t) {
     descricao: form.descricao?.trim() || null,
     pontos: Number(form.pontos) || 0,
     imagem_url: form.imagem_url || null,
+    is_conquista_especial: form.is_conquista_especial ? 1 : 0,
+    competencias_certificadas: form.competencias_certificadas?.trim() || null,
+    beneficios: form.beneficios?.trim() || null,
     tem_expiracao: form.tem_expiracao,
     validade_dias: calcularValidadeDias(form, badgeAtual, t),
     ativo: form.ativo,
@@ -656,6 +672,44 @@ function FormBadge({
               />
             )}
           </div>
+        </div>
+
+        {/* Conquista especial (ex.: certificações pagas) */}
+        <div>
+          <label className="flex items-start gap-2 text-sm font-medium text-slate-900">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 rounded text-softinsa-600"
+              checked={form.is_conquista_especial}
+              onChange={(e) => setForm((atual) => ({ ...atual, is_conquista_especial: e.target.checked }))}
+            />
+            <span>
+              {t('admin_badges_conquista_especial')}
+              <span className="mt-0.5 block text-xs font-normal text-slate-500">{t('admin_badges_conquista_especial_ajuda')}</span>
+            </span>
+          </label>
+        </div>
+
+        {/* Competências certificadas (visíveis na página do badge) */}
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_badges_competencias')}</label>
+          <textarea
+            className="input min-h-[88px]"
+            placeholder={t('admin_badges_competencias_ph')}
+            value={form.competencias_certificadas}
+            onChange={(e) => setForm((atual) => ({ ...atual, competencias_certificadas: e.target.value }))}
+          />
+        </div>
+
+        {/* Benefícios */}
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_badges_beneficios')}</label>
+          <textarea
+            className="input min-h-[88px]"
+            placeholder={t('admin_badges_beneficios_ph')}
+            value={form.beneficios}
+            onChange={(e) => setForm((atual) => ({ ...atual, beneficios: e.target.value }))}
+          />
         </div>
 
         <div>
@@ -1075,6 +1129,9 @@ export default function AdminBadges({ editarBadgeId = null, onEditarBadgeConsumi
         id_nivel: item.id_nivel ? String(item.id_nivel) : '',
         pontos: item.pontos ?? 0,
         imagem_url: item.imagem_url || '',
+        is_conquista_especial: Boolean(item.is_conquista_especial),
+        competencias_certificadas: textoDeLista(item.competencias_certificadas),
+        beneficios: textoDeLista(item.beneficios),
         tem_expiracao: Boolean(item.tem_expiracao),
         tipo_expiracao: 'dias',
         valor_expiracao: item.validade_dias || 30,
