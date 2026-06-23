@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, FileText, Award, Users, BarChart2, Trophy, Bell, User, LogOut, History, Star } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { saudacaoTexto } from '../lib/saudacao';
 import { UserMenu } from './UserMenu';
+import { ConfirmarLogoutModal } from './ConfirmarLogoutModal';
 
 const MENU_KEYS = [
   { key: 'sl_menu_dashboard',  to: '/sl/dashboard',     icon: LayoutDashboard },
@@ -22,6 +24,7 @@ export function ServiceLineSidebar() {
   const { utilizador, logout } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const [confirmarLogout, setConfirmarLogout] = useState(false);
 
   function handleLogout() {
     logout();
@@ -67,7 +70,7 @@ export function ServiceLineSidebar() {
           <div className="mt-1.5 truncate text-[11px] font-medium text-white/60">Service Line</div>
           <button
             type="button"
-            onClick={handleLogout}
+            onClick={() => setConfirmarLogout(true)}
             className="mt-4 flex items-center gap-2 text-xs font-semibold text-white/70 hover:text-white transition"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
@@ -95,6 +98,13 @@ export function ServiceLineSidebar() {
           ))}
         </div>
       </nav>
+
+      {confirmarLogout && (
+        <ConfirmarLogoutModal
+          onConfirmar={() => { setConfirmarLogout(false); handleLogout(); }}
+          onCancelar={() => setConfirmarLogout(false)}
+        />
+      )}
     </>
   );
 }

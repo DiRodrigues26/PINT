@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { LogOut } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { ConfirmarLogoutModal } from './ConfirmarLogoutModal';
 
 export function UserMenu({ utilizador, perfilLabel, onLogout }) {
   const [aberto, setAberto] = useState(false);
+  const [confirmar, setConfirmar] = useState(false);
   const { t } = useLanguage();
   const nome = utilizador?.nome || 'Utilizador';
   const iniciais = nome.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0].toUpperCase()).join('');
@@ -37,7 +39,7 @@ export function UserMenu({ utilizador, perfilLabel, onLogout }) {
               className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-softinsa-700"
               onClick={() => {
                 setAberto(false);
-                onLogout?.();
+                setConfirmar(true);
               }}
             >
               <LogOut className="h-4 w-4" strokeWidth={1.8} />
@@ -45,6 +47,13 @@ export function UserMenu({ utilizador, perfilLabel, onLogout }) {
             </button>
           </div>
         </>
+      )}
+
+      {confirmar && (
+        <ConfirmarLogoutModal
+          onConfirmar={() => { setConfirmar(false); onLogout?.(); }}
+          onCancelar={() => setConfirmar(false)}
+        />
       )}
     </div>
   );
