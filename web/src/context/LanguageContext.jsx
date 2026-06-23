@@ -824,6 +824,7 @@ const T = {
     sl_ped_det_toast_ok:         'Avaliação registada.',
     /* SL Badges */
     sl_badges_subtitulo:         'Catálogo de Badges',
+    sl_badges_minha_sl:          'A minha Service Line',
     sl_badges_lp_label:          'Learning Path',
     sl_badges_sl_label:          'Service Line',
     sl_badges_area_label:        'Área',
@@ -2161,6 +2162,7 @@ const T = {
     sl_ped_det_toast_ok:         'Evaluation recorded.',
     /* SL Badges */
     sl_badges_subtitulo:         'Badge Catalog',
+    sl_badges_minha_sl:          'My Service Line',
     sl_badges_lp_label:          'Learning Path',
     sl_badges_sl_label:          'Service Line',
     sl_badges_area_label:        'Area',
@@ -3487,6 +3489,7 @@ const T = {
     sl_ped_det_toast_ok:         'Evaluación registrada.',
     /* SL Badges */
     sl_badges_subtitulo:         'Catálogo de Insignias',
+    sl_badges_minha_sl:          'Mi Service Line',
     sl_badges_lp_label:          'Ruta de Aprendizaje',
     sl_badges_sl_label:          'Línea de Servicio',
     sl_badges_area_label:        'Área',

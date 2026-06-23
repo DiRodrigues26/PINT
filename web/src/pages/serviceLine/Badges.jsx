@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Award, Layers, Search, Star, Timer, X, Download, FileText } from 'lucide-react';
@@ -33,14 +33,21 @@ function mesesDeValidade(validade_dias) {
 }
 
 /* ─── Card ──────────────────────────────────────────────────────────── */
-function BadgeCard({ badge, onDetalhe }) {
+function BadgeCard({ badge, onDetalhe, ehMinhaSL }) {
   const { t } = useLanguage();
   const meses = mesesDeValidade(badge.validade_dias);
   const pilCls = NIVEL_PILL[badge.codigo_nivel] || 'bg-slate-100 text-slate-600';
   const cirCls = NIVEL_COR[badge.codigo_nivel] || 'bg-softinsa-600';
 
   return (
-    <div className="flex flex-col rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+    <div className={`relative flex flex-col rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow ${
+      ehMinhaSL ? 'border-softinsa-300 ring-1 ring-softinsa-200' : 'border-slate-200'
+    }`}>
+      {ehMinhaSL && (
+        <span className="absolute right-3 top-3 inline-flex items-center rounded-full bg-softinsa-600 px-2 py-0.5 text-[10px] font-semibold text-white">
+          {t('sl_badges_minha_sl')}
+        </span>
+      )}
       {/* Topo colorido */}
       <div className="flex flex-col items-center px-6 pt-7 pb-4">
         {badge.imagem_url ? (
@@ -128,7 +135,26 @@ export default function ServiceLineBadges() {
     staleTime: 60_000,
   });
 
+  // Service Line do utilizador — para pré-filtrar e destacar os seus badges
+  const { data: minhaSL } = useQuery({
+    queryKey: ['sl-info-basica'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/estatisticas/service-line');
+      return { id: data.id_service_line, nome: data.nome_service_line };
+    },
+    staleTime: 300_000,
+  });
+
   const badges = badgesData || [];
+
+  // Pré-selecionar a Service Line do utilizador no arranque (consulta global continua disponível)
+  const [slInicializada, setSlInicializada] = useState(false);
+  useEffect(() => {
+    if (minhaSL?.id && !slInicializada) {
+      setFiltroSL(String(minhaSL.id));
+      setSlInicializada(true);
+    }
+  }, [minhaSL, slInicializada]);
 
   /* ─── Listas para dropdowns (derivadas dos dados) ────────────────── */
   const learningPaths = useMemo(() => {
@@ -335,7 +361,12 @@ export default function ServiceLineBadges() {
           ) : (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filtrados.map(b => (
-                <BadgeCard key={b.id_badge} badge={b} onDetalhe={(id) => navigate(`/sl/badges/${id}`)} />
+                <BadgeCard
+                  key={b.id_badge}
+                  badge={b}
+                  ehMinhaSL={!!minhaSL?.id && String(b.id_service_line) === String(minhaSL.id)}
+                  onDetalhe={(id) => navigate(`/sl/badges/${id}`)}
+                />
               ))}
             </div>
           )}
