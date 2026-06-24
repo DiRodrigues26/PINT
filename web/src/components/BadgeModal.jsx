@@ -43,7 +43,8 @@ export default function BadgeModal({ idBadge, onFechar }) {
     queryFn: async () => { const { data } = await api.get('/api/candidaturas?fechadas=0&por_pagina=100'); return data; },
     staleTime: 60_000,
   });
-  const jaObtido = (obtidosData?.dados ?? []).some(b => b.id_badge === idBadge);
+  const obtido = (obtidosData?.dados ?? []).find(b => b.id_badge === idBadge);
+  const jaObtido = !!obtido;
   const candidaturaAtiva = (candidaturasData?.dados ?? []).find(
     c => c.id_badge === idBadge && !['APPROVED', 'REJECTED', 'CLOSED'].includes(c.estado_atual),
   );
