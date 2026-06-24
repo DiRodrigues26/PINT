@@ -81,6 +81,8 @@ async function registar(req, res, next) {
     const { password } = req.body;
     const email = normalizarEmail(req.body.email);
     const idiomaPedido = req.body.idioma !== undefined ? String(req.body.idioma).trim() : 'pt';
+    const nomeInput = normalizarTexto(req.body.nome);
+    const idArea = idInteiroPositivo(req.body.id_area) ? Number(req.body.id_area) : null;
 
     if (!email || !password) {
       return res.status(400).json({ erro: 'Email e password são obrigatórios.' });
@@ -95,6 +97,9 @@ async function registar(req, res, next) {
     if (!idiomaValido(idiomaPedido)) {
       return res.status(400).json({ erro: 'Idioma inválido.' });
     }
+    if (nomeInput && !nomeValido(nomeInput)) {
+      return res.status(400).json({ erro: 'Nome inválido.' });
+    }
 
     const [existe] = await pool.query(
       'SELECT id_utilizador, email_confirmado FROM utilizador WHERE email = ?',
@@ -107,16 +112,51 @@ async function registar(req, res, next) {
     const passwordHash = await bcrypt.hash(password, 10);
     const tokenConfirmacao = gerarTokenAleatorio();
     const tokenConfirmacaoExpira = dataExpiracaoConfirmacao();
-    const nomeTemporario = String(email).split('@')[0];
-    const slug = await gerarSlugUnico(nomeTemporario);
+    // Se o registo já trouxer nome + área, o perfil fica completo aqui — a
+    // confirmação do email passa a ser só isso (não pede mais nada).
+    const perfilCompleto = Boolean(nomeInput && idArea);
+    const nomeFinal = nomeInput || String(email).split('@')[0];
+    const slug = await gerarSlugUnico(nomeFinal);
     await garantirColunaTokenConfirmacaoExpira();
 
-    await pool.query(
-      `INSERT INTO utilizador
-         (nome, email, password_hash, idioma, token_confirmacao_email, token_confirmacao_expira, url_slug, primeiro_login_pendente)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-      [nomeTemporario, email, passwordHash, idiomaPedido, tokenConfirmacao, tokenConfirmacaoExpira, slug]
-    );
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [ins] = await conn.query(
+        `INSERT INTO utilizador
+           (nome, email, password_hash, idioma, token_confirmacao_email, token_confirmacao_expira, url_slug, primeiro_login_pendente)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+        [nomeFinal, email, passwordHash, idiomaPedido, tokenConfirmacao, tokenConfirmacaoExpira, slug]
+      );
+      const idUtilizador = ins.insertId;
+
+      if (perfilCompleto) {
+        const [perfilRow] = await conn.query(
+          "SELECT id_perfil FROM perfil WHERE nome_perfil = 'Consultor'"
+        );
+        if (perfilRow.length === 0) throw new Error('Perfil "Consultor" não configurado.');
+        await conn.query(
+          'INSERT IGNORE INTO utilizador_perfil (id_utilizador, id_perfil) VALUES (?, ?)',
+          [idUtilizador, perfilRow[0].id_perfil]
+        );
+        await conn.query(
+          'INSERT INTO consultor_area (id_utilizador, id_area) VALUES (?, ?)',
+          [idUtilizador, idArea]
+        );
+        await conn.query(
+          'INSERT IGNORE INTO preferencia_notificacao (id_utilizador) VALUES (?)',
+          [idUtilizador]
+        );
+      }
+
+      await conn.commit();
+    } catch (err) {
+      await conn.rollback();
+      throw err;
+    } finally {
+      conn.release();
+    }
 
     try {
       if (await podeEnviarEmail('email_confirmacao_registo')) {
