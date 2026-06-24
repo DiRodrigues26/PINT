@@ -46,9 +46,13 @@ function BadgeCard({ badge, idx, stats, onVerCandidaturas, onVerDetalhes }) {
         <Info className="h-5 w-5" />
       </button>
 
-      <div className={`mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-full ${cor.bg}`}>
-        <Award className={`h-10 w-10 ${cor.icon}`} strokeWidth={1.5} />
-      </div>
+      {badge.imagem_url ? (
+        <img src={badge.imagem_url} alt={badge.titulo} className="mx-auto mt-2 h-20 w-20 rounded-full object-cover" />
+      ) : (
+        <div className={`mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-full ${cor.bg}`}>
+          <Award className={`h-10 w-10 ${cor.icon}`} strokeWidth={1.5} />
+        </div>
+      )}
 
       <div className="mt-4 flex items-center gap-1.5">
         <span className={`h-1.5 w-1.5 rounded-full ${st.dot}`} />

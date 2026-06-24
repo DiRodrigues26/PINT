@@ -1,6 +1,6 @@
 const { pool } = require('../db/connection');
 const { gerarTokenAleatorio, gerarCodigoPublico } = require('../utils/tokens');
-const { notificarMudancaEstadoCandidatura, notificarSubmissaoCandidatura, notificarServiceLinePendente } = require('../utils/email');
+const { notificarMudancaEstadoCandidatura, notificarSubmissaoCandidatura, notificarTalentNovaSubmissao, notificarServiceLinePendente } = require('../utils/email');
 const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
 const { obterCandidaturaComAcesso } = require('../utils/candidaturasPermissoes');
 
@@ -304,6 +304,7 @@ async function submeter(req, res, next) {
       });
     }
 
+    let talentParaEmail = [];
     const conn = await pool.getConnection();
     try {
       await conn.beginTransaction();
@@ -328,7 +329,7 @@ async function submeter(req, res, next) {
       // notificar talent managers (sujeito à configuração global de notificações)
       if (await podeNotificarPlataforma('email_candidatura_badge')) {
         const [talent] = await conn.query(
-          `SELECT u.id_utilizador FROM utilizador u
+          `SELECT u.id_utilizador, u.nome, u.email FROM utilizador u
              JOIN utilizador_perfil up ON up.id_utilizador = u.id_utilizador
              JOIN perfil p ON p.id_perfil = up.id_perfil
             WHERE p.nome_perfil = 'Talent Manager' AND u.ativo = 1`
@@ -343,6 +344,7 @@ async function submeter(req, res, next) {
             entidade_relacionada: String(req.params.id),
           });
         }
+        talentParaEmail = talent.filter(t => t.email);
       }
 
       await conn.commit();
@@ -354,6 +356,15 @@ async function submeter(req, res, next) {
           candidatura.titulo_badge,
           { idCandidatura: req.params.id },
         ).catch((e) => console.error('[EMAIL] Falha ao enviar confirmação de candidatura:', e.message));
+      }
+
+      // email aos Talent Managers: nova submissão a aguardar validação (não bloqueia)
+      for (const tm of talentParaEmail) {
+        notificarTalentNovaSubmissao(
+          { email: tm.email, nome: tm.nome },
+          candidatura.titulo_badge,
+          { idCandidatura: req.params.id, consultor: req.utilizador?.nome },
+        ).catch((e) => console.error('[EMAIL] Falha ao notificar Talent Manager:', e.message));
       }
 
       res.json({ mensagem: 'Candidatura submetida.' });

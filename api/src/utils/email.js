@@ -391,6 +391,33 @@ async function notificarSubmissaoCandidatura(utilizador, badgeTitulo, opcoes = {
   });
 }
 
+async function notificarTalentNovaSubmissao(utilizador, badgeTitulo, opcoes = {}) {
+  const { idCandidatura, consultor } = opcoes;
+  const link = idCandidatura
+    ? `${frontendUrl()}/tm/candidaturas`
+    : `${frontendUrl()}/tm/candidaturas`;
+
+  const html = envolverEmail({
+    preheader: `Nova submissão a aguardar validação: ${badgeTitulo}.`,
+    conteudoHtml: corpoHtml({
+      icone: { nome: 'info', cor: '#2d5288', fundo: '#eef3f9' },
+      etiqueta: { texto: 'NOVA SUBMISSÃO', cor: '#2d5288', fundo: '#eef3f9' },
+      titulo: 'Há uma candidatura para validar.',
+      paragrafos: [
+        `${consultor ? `<strong>${consultor}</strong> submeteu` : 'Foi submetida'} uma candidatura ao badge <strong>${badgeTitulo}</strong>, que aguarda a validação das evidências.`,
+      ],
+      cta: { texto: 'Abrir candidaturas', url: link },
+    }),
+  });
+
+  return enviarEmail({
+    para: utilizador.email,
+    assunto: `Nova submissão para validar — ${badgeTitulo}`,
+    texto: `${consultor ? `${consultor} submeteu` : 'Foi submetida'} uma candidatura ao badge "${badgeTitulo}", que aguarda validação.\n\nAbrir candidaturas: ${link}`,
+    html,
+  });
+}
+
 async function notificarAlertaSla({ para, titulo, mensagem, consultor, badge }) {
   const html = envolverEmail({
     preheader: mensagem,
@@ -469,6 +496,7 @@ module.exports = {
   enviarRecuperacaoPassword,
   notificarMudancaEstadoCandidatura,
   notificarSubmissaoCandidatura,
+  notificarTalentNovaSubmissao,
   notificarServiceLinePendente,
   notificarAlertaSla,
   enviarEmailTeste,

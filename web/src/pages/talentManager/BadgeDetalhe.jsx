@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, Award, Cloud, Calendar, AlertTriangle, Users, FileText,
-  TrendingUp, Clock, Download, ChevronDown,
+  TrendingUp, Clock, Download, ChevronDown, CheckCircle, ClipboardList,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
@@ -27,9 +27,9 @@ export default function TalentBadgeDetalhe() {
   const navigate = useNavigate();
   const [exportAberto, setExportAberto] = useState(false);
 
-  const { data: badgesData, isLoading } = useQuery({
-    queryKey: ['tm-badges'],
-    queryFn: async () => { const { data } = await api.get('/api/badges?ativo=1&por_pagina=200'); return data; },
+  const { data: detalheData, isLoading } = useQuery({
+    queryKey: ['tm-badge-detalhe', id],
+    queryFn: async () => { const { data } = await api.get(`/api/badges/${id}`); return data; },
     staleTime: 60_000,
   });
   const { data: candData } = useQuery({
@@ -38,7 +38,8 @@ export default function TalentBadgeDetalhe() {
     staleTime: 30_000,
   });
 
-  const badge = (badgesData?.dados ?? []).find(b => String(b.id_badge) === String(id));
+  const badge = detalheData?.badge;
+  const requisitos = detalheData?.requisitos ?? [];
   const candidaturas = useMemo(
     () => (candData?.dados ?? []).filter(c => String(c.id_badge) === String(id)),
     [candData, id],
@@ -129,9 +130,13 @@ export default function TalentBadgeDetalhe() {
           {/* Cartão principal */}
           <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <div className="flex flex-col gap-6 sm:flex-row">
-              <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-softinsa-50">
-                <Award className="h-16 w-16 text-softinsa-500" strokeWidth={1.4} />
-              </div>
+              {badge.imagem_url ? (
+                <img src={badge.imagem_url} alt={badge.titulo} className="h-32 w-32 shrink-0 rounded-full object-cover ring-4 ring-softinsa-50" />
+              ) : (
+                <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-softinsa-50">
+                  <Award className="h-16 w-16 text-softinsa-500" strokeWidth={1.4} />
+                </div>
+              )}
               <div className="flex-1">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <h1 className="text-2xl font-bold text-slate-900">{badge.titulo}</h1>
@@ -194,6 +199,47 @@ export default function TalentBadgeDetalhe() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Descrição */}
+          {badge.descricao && (
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <h2 className="text-base font-bold text-slate-900">{tt('descricao')}</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{badge.descricao}</p>
+            </div>
+          )}
+
+          {/* Requisitos */}
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
+              <ClipboardList className="h-4 w-4 text-softinsa-600" /> {tt('requisitos')} ({requisitos.length})
+            </h2>
+            {requisitos.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-400">{tt('sem_requisitos')}</p>
+            ) : (
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {requisitos.map(r => (
+                  <div key={r.id_requisito} className="flex gap-3 rounded-xl border border-slate-200 p-4">
+                    {r.imagem_url ? (
+                      <img src={r.imagem_url} alt={r.titulo} className="h-11 w-11 shrink-0 rounded-lg object-cover" />
+                    ) : (
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-softinsa-50 text-softinsa-500">
+                        <CheckCircle className="h-5 w-5" strokeWidth={1.8} />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        {r.codigo_requisito && (
+                          <span className="rounded bg-softinsa-100 px-1.5 py-0.5 text-[10px] font-bold text-softinsa-700">{r.codigo_requisito}</span>
+                        )}
+                        <h3 className="truncate text-sm font-bold text-slate-900">{r.titulo}</h3>
+                      </div>
+                      {r.descricao && <p className="mt-1 text-xs leading-5 text-slate-500">{r.descricao}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Estatísticas */}

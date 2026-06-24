@@ -70,6 +70,7 @@ export default function TalentDashboard() {
   const [tab, setTab] = useState('TODOS');
   const [pesquisa, setPesquisa] = useState('');
   const [modalConsultor, setModalConsultor] = useState(null);
+  const [filtroAreaCons, setFiltroAreaCons] = useState('');
   const [modalCandidatura, setModalCandidatura] = useState(null);
 
   const TABS = [
@@ -93,6 +94,11 @@ export default function TalentDashboard() {
 
   const candidaturas = candData?.dados ?? [];
   const consultores = (rankData?.dados ?? []).filter(c => Number(c.total_badges) > 0 || Number(c.pontos_totais) > 0);
+  const areasConsultores = useMemo(() => [...new Set(consultores.map(c => c.nome_area).filter(Boolean))].sort(), [consultores]);
+  const consultoresFiltrados = useMemo(
+    () => (filtroAreaCons ? consultores.filter(c => c.nome_area === filtroAreaCons) : consultores),
+    [consultores, filtroAreaCons],
+  );
 
   const kpis = useMemo(() => {
     let validacao = 0, aprovados = 0, pendentes = 0, critico = 0;
@@ -135,7 +141,7 @@ export default function TalentDashboard() {
   function exportarConsultores() {
     exportarCSV('consultores',
       [tt('col_nome'), tt('col_service_line'), tt('col_area'), tt('col_badges_obtidos'), tt('col_pontos_totais')],
-      consultores.map(c => [c.nome, c.nome_service_line, c.nome_area, c.total_badges, c.pontos_totais]));
+      consultoresFiltrados.map(c => [c.nome, c.nome_service_line, c.nome_area, c.total_badges, c.pontos_totais]));
   }
 
   const isLoading = loadCand || loadRank;
@@ -244,12 +250,19 @@ export default function TalentDashboard() {
               </section>
 
               <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-base font-bold text-slate-900">{tt('progresso_consultores')}</h2>
-                  <button type="button" onClick={exportarConsultores}
-                    className="flex items-center gap-2 rounded-lg bg-softinsa-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700">
-                    <Download className="h-4 w-4" /> {tt('exportar')}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <select value={filtroAreaCons} onChange={e => setFiltroAreaCons(e.target.value)}
+                      className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-softinsa-400">
+                      <option value="">{tt('todas_areas')}</option>
+                      {areasConsultores.map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                    <button type="button" onClick={exportarConsultores}
+                      className="flex items-center gap-2 rounded-lg bg-softinsa-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700">
+                      <Download className="h-4 w-4" /> {tt('exportar')}
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full text-sm">
@@ -264,9 +277,9 @@ export default function TalentDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {consultores.length === 0 ? (
+                      {consultoresFiltrados.length === 0 ? (
                         <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-400">{tt('sem_consultores')}</td></tr>
-                      ) : consultores.map(c => (
+                      ) : consultoresFiltrados.map(c => (
                         <tr key={c.id_utilizador} className="hover:bg-slate-50/60">
                           <td className="px-3 py-3.5 font-medium text-slate-800">{c.nome}</td>
                           <td className="px-3 py-3.5 text-slate-600">{c.nome_service_line || '—'}</td>

@@ -36,12 +36,21 @@ const {
 const PERFIS_PERMITIDOS_REGISTO = ['Consultor'];
 
 /*
- * URL pública base para os links dos emails. Em produção (deploy de serviço
- * único), a origem real do pedido é o domínio público — usamo-la para os links
- * nunca apontarem para localhost. Em desenvolvimento (host localhost), usamos
- * FRONTEND_URL (ex.: http://localhost:5173, onde corre o Vite).
+ * URL base para os links dos emails (confirmação de registo, recuperação de
+ * password).
+ *
+ * - Registo/pedido via MOBILE (`plataforma: 'mobile'` no body): usa o deep link
+ *   da app, definido em `MOBILE_APP_URL` (ex.: "softinsabadges://app"), para o
+ *   link do email abrir a aplicação em vez da web.
+ * - Web: usa a origem real do pedido (domínio público do deploy), para os links
+ *   nunca apontarem para localhost. Em dev (host localhost) usa FRONTEND_URL.
  */
 function urlBasePublica(req) {
+  const ehMobile = String(req?.body?.plataforma || '').toLowerCase() === 'mobile';
+  if (ehMobile && process.env.MOBILE_APP_URL) {
+    return String(process.env.MOBILE_APP_URL).replace(/\/+$/, '');
+  }
+
   const proto = String(req?.headers?.['x-forwarded-proto'] || req?.protocol || '').split(',')[0].trim();
   const host = String(req?.headers?.['x-forwarded-host'] || req?.headers?.host || '').split(',')[0].trim();
   const daRequest = host ? `${proto || 'https'}://${host}` : null;

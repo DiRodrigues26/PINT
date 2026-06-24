@@ -180,6 +180,9 @@ const TM = {
     taxa_aprovacao_pct: 'Taxa de aprovação (%)',
     tempo_medio_validacao: 'Tempo médio de validação (dias)',
     badge_nao_encontrado: 'Badge não encontrado.',
+    descricao: 'Descrição',
+    requisitos: 'Requisitos',
+    sem_requisitos: 'Sem requisitos definidos.',
 
     // Relatórios
     rel_titulo: 'Relatórios & Analytics',
@@ -439,6 +442,9 @@ const TM = {
     nr_candidaturas_assoc: 'No. of associated applications',
     taxa_aprovacao_pct: 'Approval rate (%)', tempo_medio_validacao: 'Average validation time (days)',
     badge_nao_encontrado: 'Badge not found.',
+    descricao: 'Description',
+    requisitos: 'Requirements',
+    sem_requisitos: 'No requirements defined.',
 
     rel_titulo: 'Reports & Analytics',
     rel_sub: 'Performance analysis and application validation',
@@ -671,6 +677,9 @@ const TM = {
     nr_candidaturas_assoc: 'Nº de candidaturas asociadas',
     taxa_aprovacao_pct: 'Tasa de aprobación (%)', tempo_medio_validacao: 'Tiempo medio de validación (días)',
     badge_nao_encontrado: 'Badge no encontrado.',
+    descricao: 'Descripción',
+    requisitos: 'Requisitos',
+    sem_requisitos: 'Sin requisitos definidos.',
 
     rel_titulo: 'Informes & Analytics',
     rel_sub: 'Análisis de rendimiento y validación de candidaturas',

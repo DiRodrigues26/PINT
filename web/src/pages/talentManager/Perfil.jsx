@@ -4,11 +4,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   Mail, Pencil, KeyRound, Globe, ShieldCheck, FileCheck, CheckCircle, XCircle,
   Send, Bell, AlertCircle, Copy, FileText, Award, Users,
-  ClipboardList, BarChart3, BookOpen, ClipboardCheck, X,
+  ClipboardList, BarChart3, BookOpen, ClipboardCheck, X, LogOut,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
+import { ConfirmarLogoutModal } from '../../components/ConfirmarLogoutModal';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { exportCSV, exportPDF } from '../../lib/exportUtils';
@@ -37,12 +38,18 @@ function ModalBase({ titulo, children, onFechar }) {
 
 export default function TalentPerfil() {
   const tt = useTM();
-  const { utilizador, recarregar } = useAuth();
-  const { idioma, mudarIdioma } = useLanguage();
+  const { utilizador, recarregar, logout } = useAuth();
+  const { idioma, mudarIdioma, t } = useLanguage();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const assinaturaRef = useRef(null);
   const [modal, setModal] = useState(null); // 'password' | 'editar'
+  const [confirmarLogout, setConfirmarLogout] = useState(false);
+
+  function handleLogout() {
+    logout();
+    navigate('/login');
+  }
 
   const nome = utilizador?.nome || 'Talent Manager';
   const email = utilizador?.email || '';
@@ -322,11 +329,27 @@ export default function TalentPerfil() {
               </div>
             </section>
           </div>
+
+          {/* Terminar sessão — visível no mobile, onde a sidebar (com logout) está escondida */}
+          <button
+            type="button"
+            onClick={() => setConfirmarLogout(true)}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-3 text-sm font-semibold text-rose-600 transition hover:bg-rose-50 lg:hidden"
+          >
+            <LogOut className="h-4 w-4" strokeWidth={1.8} />
+            {t('terminar_sessao')}
+          </button>
         </main>
       </div>
 
       {modal === 'password' && <ModalPassword onFechar={() => setModal(null)} />}
       {modal === 'editar' && <ModalEditar nomeAtual={nome} onFechar={() => setModal(null)} onGuardado={recarregar} />}
+      {confirmarLogout && (
+        <ConfirmarLogoutModal
+          onConfirmar={() => { setConfirmarLogout(false); handleLogout(); }}
+          onCancelar={() => setConfirmarLogout(false)}
+        />
+      )}
     </div>
   );
 }

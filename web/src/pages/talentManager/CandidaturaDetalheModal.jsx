@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { FileText, X, CheckCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
+import { FileText, X, CheckCircle, XCircle, AlertTriangle, Clock, ClipboardList, Circle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { useTM } from './i18n';
@@ -85,8 +85,10 @@ export default function CandidaturaDetalheModal({ idCandidatura, onFechar }) {
 
   const c = data?.candidatura;
   const evidencias = data?.evidencias ?? [];
+  const requisitos = data?.requisitos ?? [];
   const avaliacoes = data?.avaliacoes ?? [];
   const estado = c?.estado_atual;
+  const reqsComEvidencia = new Set(evidencias.map(ev => ev.id_requisito));
 
   const podeIniciar = estado === 'SUBMITTED';
   const emValidacao = estado === 'IN_TALENT_REVIEW';
@@ -148,6 +150,38 @@ export default function CandidaturaDetalheModal({ idCandidatura, onFechar }) {
                   <Campo label={tt('validado_por')}>{avalFinal.nome_avaliador || '—'}</Campo>
                 </div>
               )}
+
+              {/* Requisitos do badge */}
+              <div className="mt-5 border-t border-slate-100 pt-5">
+                <p className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
+                  <ClipboardList className="h-4 w-4 text-softinsa-600" /> {tt('requisitos')} ({requisitos.length})
+                </p>
+                {requisitos.length === 0 ? (
+                  <p className="mt-2 text-sm text-slate-400">{tt('sem_requisitos')}</p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {requisitos.map(r => {
+                      const cumprido = reqsComEvidencia.has(r.id_requisito);
+                      return (
+                        <div key={r.id_requisito} className="flex items-start gap-2.5 rounded-lg border border-slate-100 px-3 py-2.5">
+                          {cumprido
+                            ? <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" strokeWidth={2} />
+                            : <Circle className="mt-0.5 h-4 w-4 shrink-0 text-slate-300" strokeWidth={2} />}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              {r.codigo_requisito && (
+                                <span className="rounded bg-softinsa-100 px-1.5 py-0.5 text-[10px] font-bold text-softinsa-700">{r.codigo_requisito}</span>
+                              )}
+                              <span className="text-sm font-semibold text-slate-800">{r.titulo}</span>
+                            </div>
+                            {r.descricao && <p className="mt-0.5 text-xs leading-5 text-slate-500">{r.descricao}</p>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
               {/* Evidências */}
               <div className="mt-5 border-t border-slate-100 pt-5">
