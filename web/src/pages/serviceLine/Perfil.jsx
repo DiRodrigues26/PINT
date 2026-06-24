@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Mail, Copy } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
 import InputPassword from '../../components/InputPassword';
+import AssinaturaEmailPreview from '../../components/AssinaturaEmailPreview';
+import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 
 function usePerfil() {
@@ -270,6 +273,65 @@ function SecçãoNotificacoes() {
   );
 }
 
+/* ─── Secção Assinatura de Email ────────────────────────────────────── */
+function SecçãoAssinatura() {
+  const { t } = useLanguage();
+  const { utilizador } = useAuth();
+  const assinaturaRef = useRef(null);
+
+  const { data: badges = [] } = useQuery({
+    queryKey: ['sl-meus-badges'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/badge-atribuido/meus');
+      return data.dados || [];
+    },
+    staleTime: 60_000,
+  });
+
+  function copiarAssinatura() {
+    try {
+      const html = assinaturaRef.current.innerHTML;
+      navigator.clipboard.write([new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([`${utilizador?.nome || ''}\nService Line · Softinsa\n${utilizador?.email || ''}`], { type: 'text/plain' }),
+      })]);
+      toast.success(t('sl_perfil_assinatura_copiada'));
+    } catch { toast.error(t('sl_perfil_assinatura_erro')); }
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <h2 className="flex items-center gap-2 text-base font-semibold text-slate-800">
+        <Mail className="h-5 w-5 text-slate-500" /> {t('sl_perfil_assinatura_titulo')}
+      </h2>
+      <p className="mt-1 text-sm text-slate-500">{t('sl_perfil_assinatura_desc')}</p>
+
+      <div className="mt-4 overflow-x-auto rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5">
+        <AssinaturaEmailPreview
+          ref={assinaturaRef}
+          nome={utilizador?.nome}
+          cargo="Service Line · Softinsa"
+          email={utilizador?.email}
+          badges={badges}
+        />
+      </div>
+
+      {badges.length === 0 && (
+        <p className="mt-2 text-xs text-slate-400">{t('sl_perfil_assinatura_sem_badges')}</p>
+      )}
+
+      <button
+        type="button"
+        onClick={copiarAssinatura}
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-softinsa-600 py-2.5 text-sm font-semibold text-white hover:bg-softinsa-700 transition"
+      >
+        <Copy className="h-4 w-4" strokeWidth={1.8} />
+        {t('sl_perfil_assinatura_copiar')}
+      </button>
+    </div>
+  );
+}
+
 /* ─── Página principal ──────────────────────────────────────────────── */
 export default function ServiceLinePerfil() {
   const { t } = useLanguage();
@@ -291,6 +353,7 @@ export default function ServiceLinePerfil() {
 
         <main className="flex-1 px-5 py-6 lg:px-8 pb-24 lg:pb-8 space-y-6 max-w-3xl">
           <SecçãoInformacoes utilizador={utilizador} isLoading={isLoading} />
+          <SecçãoAssinatura />
           <SecçãoNotificacoes />
           <SecçãoSegurança />
         </main>
