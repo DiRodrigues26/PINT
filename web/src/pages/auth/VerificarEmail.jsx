@@ -4,6 +4,7 @@ import SplitLayout from '../../components/SplitLayout';
 export default function VerificarEmail() {
   const location = useLocation();
   const email = location.state?.email;
+  const bemVindo = location.state?.bemVindo;
 
   return (
     <SplitLayout>
@@ -11,6 +12,11 @@ export default function VerificarEmail() {
         <div>
           <div className="w-14 h-14 rounded-full bg-softinsa-50 text-softinsa-500 flex items-center justify-center text-2xl">📧</div>
         </div>
+        {bemVindo && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700">
+            Bem-vindo!
+          </span>
+        )}
         <h1 className="text-3xl font-extrabold tracking-tight">Verifica o teu email</h1>
         <p className="text-sm text-slate-600">
           Enviámos um link de confirmação {email ? <>para <span className="font-semibold">{email}</span></> : null}.

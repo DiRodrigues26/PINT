@@ -10,10 +10,11 @@
 function tipoSaudacao({ ultimoLogin, primeiroLoginPendente } = {}) {
   if (primeiroLoginPendente) return 'BEM_VINDO';
 
-  if (ultimoLogin) {
-    const diasDesde = (Date.now() - new Date(ultimoLogin).getTime()) / (1000 * 60 * 60 * 24);
-    if (diasDesde >= 15) return 'NOVAMENTE';
-  }
+  // Primeiro login de sempre (ainda sem registo de login anterior) → "Bem-vindo!"
+  if (!ultimoLogin) return 'BEM_VINDO';
+
+  const diasDesde = (Date.now() - new Date(ultimoLogin).getTime()) / (1000 * 60 * 60 * 24);
+  if (diasDesde >= 15) return 'NOVAMENTE';
 
   return 'HORA';
 }

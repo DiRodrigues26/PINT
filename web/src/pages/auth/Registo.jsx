@@ -28,8 +28,8 @@ export default function Registo() {
     setLoading(true);
     try {
       await api.post('/api/auth/registo', { email: emailNormalizado, password });
-      toast.success('Enviámos um email de confirmação.');
-      navigate('/verificar-email', { state: { email: emailNormalizado } });
+      toast.success('Bem-vindo! Enviámos um email de confirmação.');
+      navigate('/verificar-email', { state: { email: emailNormalizado, bemVindo: true } });
     } catch (err) {
       toast.error(extrairErro(err));
     } finally {
