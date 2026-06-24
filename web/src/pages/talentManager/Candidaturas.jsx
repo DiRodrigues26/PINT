@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Filter, Search, X, Eye, Download, ChevronDown } from 'lucide-react';
@@ -10,6 +10,7 @@ import { exportCSV, exportPDF } from '../../lib/exportUtils';
 import { useTM } from './i18n';
 
 const FECHADOS = ['APPROVED', 'REJECTED', 'CLOSED'];
+const POR_PAGINA_CANDIDATURAS = 12;
 
 const ESTADO_CFG = {
   OPEN: { key: 'est_aberto', cls: 'bg-blue-100 text-blue-700', grupo: 'OPEN' },
@@ -63,6 +64,7 @@ export default function TalentCandidaturas() {
   const [dataFim, setDataFim] = useState('');
   const [modalCand, setModalCand] = useState(null);
   const [exportAberto, setExportAberto] = useState(false);
+  const [pagina, setPagina] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tm-candidaturas'],
@@ -95,6 +97,20 @@ export default function TalentCandidaturas() {
     }
     return [...l].sort((a, b) => new Date(b.data_submissao || b.data_abertura) - new Date(a.data_submissao || a.data_abertura));
   }, [todas, fEstado, fPrioridade, fArea, dataIni, dataFim, pesquisa]);
+
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / POR_PAGINA_CANDIDATURAS));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const inicioPagina = (paginaAtual - 1) * POR_PAGINA_CANDIDATURAS;
+  const fimPagina = Math.min(inicioPagina + POR_PAGINA_CANDIDATURAS, lista.length);
+  const listaPagina = lista.slice(inicioPagina, fimPagina);
+
+  useEffect(() => {
+    setPagina(1);
+  }, [pesquisa, fEstado, fPrioridade, fArea, dataIni, dataFim]);
+
+  useEffect(() => {
+    setPagina((valor) => Math.min(valor, totalPaginas));
+  }, [totalPaginas]);
 
   const temFiltros = pesquisa || fEstado || fPrioridade || fArea || dataIni || dataFim;
   function limpar() { setPesquisa(''); setFEstado(''); setFPrioridade(''); setFArea(''); setDataIni(''); setDataFim(''); }
@@ -136,9 +152,6 @@ export default function TalentCandidaturas() {
         <main className="px-5 py-8 lg:px-8 pb-24 lg:pb-10">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold text-slate-900">{tt('cand_titulo')}</h2>
-            <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {tt('atualizado_tempo_real')}
-            </span>
           </div>
           <p className="mt-1 text-sm text-slate-500">{tt('cand_sub')}.</p>
 
@@ -223,7 +236,7 @@ export default function TalentCandidaturas() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {lista.map(c => {
+                    {listaPagina.map(c => {
                       const est = ESTADO_CFG[c.estado_atual] || { key: null, cls: 'bg-slate-100 text-slate-600' };
                       const prio = prioridade(c.pontos);
                       const pz = prazo(c, slaPorCandidatura.get(Number(c.id_candidatura)), tt);
@@ -252,6 +265,24 @@ export default function TalentCandidaturas() {
                     })}
                   </tbody>
                 </table>
+                <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                  <span>
+                    {tt('a_mostrar')} {inicioPagina + 1}-{fimPagina} {tt('de_total')} {lista.length}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button type="button" disabled={paginaAtual === 1} onClick={() => setPagina((valor) => Math.max(1, valor - 1))}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                      {tt('pagina_anterior')}
+                    </button>
+                    <span className="min-w-[92px] text-center font-semibold text-slate-600">
+                      {tt('pagina')} {paginaAtual}/{totalPaginas}
+                    </span>
+                    <button type="button" disabled={paginaAtual === totalPaginas} onClick={() => setPagina((valor) => Math.min(totalPaginas, valor + 1))}
+                      className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                      {tt('pagina_seguinte')}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
           </div>

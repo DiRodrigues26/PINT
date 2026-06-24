@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { LogOut } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { LogOut, User } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { ConfirmarLogoutModal } from './ConfirmarLogoutModal';
 
-export function UserMenu({ utilizador, perfilLabel, onLogout }) {
+export function UserMenu({ utilizador, perfilLabel, profileTo, onLogout }) {
   const [aberto, setAberto] = useState(false);
   const [confirmar, setConfirmar] = useState(false);
   const { t } = useLanguage();
@@ -34,9 +35,21 @@ export function UserMenu({ utilizador, perfilLabel, onLogout }) {
                 {perfilLabel}
               </div>
             </div>
+            {profileTo && (
+              <Link
+                to={profileTo}
+                className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-softinsa-700"
+                role="menuitem"
+                onClick={() => setAberto(false)}
+              >
+                <User className="h-4 w-4" strokeWidth={1.8} />
+                {t('perfil')}
+              </Link>
+            )}
             <button
               type="button"
               className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-softinsa-700"
+              role="menuitem"
               onClick={() => {
                 setAberto(false);
                 setConfirmar(true);

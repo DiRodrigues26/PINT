@@ -14,7 +14,6 @@ export function ConsultorSidebar() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [confirmarLogout, setConfirmarLogout] = useState(false);
-  const perfis = utilizador?.perfis?.join(', ') || 'Consultor';
 
   const MENU = [
     { labelKey: 'dashboard',    to: '/dashboard',    icon: LayoutDashboard },
@@ -65,16 +64,13 @@ export function ConsultorSidebar() {
         </nav>
 
         <div className="border-t border-white/10 px-5 py-5">
-          <div className="truncate text-sm font-semibold text-white">{utilizador?.nome || 'Utilizador'}</div>
-          <div className="mt-0.5 truncate text-[11px] text-white/50">{utilizador?.email || '-'}</div>
-          <div className="mt-1.5 truncate text-[11px] font-medium text-white/60">{perfis}</div>
           <button
             type="button"
             onClick={() => setConfirmarLogout(true)}
-            className="mt-4 flex items-center gap-2 text-xs font-semibold text-white/70 hover:text-white transition"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white/80 transition hover:border-white/25 hover:bg-white/15 hover:text-white"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
-            {t('terminar_sessao')}
+            {t('admin_logout_title')}
           </button>
         </div>
       </aside>
@@ -166,7 +162,7 @@ export function ConsultorTopbar({ subtitulo }) {
             )}
           </NavLink>
           <div className="hidden text-sm font-semibold text-white sm:block">{nome}</div>
-          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} onLogout={handleLogout} />
+          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} profileTo="/perfil" onLogout={handleLogout} />
         </div>
       </div>
     </header>

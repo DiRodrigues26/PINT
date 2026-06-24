@@ -62,15 +62,13 @@ export function TalentManagerSidebar() {
         </nav>
 
         <div className="border-t border-slate-100 px-5 py-4">
-          <div className="truncate text-sm font-semibold text-slate-800">{utilizador?.nome || 'Utilizador'}</div>
-          <div className="mt-0.5 truncate text-[11px] text-slate-400">Talent Manager</div>
           <button
             type="button"
             onClick={() => setConfirmarLogout(true)}
-            className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-400 transition hover:text-rose-500"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:bg-[#eaf3ff] hover:text-softinsa-700"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
-            {t('terminar_sessao')}
+            {t('admin_logout_title')}
           </button>
         </div>
       </aside>
@@ -158,7 +156,7 @@ export function TalentManagerTopbar({ titulo = 'Dashboard Talent Manager', subti
             )}
           </NavLink>
           <div className="hidden text-sm font-semibold text-slate-700 sm:block">{nome}</div>
-          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} onLogout={handleLogout} />
+          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} profileTo="/tm/perfil" onLogout={handleLogout} />
         </div>
       </div>
     </header>

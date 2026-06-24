@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { AppSidebar, AppTopbar, ShellIcon } from '../../components/AppShell';
+import { AppSidebar, AppTopbar } from '../../components/AppShell';
+import { ConfirmarLogoutModal } from '../../components/ConfirmarLogoutModal';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { saudacaoTexto } from '../../lib/saudacao';
@@ -106,32 +107,10 @@ export default function AdminLayout() {
       </div>
 
       {mostrarLogout && (
-        <div className="fixed inset-x-0 -top-8 bottom-0 z-50 flex items-center justify-center bg-slate-950/85 px-4 pt-8">
-          <section className="w-full max-w-md overflow-hidden rounded-[24px] bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-              <h2 className="text-2xl font-bold text-slate-900">{t('admin_logout_title')}</h2>
-              <button
-                type="button"
-                onClick={() => setMostrarLogout(false)}
-                className="text-slate-400 hover:text-slate-700"
-                aria-label={t('admin_close')}
-              >
-                <ShellIcon nome="x" className="h-7 w-7" />
-              </button>
-            </div>
-            <div className="px-6 py-5">
-              <p className="text-sm leading-6 text-slate-600">{t('admin_logout_question')}</p>
-            </div>
-            <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
-              <button type="button" className="btn-secondary" onClick={() => setMostrarLogout(false)}>
-                {t('admin_cancel')}
-              </button>
-              <button type="button" className="btn-primary" onClick={confirmarLogout}>
-                {t('admin_logout_title')}
-              </button>
-            </div>
-          </section>
-        </div>
+        <ConfirmarLogoutModal
+          onConfirmar={confirmarLogout}
+          onCancelar={() => setMostrarLogout(false)}
+        />
       )}
     </div>
   );

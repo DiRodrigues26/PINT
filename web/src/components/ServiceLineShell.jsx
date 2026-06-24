@@ -65,16 +65,13 @@ export function ServiceLineSidebar() {
         </nav>
 
         <div className="border-t border-white/10 px-5 py-5">
-          <div className="truncate text-sm font-semibold text-white">{utilizador?.nome || 'Utilizador'}</div>
-          <div className="mt-0.5 truncate text-[11px] text-white/50">{utilizador?.email || '-'}</div>
-          <div className="mt-1.5 truncate text-[11px] font-medium text-white/60">Service Line</div>
           <button
             type="button"
             onClick={() => setConfirmarLogout(true)}
-            className="mt-4 flex items-center gap-2 text-xs font-semibold text-white/70 hover:text-white transition"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white/80 transition hover:border-white/25 hover:bg-white/15 hover:text-white"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
-            {t('terminar_sessao')}
+            {t('admin_logout_title')}
           </button>
         </div>
       </aside>
@@ -151,7 +148,7 @@ export function ServiceLineTopbar({ subtitulo }) {
             <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
           </NavLink>
           <div className="hidden text-sm font-semibold text-white sm:block">{nome}</div>
-          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} onLogout={handleLogout} />
+          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} profileTo="/sl/perfil" onLogout={handleLogout} />
         </div>
       </div>
     </header>

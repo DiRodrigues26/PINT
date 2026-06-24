@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   FileText, AlertCircle, Award, Clock, AlertTriangle, Search, Download, Eye, Trophy,
@@ -22,6 +22,8 @@ const ESTADO_LABEL = {
 };
 const FECHADOS = ['APPROVED', 'REJECTED', 'CLOSED'];
 const EM_VALIDACAO = ['IN_TALENT_REVIEW', 'IN_SERVICE_LINE_REVIEW'];
+const POR_PAGINA_CANDIDATURAS = 6;
+const POR_PAGINA_CONSULTORES = 8;
 
 function prioridade(pontos) {
   const p = Number(pontos) || 0;
@@ -29,14 +31,31 @@ function prioridade(pontos) {
   if (p >= 250) return { key: 'prio_media', cls: 'bg-amber-100 text-amber-700' };
   return { key: 'prio_baixa', cls: 'bg-slate-100 text-slate-600' };
 }
-function prazo(c) {
-  if (FECHADOS.includes(c.estado_atual)) return { key: 'prazo_concluido', cls: 'text-slate-400' };
+function formatarTempoRestante(info, tt) {
+  const restante = Number(info.limite_horas || 0) - Number(info.horas_em_fase || 0);
+  if (restante <= 0) return tt('prazo_atrasado');
+  if (restante < 24) {
+    const horas = Math.max(1, Math.ceil(restante));
+    return `${horas} ${tt(horas === 1 ? 'hora' : 'horas')}`;
+  }
+  const dias = Math.ceil(restante / 24);
+  return `${dias} ${tt(dias === 1 ? 'dia' : 'dias')}`;
+}
+function prazoFallback(c) {
   const base = c.data_submissao || c.data_abertura;
   if (!base) return { key: null, cls: 'text-slate-300' };
   const dias = (Date.now() - new Date(base).getTime()) / 86_400_000;
-  if (dias > 14) return { key: 'prazo_atrasado', cls: 'text-rose-600 font-semibold', critico: true };
-  if (dias > 7) return { key: 'prazo_proximo', cls: 'text-amber-600 font-semibold', critico: true };
+  if (dias > 14) return { key: 'prazo_atrasado', cls: 'text-rose-600 font-semibold' };
+  if (dias > 7) return { key: 'prazo_proximo', cls: 'text-amber-600 font-semibold' };
   return { key: 'prazo_no_prazo', cls: 'text-emerald-600' };
+}
+function prazo(c, slaInfo, tt) {
+  if (FECHADOS.includes(c.estado_atual)) return { key: 'prazo_concluido', cls: 'text-slate-400' };
+  if (!slaInfo) return prazoFallback(c);
+  if (!slaInfo.limite_horas) return { label: '—', cls: 'text-slate-300' };
+  if (slaInfo.estado_sla === 'ULTRAPASSADO') return { key: 'prazo_atrasado', cls: 'text-rose-600 font-semibold' };
+  if (slaInfo.estado_sla === 'PROXIMO_LIMITE') return { label: formatarTempoRestante(slaInfo, tt), cls: 'text-amber-600 font-semibold' };
+  return { label: formatarTempoRestante(slaInfo, tt), cls: 'text-emerald-600' };
 }
 function formatarData(d) {
   if (!d) return '—';
@@ -69,6 +88,8 @@ export default function TalentDashboard() {
   const tt = useTM();
   const [tab, setTab] = useState('TODOS');
   const [pesquisa, setPesquisa] = useState('');
+  const [paginaTabela, setPaginaTabela] = useState(1);
+  const [paginaConsultores, setPaginaConsultores] = useState(1);
   const [modalConsultor, setModalConsultor] = useState(null);
   const [filtroAreaCons, setFiltroAreaCons] = useState('');
   const [modalCandidatura, setModalCandidatura] = useState(null);
@@ -91,6 +112,11 @@ export default function TalentDashboard() {
     queryFn: async () => { const { data } = await api.get('/api/estatisticas/ranking?limite=50'); return data; },
     staleTime: 60_000,
   });
+  const { data: slaData } = useQuery({
+    queryKey: ['tm-dashboard-sla'],
+    queryFn: async () => { const { data } = await api.get('/api/sla/fora-prazo', { params: { todos: 1 } }); return data; },
+    staleTime: 20_000, refetchInterval: 20_000,
+  });
 
   const candidaturas = candData?.dados ?? [];
   const consultores = (rankData?.dados ?? []).filter(c => Number(c.total_badges) > 0 || Number(c.pontos_totais) > 0);
@@ -99,6 +125,10 @@ export default function TalentDashboard() {
     () => (filtroAreaCons ? consultores.filter(c => c.nome_area === filtroAreaCons) : consultores),
     [consultores, filtroAreaCons],
   );
+  const slaPorCandidatura = useMemo(
+    () => new Map((slaData?.dados || []).map((item) => [Number(item.id_candidatura), item])),
+    [slaData],
+  );
 
   const kpis = useMemo(() => {
     let validacao = 0, aprovados = 0, pendentes = 0, critico = 0;
@@ -106,10 +136,11 @@ export default function TalentDashboard() {
       if (EM_VALIDACAO.includes(c.estado_atual)) validacao++;
       else if (c.estado_atual === 'APPROVED') aprovados++;
       else if (['OPEN', 'SUBMITTED', 'SENT_BACK'].includes(c.estado_atual)) pendentes++;
-      if (!FECHADOS.includes(c.estado_atual) && prazo(c).critico) critico++;
+      const slaInfo = slaPorCandidatura.get(Number(c.id_candidatura));
+      if (!FECHADOS.includes(c.estado_atual) && ['ULTRAPASSADO', 'PROXIMO_LIMITE'].includes(slaInfo?.estado_sla)) critico++;
     }
     return { total: candidaturas.length, validacao, aprovados, pendentes, critico };
-  }, [candidaturas]);
+  }, [candidaturas, slaPorCandidatura]);
 
   const tabela = useMemo(() => {
     let l = candidaturas;
@@ -124,7 +155,35 @@ export default function TalentDashboard() {
     return [...l].sort((a, b) => new Date(b.data_submissao || b.data_abertura) - new Date(a.data_submissao || a.data_abertura));
   }, [candidaturas, tab, pesquisa]);
 
+  const totalPaginasTabela = Math.max(1, Math.ceil(tabela.length / POR_PAGINA_CANDIDATURAS));
+  const paginaAtualTabela = Math.min(paginaTabela, totalPaginasTabela);
+  const inicioTabela = (paginaAtualTabela - 1) * POR_PAGINA_CANDIDATURAS;
+  const fimTabela = Math.min(inicioTabela + POR_PAGINA_CANDIDATURAS, tabela.length);
+  const tabelaPagina = tabela.slice(inicioTabela, fimTabela);
+
+  useEffect(() => {
+    setPaginaTabela(1);
+  }, [tab, pesquisa]);
+
+  useEffect(() => {
+    setPaginaTabela((pagina) => Math.min(pagina, totalPaginasTabela));
+  }, [totalPaginasTabela]);
+
   const topConsultores = useMemo(() => consultores.slice(0, 3), [consultores]);
+  const totalPaginasConsultores = Math.max(1, Math.ceil(consultoresFiltrados.length / POR_PAGINA_CONSULTORES));
+  const paginaAtualConsultores = Math.min(paginaConsultores, totalPaginasConsultores);
+  const inicioConsultores = (paginaAtualConsultores - 1) * POR_PAGINA_CONSULTORES;
+  const fimConsultores = Math.min(inicioConsultores + POR_PAGINA_CONSULTORES, consultoresFiltrados.length);
+  const consultoresPagina = consultoresFiltrados.slice(inicioConsultores, fimConsultores);
+
+  useEffect(() => {
+    setPaginaConsultores(1);
+  }, [filtroAreaCons]);
+
+  useEffect(() => {
+    setPaginaConsultores((pagina) => Math.min(pagina, totalPaginasConsultores));
+  }, [totalPaginasConsultores]);
+
   const badgesRecentes = useMemo(
     () => candidaturas.filter(c => c.estado_atual === 'APPROVED' && Number(c.is_conquista_especial) === 1)
       .sort((a, b) => new Date(b.data_fecho || b.data_submissao) - new Date(a.data_fecho || a.data_submissao)).slice(0, 3),
@@ -172,9 +231,6 @@ export default function TalentDashboard() {
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
                     <h2 className="text-base font-bold text-slate-900">{tt('estado_tempo_real')}</h2>
-                    <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> {tt('atualizado_tempo_real')}
-                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="relative">
@@ -217,10 +273,10 @@ export default function TalentDashboard() {
                     <tbody className="divide-y divide-slate-50">
                       {tabela.length === 0 ? (
                         <tr><td colSpan={9} className="py-10 text-center text-sm text-slate-400">{tt('sem_candidaturas_estado')}</td></tr>
-                      ) : tabela.map(c => {
+                      ) : tabelaPagina.map(c => {
                         const est = ESTADO_LABEL[c.estado_atual] || { key: null, cls: 'bg-slate-100 text-slate-600' };
                         const prio = prioridade(c.pontos);
-                        const pz = prazo(c);
+                        const pz = prazo(c, slaPorCandidatura.get(Number(c.id_candidatura)), tt);
                         return (
                           <tr key={c.id_candidatura} className="hover:bg-slate-50/60">
                             <td className="px-3 py-3.5 font-medium text-slate-800">{c.nome_consultor}</td>
@@ -232,7 +288,7 @@ export default function TalentDashboard() {
                                 ? <span className="text-softinsa-600">{c.evidencias_count} {c.evidencias_count > 1 ? tt('ficheiros') : tt('ficheiro')}</span>
                                 : <span className="text-slate-300">{tt('sem_evidencias')}</span>}
                             </td>
-                            <td className={`px-3 py-3.5 text-xs ${pz.cls}`}>{pz.key ? tt(pz.key) : '—'}</td>
+                            <td className={`px-3 py-3.5 text-xs ${pz.cls}`}>{pz.label || (pz.key ? tt(pz.key) : '—')}</td>
                             <td className="px-3 py-3.5 text-slate-600">{formatarData(c.data_submissao || c.data_abertura)}</td>
                             <td className="px-3 py-3.5 font-semibold text-softinsa-600">{c.pontos || 0}</td>
                             <td className="px-3 py-3.5">
@@ -247,6 +303,26 @@ export default function TalentDashboard() {
                     </tbody>
                   </table>
                 </div>
+                {tabela.length > 0 && (
+                  <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      {tt('a_mostrar')} {inicioTabela + 1}-{fimTabela} {tt('de_total')} {tabela.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button type="button" disabled={paginaAtualTabela === 1} onClick={() => setPaginaTabela((pagina) => Math.max(1, pagina - 1))}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                        {tt('pagina_anterior')}
+                      </button>
+                      <span className="min-w-[92px] text-center font-semibold text-slate-600">
+                        {tt('pagina')} {paginaAtualTabela}/{totalPaginasTabela}
+                      </span>
+                      <button type="button" disabled={paginaAtualTabela === totalPaginasTabela} onClick={() => setPaginaTabela((pagina) => Math.min(totalPaginasTabela, pagina + 1))}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                        {tt('pagina_seguinte')}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </section>
 
               <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -279,7 +355,7 @@ export default function TalentDashboard() {
                     <tbody className="divide-y divide-slate-50">
                       {consultoresFiltrados.length === 0 ? (
                         <tr><td colSpan={6} className="py-10 text-center text-sm text-slate-400">{tt('sem_consultores')}</td></tr>
-                      ) : consultoresFiltrados.map(c => (
+                      ) : consultoresPagina.map(c => (
                         <tr key={c.id_utilizador} className="hover:bg-slate-50/60">
                           <td className="px-3 py-3.5 font-medium text-slate-800">{c.nome}</td>
                           <td className="px-3 py-3.5 text-slate-600">{c.nome_service_line || '—'}</td>
@@ -296,6 +372,26 @@ export default function TalentDashboard() {
                     </tbody>
                   </table>
                 </div>
+                {consultoresFiltrados.length > 0 && (
+                  <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      {tt('a_mostrar')} {inicioConsultores + 1}-{fimConsultores} {tt('de_total')} {consultoresFiltrados.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button type="button" disabled={paginaAtualConsultores === 1} onClick={() => setPaginaConsultores((pagina) => Math.max(1, pagina - 1))}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                        {tt('pagina_anterior')}
+                      </button>
+                      <span className="min-w-[92px] text-center font-semibold text-slate-600">
+                        {tt('pagina')} {paginaAtualConsultores}/{totalPaginasConsultores}
+                      </span>
+                      <button type="button" disabled={paginaAtualConsultores === totalPaginasConsultores} onClick={() => setPaginaConsultores((pagina) => Math.min(totalPaginasConsultores, pagina + 1))}
+                        className="rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                        {tt('pagina_seguinte')}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </section>
 
               <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
