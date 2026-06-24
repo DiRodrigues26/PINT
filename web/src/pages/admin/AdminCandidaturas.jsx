@@ -453,7 +453,7 @@ export default function AdminCandidaturas() {
   }
 
   return (
-    <div className="mx-auto max-w-[1560px] space-y-7">
+    <div className="mx-auto min-w-0 max-w-[1560px] space-y-7">
       <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_candidaturas')}</h1>
@@ -462,7 +462,7 @@ export default function AdminCandidaturas() {
       </header>
 
       <section className="rounded-lg bg-white p-5 shadow-sm">
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[190px_1fr_1fr_220px_220px_190px]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-[190px_minmax(0,1fr)_minmax(0,1fr)_220px_220px_190px]">
           <select className="input" value={filtros.estado} onChange={(e) => atualizarFiltro('estado', e.target.value)}>
             <option value="">{t('admin_notif_estado_todos')}</option>
             {ESTADOS.map((valor) => <option key={valor} value={valor}>{estadoCandidaturaLocal(valor, t).label}</option>)}
@@ -491,7 +491,7 @@ export default function AdminCandidaturas() {
               <option key={`${area.id_area}-${index}`} value={area.id_area}>{area.nome}</option>
             ))}
           </select>
-          <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
+          <button type="button" className="btn-secondary w-full justify-center border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
             <Icon nome="x" className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}
           </button>
         </div>

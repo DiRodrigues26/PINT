@@ -18,7 +18,15 @@ const {
 } = require('../utils/email');
 const { podeEnviarEmail } = require('../utils/configNotificacao');
 const { calcularSaudacao, tipoSaudacao } = require('../utils/saudacao');
-const { contemEmoji } = require('../utils/validacao');
+const {
+  emailValido,
+  idInteiroPositivo,
+  idiomaValido,
+  nomeValido,
+  normalizarEmail,
+  normalizarTexto,
+  validarPassword,
+} = require('../utils/validacao');
 const {
   dataExpiracaoConfirmacao,
   garantirColunaTokenConfirmacaoExpira,
@@ -61,19 +69,22 @@ async function gerarSlugUnico(nome) {
 
 async function registar(req, res, next) {
   try {
-    const { email, password, idioma } = req.body;
+    const { password } = req.body;
+    const email = normalizarEmail(req.body.email);
+    const idiomaPedido = req.body.idioma !== undefined ? String(req.body.idioma).trim() : 'pt';
 
     if (!email || !password) {
       return res.status(400).json({ erro: 'Email e password são obrigatórios.' });
     }
-    if (contemEmoji(email)) {
-      return res.status(400).json({ erro: 'O email não pode conter emojis.' });
+    if (!emailValido(email)) {
+      return res.status(400).json({ erro: 'Email inválido.' });
     }
-    if (contemEmoji(password)) {
-      return res.status(400).json({ erro: 'A password não pode conter emojis.' });
+    const erroPassword = validarPassword(password);
+    if (erroPassword) {
+      return res.status(400).json({ erro: erroPassword });
     }
-    if (String(password).length < 8) {
-      return res.status(400).json({ erro: 'Password deve ter pelo menos 8 caracteres.' });
+    if (!idiomaValido(idiomaPedido)) {
+      return res.status(400).json({ erro: 'Idioma inválido.' });
     }
 
     const [existe] = await pool.query(
@@ -95,7 +106,7 @@ async function registar(req, res, next) {
       `INSERT INTO utilizador
          (nome, email, password_hash, idioma, token_confirmacao_email, token_confirmacao_expira, url_slug, primeiro_login_pendente)
        VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
-      [nomeTemporario, email, passwordHash, idioma || 'pt', tokenConfirmacao, tokenConfirmacaoExpira, slug]
+      [nomeTemporario, email, passwordHash, idiomaPedido, tokenConfirmacao, tokenConfirmacaoExpira, slug]
     );
 
     try {
@@ -191,15 +202,19 @@ async function confirmarEmail(req, res, next) {
 
 async function completarPerfil(req, res, next) {
   try {
-    const { token, nome, perfil, id_area } = req.body;
+    const { token, perfil, id_area } = req.body;
+    const nome = normalizarTexto(req.body.nome);
     if (!token) return res.status(400).json({ erro: 'Token em falta.' });
     if (!nome || !perfil) {
       return res.status(400).json({ erro: 'Nome e perfil são obrigatórios.' });
     }
+    if (!nomeValido(nome)) {
+      return res.status(400).json({ erro: 'Nome inválido.' });
+    }
     if (!PERFIS_PERMITIDOS_REGISTO.includes(perfil)) {
       return res.status(400).json({ erro: 'Perfil inválido.' });
     }
-    if (perfil === 'Consultor' && !id_area) {
+    if (perfil === 'Consultor' && !idInteiroPositivo(id_area)) {
       return res.status(400).json({ erro: 'Área é obrigatória para Consultor.' });
     }
     await garantirColunaTokenConfirmacaoExpira();
@@ -299,9 +314,13 @@ async function completarPerfil(req, res, next) {
 
 async function login(req, res, next) {
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
+    const email = normalizarEmail(req.body.email);
     if (!email || !password) {
       return res.status(400).json({ erro: 'Email e password são obrigatórios.' });
+    }
+    if (!emailValido(email)) {
+      return res.status(400).json({ erro: 'Email inválido.' });
     }
 
     const [linhas] = await pool.query(
@@ -381,8 +400,9 @@ async function login(req, res, next) {
 async function alterarPasswordPrimeiroLogin(req, res, next) {
   try {
     const { nova_password } = req.body;
-    if (!nova_password || String(nova_password).length < 8) {
-      return res.status(400).json({ erro: 'Nova password deve ter pelo menos 8 caracteres.' });
+    const erroPassword = validarPassword(nova_password);
+    if (erroPassword) {
+      return res.status(400).json({ erro: erroPassword.replace('Password', 'Nova password') });
     }
 
     const passwordHash = await bcrypt.hash(nova_password, 10);
@@ -402,8 +422,9 @@ async function alterarPasswordPrimeiroLogin(req, res, next) {
 
 async function pedirRecuperacao(req, res, next) {
   try {
-    const { email } = req.body;
+    const email = normalizarEmail(req.body.email);
     if (!email) return res.status(400).json({ erro: 'Email é obrigatório.' });
+    if (!emailValido(email)) return res.status(400).json({ erro: 'Email inválido.' });
 
     const [linhas] = await pool.query(
       'SELECT id_utilizador, nome, email FROM utilizador WHERE email = ?',
@@ -448,8 +469,9 @@ async function redefinirPassword(req, res, next) {
     if (nova_password !== confirmar_password) {
       return res.status(400).json({ erro: 'As passwords não coincidem.' });
     }
-    if (String(nova_password).length < 8) {
-      return res.status(400).json({ erro: 'Password deve ter pelo menos 8 caracteres.' });
+    const erroPassword = validarPassword(nova_password);
+    if (erroPassword) {
+      return res.status(400).json({ erro: erroPassword });
     }
 
     const [linhas] = await pool.query(

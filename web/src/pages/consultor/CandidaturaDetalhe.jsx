@@ -114,6 +114,13 @@ function CardRequisito({ req, evidencias, externo, podeEditar, idCandidatura }) 
       {req.descricao && (
         <p className="mt-1 text-xs leading-5 text-slate-500">{req.descricao}</p>
       )}
+      {req.imagem_url && (
+        <img
+          src={req.imagem_url}
+          alt={req.titulo}
+          className="mt-4 h-36 w-full rounded-lg border border-slate-200 object-cover"
+        />
+      )}
 
       {/* Evidências necessárias */}
       {evNecessarias.length > 0 && (

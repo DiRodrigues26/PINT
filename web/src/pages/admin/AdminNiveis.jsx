@@ -44,6 +44,7 @@ const FORM_INICIAL = {
   id_learning_path: '',
   id_service_line: '',
   id_area: '',
+  descricao: '',
 };
 
 const ICONES = {
@@ -133,6 +134,7 @@ function prepararPayload(form, t) {
     codigo_nivel: form.codigo_nivel,
     nome_nivel: infoNivel.nome_nivel,
     ordem: infoNivel.ordem,
+    descricao: form.descricao.trim() || null,
   };
 }
 
@@ -277,6 +279,17 @@ function FormNivel({
               <option key={area.id_area} value={area.id_area}>{area.nome}</option>
             ))}
           </select>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium text-slate-900">
+            {t('admin_lp_descricao')}
+          </label>
+          <textarea
+            className="input min-h-[110px] resize-y"
+            value={form.descricao}
+            onChange={(e) => atualizar('descricao', e.target.value)}
+          />
         </div>
 
       </div>
@@ -461,6 +474,7 @@ export default function AdminNiveis() {
       id_learning_path: nivel.id_learning_path ? String(nivel.id_learning_path) : '',
       id_service_line: nivel.id_service_line ? String(nivel.id_service_line) : '',
       id_area: nivel.id_area ? String(nivel.id_area) : '',
+      descricao: nivel.descricao || '',
     });
     setModal({ tipo: 'editar', nivel });
   }

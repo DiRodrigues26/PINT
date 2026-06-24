@@ -4,6 +4,85 @@ const { gerarSlug } = require('../utils/slug');
 const { gerarTokenAleatorio } = require('../utils/tokens');
 const { enviarConfirmacaoRegisto, enviarRecuperacaoPassword } = require('../utils/email');
 const { dataExpiracaoConfirmacao, garantirColunaTokenConfirmacaoExpira } = require('../utils/confirmacaoEmail');
+const {
+  emailValido,
+  idInteiroPositivo,
+  idiomaValido,
+  nomeValido,
+  normalizarEmail,
+  normalizarTexto,
+  validarPassword,
+} = require('../utils/validacao');
+
+function normalizarPerfis(perfis) {
+  if (!Array.isArray(perfis)) return null;
+  return [...new Set(perfis.map((p) => String(p || '').trim()).filter(Boolean))];
+}
+
+async function perfisValidos(perfis, conn = pool) {
+  if (!Array.isArray(perfis)) return false;
+  if (perfis.length === 0) return true;
+  const [perfisBD] = await conn.query(
+    'SELECT nome_perfil FROM perfil WHERE nome_perfil IN (?)',
+    [perfis]
+  );
+  return perfisBD.length === perfis.length;
+}
+
+function temPerfil(perfis, perfil) {
+  return Array.isArray(perfis) && perfis.includes(perfil);
+}
+
+function normalizarIdOpcional(valor) {
+  if (valor === undefined || valor === null || valor === '') return null;
+  return Number(valor);
+}
+
+async function validarAssociacoesPerfis({ perfis, id_area, id_service_line }, conn = pool) {
+  const idArea = normalizarIdOpcional(id_area);
+  const idServiceLine = normalizarIdOpcional(id_service_line);
+
+  if (id_area !== undefined && id_area !== null && id_area !== '' && !idInteiroPositivo(id_area)) {
+    return { erro: 'Área inválida.' };
+  }
+  if (id_service_line !== undefined && id_service_line !== null && id_service_line !== '' && !idInteiroPositivo(id_service_line)) {
+    return { erro: 'Service Line inválida.' };
+  }
+
+  if (temPerfil(perfis, 'Consultor') && !idArea) {
+    return { erro: 'Área é obrigatória para Consultor.' };
+  }
+  if (temPerfil(perfis, 'Talent Manager') && !idArea) {
+    return { erro: 'Área é obrigatória para Talent Manager.' };
+  }
+  if ((temPerfil(perfis, 'Talent Manager') || temPerfil(perfis, 'Service Line')) && !idServiceLine) {
+    return { erro: 'Service Line é obrigatória para este perfil.' };
+  }
+
+  let area = null;
+  if (idArea) {
+    const [areas] = await conn.query(
+      'SELECT id_area, id_service_line FROM area WHERE id_area = ?',
+      [idArea]
+    );
+    if (areas.length === 0) return { erro: 'Área não encontrada.' };
+    area = areas[0];
+  }
+
+  if (idServiceLine) {
+    const [serviceLines] = await conn.query(
+      'SELECT id_service_line FROM service_line WHERE id_service_line = ?',
+      [idServiceLine]
+    );
+    if (serviceLines.length === 0) return { erro: 'Service Line não encontrada.' };
+  }
+
+  if (area && idServiceLine && Number(area.id_service_line) !== Number(idServiceLine)) {
+    return { erro: 'A área selecionada não pertence à Service Line selecionada.' };
+  }
+
+  return { idArea, idServiceLine };
+}
 
 async function gerarSlugUnico(nome, ignorarId = null) {
   const base = gerarSlug(nome) || 'utilizador';
@@ -161,17 +240,28 @@ async function obter(req, res, next) {
 async function criar(req, res, next) {
   try {
     const {
-      nome, email, password, idioma = 'pt',
-      perfis = [], id_area, id_service_line,
-      primeiro_login_pendente = 1,
-      enviar_email_confirmacao = 1,
+      idioma = 'pt',
+      id_area, id_service_line,
     } = req.body;
+    const nome = normalizarTexto(req.body.nome);
+    const email = normalizarEmail(req.body.email);
+    const perfis = normalizarPerfis(req.body.perfis === undefined ? [] : req.body.perfis);
+    const idiomaLimpo = String(idioma || '').trim();
 
-    if (!nome || !email || !password) {
-      return res.status(400).json({ erro: 'Nome, email e password são obrigatórios.' });
+    if (!nome || !email) {
+      return res.status(400).json({ erro: 'Nome e email são obrigatórios.' });
     }
-    if (String(password).length < 8) {
-      return res.status(400).json({ erro: 'Password deve ter pelo menos 8 caracteres.' });
+    if (!nomeValido(nome)) {
+      return res.status(400).json({ erro: 'Nome inválido.' });
+    }
+    if (!emailValido(email)) {
+      return res.status(400).json({ erro: 'Email inválido.' });
+    }
+    if (!idiomaValido(idiomaLimpo)) {
+      return res.status(400).json({ erro: 'Idioma inválido.' });
+    }
+    if (!perfis || perfis.length === 0) {
+      return res.status(400).json({ erro: 'Perfis inválidos.' });
     }
 
     const [existe] = await pool.query(
@@ -179,11 +269,18 @@ async function criar(req, res, next) {
       [email]
     );
     if (existe.length > 0) return res.status(409).json({ erro: 'Email já registado.' });
+    if (!await perfisValidos(perfis)) {
+      return res.status(400).json({ erro: 'Perfis inválidos.' });
+    }
+    const associacoes = await validarAssociacoesPerfis({ perfis, id_area, id_service_line });
+    if (associacoes.erro) {
+      return res.status(400).json({ erro: associacoes.erro });
+    }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(gerarTokenAleatorio(24), 10);
     const slug = await gerarSlugUnico(nome);
     const tokenConfirmacao = gerarTokenAleatorio();
-    const tokenConfirmacaoExpira = enviar_email_confirmacao ? dataExpiracaoConfirmacao() : null;
+    const tokenConfirmacaoExpira = dataExpiracaoConfirmacao();
     await garantirColunaTokenConfirmacaoExpira();
 
     const conn = await pool.getConnection();
@@ -199,12 +296,12 @@ async function criar(req, res, next) {
           nome,
           email,
           passwordHash,
-          idioma,
+          idiomaLimpo,
           slug,
-          enviar_email_confirmacao ? tokenConfirmacao : null,
+          tokenConfirmacao,
           tokenConfirmacaoExpira,
-          primeiro_login_pendente ? 1 : 0,
-          enviar_email_confirmacao ? 0 : 1,
+          1,
+          0,
         ]
       );
       const idUtilizador = result.insertId;
@@ -222,16 +319,16 @@ async function criar(req, res, next) {
         }
       }
 
-      if (id_area) {
+      if (associacoes.idArea) {
         await conn.query(
           'INSERT INTO consultor_area (id_utilizador, id_area) VALUES (?, ?)',
-          [idUtilizador, id_area]
+          [idUtilizador, associacoes.idArea]
         );
       }
-      if (id_service_line) {
+      if (associacoes.idServiceLine) {
         await conn.query(
           'INSERT INTO service_line_responsavel (id_utilizador, id_service_line) VALUES (?, ?)',
-          [idUtilizador, id_service_line]
+          [idUtilizador, associacoes.idServiceLine]
         );
       }
 
@@ -242,12 +339,10 @@ async function criar(req, res, next) {
 
       await conn.commit();
 
-      if (enviar_email_confirmacao) {
-        try {
-          await enviarConfirmacaoRegisto({ nome, email }, tokenConfirmacao);
-        } catch (e) {
-          console.warn('Aviso: falha ao enviar email:', e.message);
-        }
+      try {
+        await enviarConfirmacaoRegisto({ nome, email }, tokenConfirmacao);
+      } catch (e) {
+        console.warn('Aviso: falha ao enviar email:', e.message);
       }
 
       res.status(201).json({
@@ -269,16 +364,54 @@ async function atualizar(req, res, next) {
   try {
     const { id } = req.params;
     const {
-      nome, email, idioma, ativo, perfis,
+      idioma, ativo,
       id_area, id_service_line,
     } = req.body;
+    const nome = req.body.nome !== undefined ? normalizarTexto(req.body.nome) : undefined;
+    const email = req.body.email !== undefined ? normalizarEmail(req.body.email) : undefined;
+    const perfis = req.body.perfis !== undefined ? normalizarPerfis(req.body.perfis) : undefined;
+    const idiomaLimpo = idioma !== undefined ? String(idioma || '').trim() : undefined;
 
     const campos = [];
     const valores = [];
 
+    if (nome !== undefined && !nomeValido(nome)) {
+      return res.status(400).json({ erro: 'Nome inválido.' });
+    }
+    if (email !== undefined && !emailValido(email)) {
+      return res.status(400).json({ erro: 'Email inválido.' });
+    }
+    if (idiomaLimpo !== undefined && !idiomaValido(idiomaLimpo)) {
+      return res.status(400).json({ erro: 'Idioma inválido.' });
+    }
+    if (perfis === null || (Array.isArray(perfis) && perfis.length === 0)) {
+      return res.status(400).json({ erro: 'Perfis inválidos.' });
+    }
+
+    if (email !== undefined) {
+      const [emailDuplicado] = await pool.query(
+        'SELECT 1 FROM utilizador WHERE email = ? AND id_utilizador <> ? LIMIT 1',
+        [email, id]
+      );
+      if (emailDuplicado.length > 0) return res.status(409).json({ erro: 'Email já registado.' });
+    }
+    if (perfis !== undefined && !await perfisValidos(perfis)) {
+      return res.status(400).json({ erro: 'Perfis inválidos.' });
+    }
+    const associacoes = perfis !== undefined || id_area !== undefined || id_service_line !== undefined
+      ? await validarAssociacoesPerfis({
+        perfis: perfis || [],
+        id_area,
+        id_service_line,
+      })
+      : null;
+    if (associacoes?.erro) {
+      return res.status(400).json({ erro: associacoes.erro });
+    }
+
     if (nome !== undefined)    { campos.push('nome = ?');    valores.push(nome); }
     if (email !== undefined)   { campos.push('email = ?');   valores.push(email); }
-    if (idioma !== undefined)  { campos.push('idioma = ?');  valores.push(idioma); }
+    if (idiomaLimpo !== undefined)  { campos.push('idioma = ?');  valores.push(idiomaLimpo); }
     if (ativo !== undefined)   { campos.push('ativo = ?');   valores.push(ativo ? 1 : 0); }
     if (nome !== undefined) {
       const novoSlug = await gerarSlugUnico(nome, id);
@@ -328,20 +461,20 @@ async function atualizar(req, res, next) {
 
       if (id_area !== undefined) {
         await conn.query('DELETE FROM consultor_area WHERE id_utilizador = ?', [id]);
-        if (id_area) {
+        if (associacoes?.idArea) {
           await conn.query(
             'INSERT INTO consultor_area (id_utilizador, id_area) VALUES (?, ?)',
-            [id, id_area]
+            [id, associacoes.idArea]
           );
         }
       }
 
       if (id_service_line !== undefined) {
         await conn.query('DELETE FROM service_line_responsavel WHERE id_utilizador = ?', [id]);
-        if (id_service_line) {
+        if (associacoes?.idServiceLine) {
           await conn.query(
             'INSERT INTO service_line_responsavel (id_utilizador, id_service_line) VALUES (?, ?)',
-            [id, id_service_line]
+            [id, associacoes.idServiceLine]
           );
         }
       }
@@ -377,7 +510,10 @@ async function desativar(req, res, next) {
 async function definirPerfis(req, res, next) {
   try {
     const { id } = req.params;
-    const { perfis = [] } = req.body;
+    const perfis = normalizarPerfis(req.body.perfis === undefined ? [] : req.body.perfis);
+    if (!perfis || !await perfisValidos(perfis)) {
+      return res.status(400).json({ erro: 'Perfis inválidos.' });
+    }
 
     const conn = await pool.getConnection();
     try {
@@ -419,16 +555,20 @@ async function atualizarMeuPerfil(req, res, next) {
     const valores = [];
     const idAreaRecebida = id_area !== undefined ? Number(id_area) : undefined;
     const nomeLimpo = nome !== undefined ? String(nome).trim() : undefined;
+    const idiomaLimpo = idioma !== undefined ? String(idioma || '').trim() : undefined;
 
     if (id_area !== undefined && (!Number.isInteger(idAreaRecebida) || idAreaRecebida <= 0)) {
       return res.status(400).json({ erro: 'Área inválida.' });
     }
-    if (nome !== undefined && !nomeLimpo) {
-      return res.status(400).json({ erro: 'Nome é obrigatório.' });
+    if (nome !== undefined && !nomeValido(nomeLimpo)) {
+      return res.status(400).json({ erro: 'Nome inválido.' });
+    }
+    if (idiomaLimpo !== undefined && !idiomaValido(idiomaLimpo)) {
+      return res.status(400).json({ erro: 'Idioma inválido.' });
     }
 
     if (nome !== undefined)   { campos.push('nome = ?');   valores.push(nomeLimpo); }
-    if (idioma !== undefined) { campos.push('idioma = ?'); valores.push(idioma); }
+    if (idiomaLimpo !== undefined) { campos.push('idioma = ?'); valores.push(idiomaLimpo); }
     if (nome !== undefined) {
       const novoSlug = await gerarSlugUnico(nomeLimpo, id);
       campos.push('url_slug = ?');
@@ -499,8 +639,9 @@ async function alterarMinhaPassword(req, res, next) {
     if (!password_atual || !nova_password) {
       return res.status(400).json({ erro: 'Password atual e nova são obrigatórias.' });
     }
-    if (String(nova_password).length < 8) {
-      return res.status(400).json({ erro: 'Nova password deve ter pelo menos 8 caracteres.' });
+    const erroPassword = validarPassword(nova_password);
+    if (erroPassword) {
+      return res.status(400).json({ erro: erroPassword.replace('Password', 'Nova password') });
     }
 
     const [linhas] = await pool.query(

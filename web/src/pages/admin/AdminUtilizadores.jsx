@@ -21,14 +21,14 @@ const PERFIS = ['Consultor', 'Talent Manager', 'Service Line', 'Administrador'];
 const ESTADO_INICIAL = {
   nome: '',
   email: '',
-  password: 'Temp12345',
   perfil: '',
   id_service_line: '',
   id_area: '',
   ativo: true,
-  forcar_alteracao_password: true,
-  enviar_email_confirmacao: true,
 };
+
+const PERFIS_COM_SERVICE_LINE = new Set(['Consultor', 'Talent Manager', 'Service Line']);
+const PERFIS_COM_AREA = new Set(['Consultor', 'Talent Manager']);
 
 const ICONES = {
   search: Search,
@@ -70,29 +70,27 @@ function normalizarForm(utilizador) {
   return {
     nome: utilizador?.nome || '',
     email: utilizador?.email || '',
-    password: '',
     perfil,
     id_service_line: utilizador?.id_service_line ? String(utilizador.id_service_line) : '',
     id_area: utilizador?.id_area ? String(utilizador.id_area) : '',
     ativo: utilizador?.ativo !== 0,
-    forcar_alteracao_password: true,
-    enviar_email_confirmacao: true,
   };
 }
 
-function prepararPayload(form, incluirPassword = false) {
+function prepararPayload(form) {
+  const temServiceLine = PERFIS_COM_SERVICE_LINE.has(form.perfil);
+  const temArea = PERFIS_COM_AREA.has(form.perfil);
   const payload = {
     nome: form.nome.trim(),
     email: form.email.trim(),
     perfis: [form.perfil],
     ativo: form.ativo,
-    id_area: form.perfil === 'Consultor' && form.id_area ? Number(form.id_area) : null,
-    id_service_line: form.perfil === 'Service Line' && form.id_service_line ? Number(form.id_service_line) : null,
-    primeiro_login_pendente: form.forcar_alteracao_password,
-    enviar_email_confirmacao: form.enviar_email_confirmacao,
+    id_area: temArea && form.id_area ? Number(form.id_area) : null,
+    id_service_line: (form.perfil === 'Talent Manager' || form.perfil === 'Service Line') && form.id_service_line ? Number(form.id_service_line) : null,
+    primeiro_login_pendente: true,
+    enviar_email_confirmacao: true,
   };
 
-  if (incluirPassword) payload.password = form.password;
   return payload;
 }
 
@@ -169,19 +167,19 @@ function FormUtilizador({ form, setForm, serviceLines, areas, modo, onSubmit, on
             {PERFIS.map((p) => <option key={p} value={p}>{perfilLabel(p, t)}</option>)}
           </select>
         </div>
-        {(form.perfil === 'Consultor' || form.perfil === 'Service Line') && (
+        {PERFIS_COM_SERVICE_LINE.has(form.perfil) && (
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-900">Service Line<span className="text-red-600">*</span></label>
-            <select className="input" value={form.id_service_line} onChange={(e) => setForm((atual) => ({ ...atual, id_service_line: e.target.value, id_area: '' }))}>
+            <select className="input" required value={form.id_service_line} onChange={(e) => setForm((atual) => ({ ...atual, id_service_line: e.target.value, id_area: '' }))}>
               <option value="">{t('admin_util_selecionar')}</option>
               {serviceLines.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
             </select>
           </div>
         )}
-        {form.perfil === 'Consultor' && (
+        {PERFIS_COM_AREA.has(form.perfil) && (
           <div>
             <label className="mb-2 block text-sm font-medium text-slate-900">{t('admin_rel_col_area')}<span className="text-red-600">*</span></label>
-            <select className="input" value={form.id_area} onChange={(e) => atualizar('id_area', e.target.value)}>
+            <select className="input" required value={form.id_area} onChange={(e) => atualizar('id_area', e.target.value)}>
               <option value="">{t('admin_util_selecionar')}</option>
               {areasFiltradas.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
             </select>
@@ -202,21 +200,11 @@ function FormUtilizador({ form, setForm, serviceLines, areas, modo, onSubmit, on
         </div>
       </div>
       {modo === 'criar' && (
-        <div className="space-y-2 border-t-4 border-slate-200 px-7 py-4">
-          <label className="flex items-start gap-2 text-sm font-semibold text-slate-900">
-            <input type="checkbox" className="mt-1 h-4 w-4 rounded border-slate-300 text-softinsa-600" checked={form.forcar_alteracao_password} onChange={(e) => atualizar('forcar_alteracao_password', e.target.checked)} />
-            <span>
-              {t('admin_util_forcar_password')}
-              <span className="block text-xs font-normal text-slate-500">{t('admin_util_forcar_password_desc')}</span>
-            </span>
-          </label>
-          <label className="flex items-start gap-2 text-sm font-semibold text-slate-900">
-            <input type="checkbox" className="mt-1 h-4 w-4 rounded border-slate-300 text-softinsa-600" checked={form.enviar_email_confirmacao} onChange={(e) => atualizar('enviar_email_confirmacao', e.target.checked)} />
-            <span>
-              {t('admin_util_enviar_email')}
-              <span className="block text-xs font-normal text-slate-500">{t('admin_util_enviar_email_desc')}</span>
-            </span>
-          </label>
+        <div className="border-t-4 border-slate-200 px-7 py-4">
+          <div className="rounded-lg border border-softinsa-100 bg-softinsa-50 px-4 py-3 text-sm text-slate-700">
+            <div className="font-semibold text-slate-900">{t('admin_util_enviar_email')}</div>
+            <p className="mt-1 text-xs leading-5 text-slate-600">{t('admin_util_enviar_email_desc')}</p>
+          </div>
         </div>
       )}
       <div className="flex justify-end gap-3 border-t-4 border-slate-200 px-7 py-5">
@@ -262,7 +250,7 @@ export default function AdminUtilizadores() {
   });
 
   const criar = useMutation({
-    mutationFn: async () => (await api.post('/api/utilizadores', prepararPayload(form, true))).data,
+    mutationFn: async () => (await api.post('/api/utilizadores', prepararPayload(form))).data,
     onSuccess: () => {
       toast.success(t('admin_util_toast_criado'));
       setModal(null);
