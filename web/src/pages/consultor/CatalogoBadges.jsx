@@ -6,6 +6,7 @@ import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShe
 import Carregando from '../../components/Carregando';
 import BadgeModal from '../../components/BadgeModal';
 import { useLanguage } from '../../context/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 
 const NIVEIS = [
   { value: '', label: 'Todos os níveis' },
@@ -23,7 +24,7 @@ function formatarData(d) {
 
 const NIVEL_BG = { A: 'bg-softinsa-600', B: 'bg-blue-500', C: 'bg-indigo-500', D: 'bg-violet-600', E: 'bg-purple-700' };
 
-function BadgeCatalogoCard({ badge, candidatura, obtido, onAbrirModal }) {
+function BadgeCatalogoCard({ badge, candidatura, obtido, daMinhaArea, onAbrirModal }) {
   const { t } = useLanguage();
   const expirado = obtido?.data_expiracao && new Date(obtido.data_expiracao) < new Date();
   const emProgresso = candidatura && !['APPROVED', 'REJECTED', 'CLOSED'].includes(candidatura.estado_atual);
@@ -32,7 +33,14 @@ function BadgeCatalogoCard({ badge, candidatura, obtido, onAbrirModal }) {
   const pct = total > 0 ? Math.round((evCount / total) * 100) : 0;
 
   return (
-    <div className="relative flex flex-col items-center rounded-xl border border-slate-200 bg-white p-6 shadow-sm text-center">
+    <div className={`relative flex flex-col items-center rounded-xl border bg-white p-6 shadow-sm text-center ${daMinhaArea ? 'border-softinsa-300 ring-1 ring-softinsa-100' : 'border-slate-200'}`}>
+      {daMinhaArea ? (
+        <div className="absolute left-3 top-3">
+          <span className="inline-flex items-center gap-1 rounded-full bg-softinsa-100 px-2 py-0.5 text-[11px] font-semibold text-softinsa-700">
+            <Star className="h-3 w-3 fill-current" /> {t('badge_da_tua_area')}
+          </span>
+        </div>
+      ) : null}
       {badge.is_conquista_especial ? (
         <div className="absolute right-3 top-3">
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
@@ -118,6 +126,8 @@ function BadgeCatalogoCard({ badge, candidatura, obtido, onAbrirModal }) {
 
 export default function CatalogoBadges() {
   const { t } = useLanguage();
+  const { utilizador } = useAuth();
+  const idAreaConsultor = utilizador?.id_area ?? utilizador?.area?.id_area ?? null;
   const [modalBadgeId, setModalBadgeId] = useState(null);
   const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const [pesquisa, setPesquisa] = useState('');
@@ -190,8 +200,16 @@ export default function CatalogoBadges() {
     if (filtroPontos === 'sem') lista = lista.filter(b => b.pontos === 0);
     if (filtroExpiracao === 'com') lista = lista.filter(b => b.tem_expiracao);
     if (filtroExpiracao === 'sem') lista = lista.filter(b => !b.tem_expiracao);
+    // Badges preferenciais da área do consultor aparecem primeiro (ordenação estável).
+    if (idAreaConsultor) {
+      lista = [...lista].sort((a, b) => {
+        const aArea = String(a.id_area) === String(idAreaConsultor) ? 0 : 1;
+        const bArea = String(b.id_area) === String(idAreaConsultor) ? 0 : 1;
+        return aArea - bArea;
+      });
+    }
     return lista;
-  }, [badgesData, pesquisa, filtroArea, filtroSL, filtroNivel, filtroPontos, filtroExpiracao]);
+  }, [badgesData, pesquisa, filtroArea, filtroSL, filtroNivel, filtroPontos, filtroExpiracao, idAreaConsultor]);
 
   function limparFiltros() {
     setPesquisa(''); setFiltroArea(''); setFiltroSL('');
@@ -330,6 +348,7 @@ export default function CatalogoBadges() {
                   badge={badge}
                   candidatura={candidaturasMap.get(badge.id_badge)}
                   obtido={obtidosMap.get(badge.id_badge)}
+                  daMinhaArea={Boolean(idAreaConsultor) && String(badge.id_area) === String(idAreaConsultor)}
                   onAbrirModal={setModalBadgeId}
                 />
               ))}
