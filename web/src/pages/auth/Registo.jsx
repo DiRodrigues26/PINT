@@ -44,6 +44,7 @@ export default function Registo() {
         nome: nomeNormalizado,
         email: emailNormalizado,
         password,
+        perfil: 'Consultor',
         id_area: Number(idArea),
       });
       toast.success('Bem-vindo! Enviámos um email de confirmação.');

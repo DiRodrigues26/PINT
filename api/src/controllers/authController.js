@@ -78,11 +78,13 @@ async function gerarSlugUnico(nome) {
 
 async function registar(req, res, next) {
   try {
-    const { password } = req.body;
+    const { password, perfil, id_service_line } = req.body;
     const email = normalizarEmail(req.body.email);
     const idiomaPedido = req.body.idioma !== undefined ? String(req.body.idioma).trim() : 'pt';
-    const nomeInput = normalizarTexto(req.body.nome);
+    const nomePedido = normalizarTexto(req.body.nome);
     const idArea = idInteiroPositivo(req.body.id_area) ? Number(req.body.id_area) : null;
+    // Perfil completo no registo (web e mobile): nome + perfil + área.
+    const temPerfilCompleto = Boolean(nomePedido && perfil && idArea);
 
     if (!email || !password) {
       return res.status(400).json({ erro: 'Email e password são obrigatórios.' });
@@ -97,8 +99,23 @@ async function registar(req, res, next) {
     if (!idiomaValido(idiomaPedido)) {
       return res.status(400).json({ erro: 'Idioma inválido.' });
     }
-    if (nomeInput && !nomeValido(nomeInput)) {
-      return res.status(400).json({ erro: 'Nome inválido.' });
+    if (temPerfilCompleto) {
+      if (!nomeValido(nomePedido)) {
+        return res.status(400).json({ erro: 'Nome inválido.' });
+      }
+      if (!PERFIS_PERMITIDOS_REGISTO.includes(perfil)) {
+        return res.status(400).json({ erro: 'Perfil inválido.' });
+      }
+      // (opcional) garantir que a área pertence à Service Line indicada
+      if (idInteiroPositivo(id_service_line)) {
+        const [areaRow] = await pool.query(
+          'SELECT id_service_line FROM area WHERE id_area = ?',
+          [idArea]
+        );
+        if (areaRow.length === 0 || Number(areaRow[0].id_service_line) !== Number(id_service_line)) {
+          return res.status(400).json({ erro: 'A área não pertence à Service Line indicada.' });
+        }
+      }
     }
 
     const [existe] = await pool.query(
@@ -112,10 +129,7 @@ async function registar(req, res, next) {
     const passwordHash = await bcrypt.hash(password, 10);
     const tokenConfirmacao = gerarTokenAleatorio();
     const tokenConfirmacaoExpira = dataExpiracaoConfirmacao();
-    // Se o registo já trouxer nome + área, o perfil fica completo aqui — a
-    // confirmação do email passa a ser só isso (não pede mais nada).
-    const perfilCompleto = Boolean(nomeInput && idArea);
-    const nomeFinal = nomeInput || String(email).split('@')[0];
+    const nomeFinal = nomePedido || String(email).split('@')[0];
     const slug = await gerarSlugUnico(nomeFinal);
     await garantirColunaTokenConfirmacaoExpira();
 
@@ -131,19 +145,22 @@ async function registar(req, res, next) {
       );
       const idUtilizador = ins.insertId;
 
-      if (perfilCompleto) {
+      if (temPerfilCompleto) {
         const [perfilRow] = await conn.query(
-          "SELECT id_perfil FROM perfil WHERE nome_perfil = 'Consultor'"
+          'SELECT id_perfil FROM perfil WHERE nome_perfil = ?',
+          [perfil]
         );
-        if (perfilRow.length === 0) throw new Error('Perfil "Consultor" não configurado.');
+        if (perfilRow.length === 0) throw new Error(`Perfil "${perfil}" não configurado.`);
         await conn.query(
           'INSERT IGNORE INTO utilizador_perfil (id_utilizador, id_perfil) VALUES (?, ?)',
           [idUtilizador, perfilRow[0].id_perfil]
         );
-        await conn.query(
-          'INSERT INTO consultor_area (id_utilizador, id_area) VALUES (?, ?)',
-          [idUtilizador, idArea]
-        );
+        if (perfil === 'Consultor') {
+          await conn.query(
+            'INSERT INTO consultor_area (id_utilizador, id_area) VALUES (?, ?)',
+            [idUtilizador, idArea]
+          );
+        }
         await conn.query(
           'INSERT IGNORE INTO preferencia_notificacao (id_utilizador) VALUES (?)',
           [idUtilizador]
