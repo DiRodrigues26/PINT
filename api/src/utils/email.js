@@ -212,8 +212,8 @@ function envolverEmail({ preheader, conteudoHtml }) {
 // Templates de email
 // ---------------------------------------------------------------------------
 
-async function enviarConfirmacaoRegisto(utilizador, token) {
-  const link = `${frontendUrl()}/confirmar-email/${token}`;
+async function enviarConfirmacaoRegisto(utilizador, token, baseUrl) {
+  const link = `${baseUrl || frontendUrl()}/confirmar-email/${token}`;
   const html = envolverEmail({
     preheader: 'Falta só um passo para começar a colecionar badges.',
     conteudoHtml: corpoHtml({
@@ -236,8 +236,8 @@ async function enviarConfirmacaoRegisto(utilizador, token) {
   });
 }
 
-async function enviarRecuperacaoPassword(utilizador, token) {
-  const link = `${frontendUrl()}/redefinir-password/${token}`;
+async function enviarRecuperacaoPassword(utilizador, token, baseUrl) {
+  const link = `${baseUrl || frontendUrl()}/redefinir-password/${token}`;
   const html = envolverEmail({
     preheader: 'Recebemos um pedido para redefinir a sua password.',
     conteudoHtml: corpoHtml({

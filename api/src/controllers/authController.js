@@ -27,6 +27,23 @@ const {
 
 const PERFIS_PERMITIDOS_REGISTO = ['Consultor'];
 
+/*
+ * URL pública base para os links dos emails. Em produção (deploy de serviço
+ * único), a origem real do pedido é o domínio público — usamo-la para os links
+ * nunca apontarem para localhost. Em desenvolvimento (host localhost), usamos
+ * FRONTEND_URL (ex.: http://localhost:5173, onde corre o Vite).
+ */
+function urlBasePublica(req) {
+  const proto = String(req?.headers?.['x-forwarded-proto'] || req?.protocol || '').split(',')[0].trim();
+  const host = String(req?.headers?.['x-forwarded-host'] || req?.headers?.host || '').split(',')[0].trim();
+  const daRequest = host ? `${proto || 'https'}://${host}` : null;
+  const env = String(process.env.FRONTEND_URL || '').split(',')[0].trim();
+
+  if (daRequest && !/^localhost|127\.0\.0\.1/.test(host)) return daRequest;
+  if (env) return env;
+  return daRequest || 'http://localhost:5173';
+}
+
 async function gerarSlugUnico(nome) {
   const base = gerarSlug(nome) || 'utilizador';
   let slug = base;
@@ -83,7 +100,7 @@ async function registar(req, res, next) {
 
     try {
       if (await podeEnviarEmail('email_confirmacao_registo')) {
-        await enviarConfirmacaoRegisto({ email }, tokenConfirmacao);
+        await enviarConfirmacaoRegisto({ email }, tokenConfirmacao, urlBasePublica(req));
       }
     } catch (e) {
       console.warn('Aviso: falha ao enviar email de confirmação:', e.message);
@@ -410,7 +427,7 @@ async function pedirRecuperacao(req, res, next) {
 
     try {
       if (await podeEnviarEmail('email_redefinicao_password')) {
-        await enviarRecuperacaoPassword(linhas[0], token);
+        await enviarRecuperacaoPassword(linhas[0], token, urlBasePublica(req));
       }
     } catch (e) {
       console.warn('Aviso: falha ao enviar email de recuperação:', e.message);
