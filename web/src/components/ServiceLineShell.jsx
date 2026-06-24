@@ -126,12 +126,12 @@ export function ServiceLineTopbar({ subtitulo }) {
 
   return (
     <header className="sticky top-0 z-10 bg-softinsa-gradient">
-      <div className="flex h-[72px] items-center justify-between px-5 lg:px-8">
-        <div>
-          <h1 className="text-lg font-bold text-white">{saudacao}</h1>
-          {subtitulo && <p className="mt-0.5 text-xs text-white/60">{subtitulo}</p>}
+      <div className="flex h-[72px] items-center justify-between gap-3 px-5 lg:px-8">
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-base font-bold text-white sm:text-lg">{saudacao}</h1>
+          {subtitulo && <p className="mt-0.5 truncate text-xs text-white/60">{subtitulo}</p>}
         </div>
-        <div className="flex items-center gap-5">
+        <div className="flex shrink-0 items-center gap-3 sm:gap-5">
           <div className="hidden items-center gap-2 text-sm font-semibold sm:flex">
             {IDIOMAS.map((lang, i) => (
               <span key={lang} className="flex items-center gap-2">

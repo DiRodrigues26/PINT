@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Award, CheckCircle, FileText, Info, Layers, Star, Timer } from 'lucide-react';
+import { ArrowLeft, Award, CheckCircle, FileText, Info, Layers, Star, Timer, Crown } from 'lucide-react';
 import { api } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
@@ -92,6 +92,7 @@ export default function ServiceLineBadgeDetalhe() {
   const badge = data?.badge;
   const requisitos = data?.requisitos ?? [];
   const meses = mesesDeValidade(badge?.validade_dias);
+  const ehEspecial = !!badge?.is_conquista_especial;
   const cirCls = NIVEL_COR[badge?.codigo_nivel] || 'bg-softinsa-600';
   const pilCls = NIVEL_PILL[badge?.codigo_nivel] || 'bg-slate-100 text-slate-600';
 
@@ -123,22 +124,33 @@ export default function ServiceLineBadgeDetalhe() {
           ) : (
             <>
               {/* ── Info principal ─────────────────────────────────── */}
-              <div className="rounded-xl border border-slate-200 bg-white shadow-sm p-6 lg:p-8">
+              <div className={`rounded-xl border shadow-sm p-6 lg:p-8 ${
+                ehEspecial
+                  ? 'border-amber-300 ring-1 ring-amber-200 bg-gradient-to-b from-amber-50/60 to-white'
+                  : 'border-slate-200 bg-white'
+              }`}>
                 <div className="flex flex-col sm:flex-row gap-6">
                   {/* Ícone */}
                   <div className="shrink-0 flex justify-center">
                     {badge.imagem_url ? (
                       <img src={badge.imagem_url} alt={badge.titulo}
-                        className="h-28 w-28 rounded-full object-cover" />
+                        className={`h-28 w-28 rounded-full object-cover ${ehEspecial ? 'ring-2 ring-amber-400 ring-offset-2' : ''}`} />
                     ) : (
-                      <div className={`flex h-28 w-28 items-center justify-center rounded-full ${cirCls}`}>
-                        <Award className="h-12 w-12 text-white" strokeWidth={1.5} />
+                      <div className={`flex h-28 w-28 items-center justify-center rounded-full ${ehEspecial ? 'bg-gradient-to-br from-amber-400 to-amber-600' : cirCls}`}>
+                        {ehEspecial
+                          ? <Crown className="h-12 w-12 text-white" strokeWidth={1.5} />
+                          : <Award className="h-12 w-12 text-white" strokeWidth={1.5} />}
                       </div>
                     )}
                   </div>
 
                   {/* Dados */}
                   <div className="flex-1 min-w-0">
+                    {ehEspecial && (
+                      <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm">
+                        <Crown className="h-3.5 w-3.5" strokeWidth={2} /> {t('sl_badge_det_premium')}
+                      </span>
+                    )}
                     <h1 className="text-xl font-bold text-slate-900">{badge.titulo}</h1>
                     {badge.descricao && (
                       <p className="mt-1 text-sm text-slate-500 leading-relaxed">{badge.descricao}</p>

@@ -825,6 +825,7 @@ const T = {
     /* SL Badges */
     sl_badges_subtitulo:         'Catálogo de Badges',
     sl_badges_minha_sl:          'A minha Service Line',
+    sl_badges_premium:           'Premium',
     sl_badges_lp_label:          'Learning Path',
     sl_badges_sl_label:          'Service Line',
     sl_badges_area_label:        'Área',
@@ -859,6 +860,7 @@ const T = {
     sl_badges_pdf_titulo:        'Catálogo de Badges',
     /* SL BadgeDetalhe */
     sl_badge_det_subtitulo:      'Detalhe do Badge',
+    sl_badge_det_premium:        'Badge Premium',
     sl_badge_det_voltar:         'Voltar ao Catálogo',
     sl_badge_det_erro:           'Não foi possível carregar os dados do badge.',
     sl_badge_det_lp:             'Learning Path',
@@ -2171,6 +2173,7 @@ const T = {
     /* SL Badges */
     sl_badges_subtitulo:         'Badge Catalog',
     sl_badges_minha_sl:          'My Service Line',
+    sl_badges_premium:           'Premium',
     sl_badges_lp_label:          'Learning Path',
     sl_badges_sl_label:          'Service Line',
     sl_badges_area_label:        'Area',
@@ -2205,6 +2208,7 @@ const T = {
     sl_badges_pdf_titulo:        'Badge Catalog',
     /* SL BadgeDetalhe */
     sl_badge_det_subtitulo:      'Badge Detail',
+    sl_badge_det_premium:        'Premium Badge',
     sl_badge_det_voltar:         'Back to Catalog',
     sl_badge_det_erro:           'Could not load badge data.',
     sl_badge_det_lp:             'Learning Path',
@@ -3506,6 +3510,7 @@ const T = {
     /* SL Badges */
     sl_badges_subtitulo:         'Catálogo de Insignias',
     sl_badges_minha_sl:          'Mi Service Line',
+    sl_badges_premium:           'Premium',
     sl_badges_lp_label:          'Ruta de Aprendizaje',
     sl_badges_sl_label:          'Línea de Servicio',
     sl_badges_area_label:        'Área',
@@ -3540,6 +3545,7 @@ const T = {
     sl_badges_pdf_titulo:        'Catálogo de Insignias',
     /* SL BadgeDetalhe */
     sl_badge_det_subtitulo:      'Detalle de Insignia',
+    sl_badge_det_premium:        'Insignia Premium',
     sl_badge_det_voltar:         'Volver al Catálogo',
     sl_badge_det_erro:           'No se pudieron cargar los datos de la insignia.',
     sl_badge_det_lp:             'Ruta de Aprendizaje',

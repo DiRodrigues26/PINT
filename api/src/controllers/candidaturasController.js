@@ -1,6 +1,6 @@
 const { pool } = require('../db/connection');
 const { gerarTokenAleatorio, gerarCodigoPublico } = require('../utils/tokens');
-const { notificarMudancaEstadoCandidatura, notificarSubmissaoCandidatura } = require('../utils/email');
+const { notificarMudancaEstadoCandidatura, notificarSubmissaoCandidatura, notificarServiceLinePendente } = require('../utils/email');
 const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
 const { obterCandidaturaComAcesso } = require('../utils/candidaturasPermissoes');
 
@@ -414,6 +414,7 @@ async function avaliarTalent(req, res, next) {
     }
 
     const novoEstado = decisao === 'CORRETO' ? 'IN_SERVICE_LINE_REVIEW' : 'OPEN';
+    let lideresParaEmail = [];
 
     const conn = await pool.getConnection();
     try {
@@ -455,11 +456,15 @@ async function avaliarTalent(req, res, next) {
       // se correto, notificar service line leader(s) dessa service line
       if (decisao === 'CORRETO') {
         const [lideres] = await conn.query(
-          `SELECT slr.id_utilizador FROM service_line_responsavel slr
+          `SELECT u.id_utilizador, u.nome, u.email,
+                  COALESCE(pn.email_aprovacao_badge, 1) AS email_aprovacao_badge
+             FROM service_line_responsavel slr
              JOIN utilizador u ON u.id_utilizador = slr.id_utilizador
+             LEFT JOIN preferencia_notificacao pn ON pn.id_utilizador = u.id_utilizador
             WHERE slr.id_service_line = ? AND u.ativo = 1`,
           [candidatura.id_service_line]
         );
+        lideresParaEmail = lideres;
         for (const l of lideres) {
           await criarNotificacao(conn, {
             id_utilizador: l.id_utilizador,
@@ -483,6 +488,21 @@ async function avaliarTalent(req, res, next) {
           idCandidatura: req.params.id,
           comentario,
         });
+
+        // email aos Service Line leaders quando a candidatura avança para validação final
+        // (respeita a config global e a preferência individual de cada leader)
+        if (decisao === 'CORRETO' && lideresParaEmail.length > 0 && await podeEnviarEmail('email_candidatura_badge')) {
+          await Promise.all(
+            lideresParaEmail
+              .filter((l) => l.email && Number(l.email_aprovacao_badge) !== 0)
+              .map((l) => notificarServiceLinePendente({
+                para: l.email,
+                badgeTitulo: candidatura.titulo_badge,
+                consultor: cons[0]?.nome || '—',
+                idCandidatura: req.params.id,
+              }))
+          );
+        }
       } catch (_) { /* email é best-effort */ }
 
       res.json({ mensagem: 'Avaliação registada.', novo_estado: novoEstado });

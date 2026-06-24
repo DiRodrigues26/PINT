@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Award, Layers, Search, Star, Timer, X, Download, FileText } from 'lucide-react';
+import { Award, Layers, Search, Star, Timer, X, Download, FileText, Crown } from 'lucide-react';
 import { api } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
@@ -36,13 +36,23 @@ function mesesDeValidade(validade_dias) {
 function BadgeCard({ badge, onDetalhe, ehMinhaSL }) {
   const { t } = useLanguage();
   const meses = mesesDeValidade(badge.validade_dias);
+  const ehEspecial = !!badge.is_conquista_especial;
   const pilCls = NIVEL_PILL[badge.codigo_nivel] || 'bg-slate-100 text-slate-600';
   const cirCls = NIVEL_COR[badge.codigo_nivel] || 'bg-softinsa-600';
 
   return (
-    <div className={`relative flex flex-col rounded-xl border bg-white shadow-sm hover:shadow-md transition-shadow ${
-      ehMinhaSL ? 'border-softinsa-300 ring-1 ring-softinsa-200' : 'border-slate-200'
+    <div className={`relative flex flex-col rounded-xl border shadow-sm hover:shadow-md transition-shadow ${
+      ehEspecial
+        ? 'border-amber-300 ring-1 ring-amber-200 bg-gradient-to-b from-amber-50/60 to-white'
+        : ehMinhaSL
+          ? 'border-softinsa-300 ring-1 ring-softinsa-200 bg-white'
+          : 'border-slate-200 bg-white'
     }`}>
+      {ehEspecial && (
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+          <Crown className="h-3 w-3" strokeWidth={2} /> {t('sl_badges_premium')}
+        </span>
+      )}
       {ehMinhaSL && (
         <span className="absolute right-3 top-3 inline-flex items-center rounded-full bg-softinsa-600 px-2 py-0.5 text-[10px] font-semibold text-white">
           {t('sl_badges_minha_sl')}
@@ -51,14 +61,18 @@ function BadgeCard({ badge, onDetalhe, ehMinhaSL }) {
       {/* Topo colorido */}
       <div className="flex flex-col items-center px-6 pt-7 pb-4">
         {badge.imagem_url ? (
-          <img
-            src={badge.imagem_url}
-            alt={badge.titulo}
-            className="h-20 w-20 rounded-full object-cover"
-          />
+          <div className="relative">
+            <img
+              src={badge.imagem_url}
+              alt={badge.titulo}
+              className={`h-20 w-20 rounded-full object-cover ${ehEspecial ? 'ring-2 ring-amber-400 ring-offset-2' : ''}`}
+            />
+          </div>
         ) : (
-          <div className={`flex h-20 w-20 items-center justify-center rounded-full ${cirCls}`}>
-            <Award className="h-9 w-9 text-white" strokeWidth={1.5} />
+          <div className={`flex h-20 w-20 items-center justify-center rounded-full ${ehEspecial ? 'bg-gradient-to-br from-amber-400 to-amber-600' : cirCls}`}>
+            {ehEspecial
+              ? <Crown className="h-9 w-9 text-white" strokeWidth={1.5} />
+              : <Award className="h-9 w-9 text-white" strokeWidth={1.5} />}
           </div>
         )}
 

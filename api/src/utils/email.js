@@ -413,6 +413,34 @@ async function notificarAlertaSla({ para, titulo, mensagem, consultor, badge }) 
   });
 }
 
+async function notificarServiceLinePendente({ para, badgeTitulo, consultor, idCandidatura }) {
+  const link = idCandidatura
+    ? `${frontendUrl()}/sl/pedidos/${idCandidatura}`
+    : `${frontendUrl()}/sl/pedidos`;
+
+  const html = envolverEmail({
+    preheader: `Uma candidatura ao badge ${badgeTitulo} aguarda a validação final da Service Line.`,
+    conteudoHtml: corpoHtml({
+      icone: { nome: 'arrowRight', cor: '#2d5288', fundo: '#eef3f9' },
+      etiqueta: { texto: 'VALIDAÇÃO PENDENTE', cor: '#2d5288', fundo: '#eef3f9' },
+      titulo: 'Tem uma candidatura para validar.',
+      paragrafos: [
+        `As evidências do badge <strong>${badgeTitulo}</strong> foram validadas pelo Talent Manager e aguardam agora a sua validação final como Service Line.`,
+      ],
+    }) + cartaoInfoHtml([
+      ['Consultor', consultor],
+      ['Badge', badgeTitulo],
+    ]) + botaoHtml('Rever candidatura', link),
+  });
+
+  return enviarEmail({
+    para,
+    assunto: `Validação pendente — ${badgeTitulo}`,
+    texto: `As evidências do badge "${badgeTitulo}" foram validadas pelo Talent Manager e aguardam a sua validação final.\n\nConsultor: ${consultor}\nBadge: ${badgeTitulo}\n\nRever candidatura: ${link}`,
+    html,
+  });
+}
+
 async function enviarEmailTeste(para) {
   const html = envolverEmail({
     preheader: 'O envio de emails está corretamente configurado.',
@@ -441,6 +469,7 @@ module.exports = {
   enviarRecuperacaoPassword,
   notificarMudancaEstadoCandidatura,
   notificarSubmissaoCandidatura,
+  notificarServiceLinePendente,
   notificarAlertaSla,
   enviarEmailTeste,
 };
