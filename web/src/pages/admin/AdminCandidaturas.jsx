@@ -469,19 +469,27 @@ export default function AdminCandidaturas() {
           </select>
           <select className="input" value={filtros.id_consultor} onChange={(e) => atualizarFiltro('id_consultor', e.target.value)}>
             <option value="">{t('admin_cand_consultor_todos')}</option>
-            {listaConsultores.map((u) => <option key={u.id_utilizador} value={u.id_utilizador}>{u.nome}</option>)}
+            {listaConsultores.map((u, index) => (
+              <option key={`${u.id_utilizador}-${index}`} value={u.id_utilizador}>{u.nome}</option>
+            ))}
           </select>
           <select className="input" value={filtros.id_badge} onChange={(e) => atualizarFiltro('id_badge', e.target.value)}>
             <option value="">{t('admin_cand_badge_todos')}</option>
-            {listaBadges.map((badge) => <option key={badge.id_badge} value={badge.id_badge}>{badge.titulo}</option>)}
+            {listaBadges.map((badge, index) => (
+              <option key={`${badge.id_badge}-${index}`} value={badge.id_badge}>{badge.titulo}</option>
+            ))}
           </select>
           <select className="input" value={filtros.id_service_line} onChange={(e) => atualizarFiltro('id_service_line', e.target.value)}>
             <option value="">{t('admin_cand_sl_todas')}</option>
-            {listaServiceLines.map((sl) => <option key={sl.id_service_line} value={sl.id_service_line}>{sl.nome}</option>)}
+            {listaServiceLines.map((sl, index) => (
+              <option key={`${sl.id_service_line}-${index}`} value={sl.id_service_line}>{sl.nome}</option>
+            ))}
           </select>
           <select className="input" value={filtros.id_area} onChange={(e) => atualizarFiltro('id_area', e.target.value)}>
             <option value="">{t('admin_cand_area_todas')}</option>
-            {areasFiltro.map((area) => <option key={area.id_area} value={area.id_area}>{area.nome}</option>)}
+            {areasFiltro.map((area, index) => (
+              <option key={`${area.id_area}-${index}`} value={area.id_area}>{area.nome}</option>
+            ))}
           </select>
           <button type="button" className="btn-secondary border-softinsa-600 text-softinsa-700" onClick={limparFiltros}>
             <Icon nome="x" className="h-4 w-4" /> {t('admin_notif_limpar_filtros')}

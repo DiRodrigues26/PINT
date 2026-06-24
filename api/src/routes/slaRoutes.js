@@ -4,11 +4,20 @@ const ctrl = require('../controllers/slaController');
 const { autenticar } = require('../middleware/autenticar');
 const { autorizarPerfis } = require('../middleware/autorizar');
 
-router.use(autenticar, autorizarPerfis('Administrador'));
+router.use(autenticar);
 
-router.get('/',             ctrl.listar);
-router.put('/:fase',        ctrl.atualizar);
+router.get('/',
+  autorizarPerfis('Administrador', 'Talent Manager', 'Service Line'),
+  ctrl.listar
+);
+router.get('/fora-prazo',
+  autorizarPerfis('Administrador', 'Talent Manager', 'Service Line'),
+  ctrl.candidaturasForaSLA
+);
+
+router.use(autorizarPerfis('Administrador'));
+
+router.put('/:fase', ctrl.atualizar);
 router.post('/:idCandidatura/notificar', ctrl.notificar);
-router.get('/fora-prazo',   ctrl.candidaturasForaSLA);
 
 module.exports = router;

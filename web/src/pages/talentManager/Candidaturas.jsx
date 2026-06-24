@@ -28,14 +28,24 @@ function prioridade(pontos) {
   if (p >= 250) return { key: 'prio_media', cls: 'bg-amber-100 text-amber-700' };
   return { key: 'prio_baixa', cls: 'bg-slate-100 text-slate-600' };
 }
-function prazo(c) {
+function formatarTempoRestante(info, tt) {
+  const restante = Number(info.limite_horas || 0) - Number(info.horas_em_fase || 0);
+  if (restante <= 0) return tt('prazo_atrasado');
+  if (restante < 24) {
+    const horas = Math.max(1, Math.ceil(restante));
+    return `${horas} ${tt(horas === 1 ? 'hora' : 'horas')}`;
+  }
+  const dias = Math.ceil(restante / 24);
+  return `${dias} ${tt(dias === 1 ? 'dia' : 'dias')}`;
+}
+
+function prazo(c, slaInfo, tt) {
   if (FECHADOS.includes(c.estado_atual)) return { key: 'prazo_concluido', cls: 'text-slate-400' };
-  const base = c.data_submissao || c.data_abertura;
-  if (!base) return { key: null, cls: 'text-slate-300' };
-  const dias = (Date.now() - new Date(base).getTime()) / 86_400_000;
-  if (dias > 14) return { key: 'prazo_atrasado', cls: 'text-rose-600 font-semibold' };
-  if (dias > 7) return { key: 'prazo_proximo', cls: 'text-amber-600 font-semibold' };
-  return { key: 'prazo_no_prazo', cls: 'text-emerald-600' };
+  if (!slaInfo) return { key: null, cls: 'text-slate-300' };
+  if (!slaInfo.limite_horas) return { label: '—', cls: 'text-slate-300' };
+  if (slaInfo.estado_sla === 'ULTRAPASSADO') return { key: 'prazo_atrasado', cls: 'text-rose-600 font-semibold' };
+  if (slaInfo.estado_sla === 'PROXIMO_LIMITE') return { label: formatarTempoRestante(slaInfo, tt), cls: 'text-amber-600 font-semibold' };
+  return { label: formatarTempoRestante(slaInfo, tt), cls: 'text-emerald-600' };
 }
 function formatarData(d) {
   if (!d) return '—';
@@ -59,8 +69,17 @@ export default function TalentCandidaturas() {
     queryFn: async () => { const { data } = await api.get('/api/candidaturas?por_pagina=200'); return data; },
     staleTime: 20_000, refetchInterval: 20_000,
   });
+  const { data: slaData } = useQuery({
+    queryKey: ['tm-sla-monitor'],
+    queryFn: async () => { const { data } = await api.get('/api/sla/fora-prazo', { params: { todos: 1 } }); return data; },
+    staleTime: 20_000, refetchInterval: 20_000,
+  });
 
   const todas = data?.dados ?? [];
+  const slaPorCandidatura = useMemo(
+    () => new Map((slaData?.dados || []).map((item) => [Number(item.id_candidatura), item])),
+    [slaData]
+  );
   const areas = useMemo(() => [...new Set(todas.map(c => c.nome_area).filter(Boolean))], [todas]);
 
   const lista = useMemo(() => {
@@ -81,11 +100,18 @@ export default function TalentCandidaturas() {
   function limpar() { setPesquisa(''); setFEstado(''); setFPrioridade(''); setFArea(''); setDataIni(''); setDataFim(''); }
 
   function dadosExport() {
-    const headers = [tt('col_consultor'), tt('col_badge'), tt('col_area'), tt('col_data_sub'), tt('col_estado'), tt('col_prioridade'), tt('col_evidencias'), tt('col_pontos')];
-    const rows = lista.map(c => [
-      c.nome_consultor, c.titulo_badge, c.nome_area || '—', formatarData(c.data_submissao || c.data_abertura),
-      tt(ESTADO_CFG[c.estado_atual]?.key) || c.estado_atual, tt(prioridade(c.pontos).key), `${c.evidencias_count}/${c.total_requisitos}`, c.pontos || 0,
-    ]);
+    const headers = [tt('col_consultor'), tt('col_badge'), tt('col_area'), tt('col_data_sub'), tt('col_estado'), tt('col_prioridade'), tt('col_evidencias'), tt('col_prazo'), tt('col_pontos')];
+    const rows = lista.map(c => {
+      const pz = prazo(c, slaPorCandidatura.get(Number(c.id_candidatura)), tt);
+      return [
+        c.nome_consultor, c.titulo_badge, c.nome_area || '—', formatarData(c.data_submissao || c.data_abertura),
+        ESTADO_CFG[c.estado_atual]?.key ? tt(ESTADO_CFG[c.estado_atual].key) : c.estado_atual,
+        tt(prioridade(c.pontos).key),
+        `${c.evidencias_count}/${c.total_requisitos}`,
+        pz.label || (pz.key ? tt(pz.key) : '—'),
+        c.pontos || 0,
+      ];
+    });
     return { headers, rows };
   }
   function exportarExcel() {
@@ -200,7 +226,7 @@ export default function TalentCandidaturas() {
                     {lista.map(c => {
                       const est = ESTADO_CFG[c.estado_atual] || { key: null, cls: 'bg-slate-100 text-slate-600' };
                       const prio = prioridade(c.pontos);
-                      const pz = prazo(c);
+                      const pz = prazo(c, slaPorCandidatura.get(Number(c.id_candidatura)), tt);
                       return (
                         <tr key={c.id_candidatura} className="hover:bg-slate-50/60">
                           <td className="px-3 py-3.5 font-medium text-slate-800">{c.nome_consultor}</td>
@@ -214,7 +240,7 @@ export default function TalentCandidaturas() {
                               ? <span className="text-softinsa-600">{c.evidencias_count} {c.evidencias_count > 1 ? tt('ficheiros') : tt('ficheiro')}</span>
                               : <span className="text-slate-300">{tt('sem_evidencias')}</span>}
                           </td>
-                          <td className={`px-3 py-3.5 text-xs ${pz.cls}`}>{pz.key ? tt(pz.key) : '—'}</td>
+                          <td className={`px-3 py-3.5 text-xs ${pz.cls}`}>{pz.label || (pz.key ? tt(pz.key) : '—')}</td>
                           <td className="px-3 py-3.5">
                             <button type="button" onClick={() => setModalCand(c.id_candidatura)}
                               className="flex items-center gap-1.5 text-sm font-medium text-softinsa-600 hover:underline">

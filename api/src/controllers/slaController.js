@@ -1,6 +1,7 @@
 const { pool } = require('../db/connection');
 const { notificarAlertaSla } = require('../utils/email');
-const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
+const { podeEnviarEmail, podeEnviarPush, podeNotificarPlataforma } = require('../utils/configNotificacao');
+const { enviarPushParaUtilizadores } = require('../utils/push');
 
 function faseDaCandidatura(estado) {
   if (['SUBMITTED', 'IN_TALENT_REVIEW'].includes(estado)) return 'TALENT_REVIEW';
@@ -76,7 +77,27 @@ async function atualizar(req, res, next) {
  * Lógica reutilizável de deteção de SLA (usada pelo endpoint e pelo job automático).
  * incluirTodos=true devolve todas as candidaturas monitorizadas; false só as ULTRAPASSADO.
  */
-async function listarForaSLA(incluirTodos = false) {
+async function filtrosEscopoUtilizador(utilizador) {
+  if (!utilizador) return { sql: '', params: [] };
+  const perfis = utilizador.perfis || [];
+  if (perfis.includes('Administrador') || perfis.includes('Talent Manager')) {
+    return { sql: '', params: [] };
+  }
+
+  if (perfis.includes('Service Line')) {
+    const [linhas] = await pool.query(
+      'SELECT id_service_line FROM service_line_responsavel WHERE id_utilizador = ?',
+      [utilizador.id_utilizador]
+    );
+    const ids = linhas.map((linha) => linha.id_service_line);
+    if (ids.length === 0) return { sql: ' AND 1 = 0', params: [] };
+    return { sql: ` AND sl.id_service_line IN (${ids.map(() => '?').join(',')})`, params: ids };
+  }
+
+  return { sql: ' AND 1 = 0', params: [] };
+}
+
+async function listarForaSLA(incluirTodos = false, utilizador = null) {
   const [slas] = await pool.query('SELECT fase, limite, unidade, ativo FROM sla_config');
   const mapaSLA = {};
   for (const s of slas) {
@@ -85,6 +106,7 @@ async function listarForaSLA(incluirTodos = false) {
     mapaSLA[s.fase] = horas;
   }
 
+  const escopo = await filtrosEscopoUtilizador(utilizador);
   const [linhas] = await pool.query(
     `SELECT cb.id_candidatura, cb.estado_atual, cb.data_submissao,
             cb.id_consultor,
@@ -112,7 +134,9 @@ async function listarForaSLA(incluirTodos = false) {
        JOIN area a ON a.id_area = n.id_area
        JOIN service_line sl ON sl.id_service_line = a.id_service_line
       WHERE cb.estado_atual IN ('SUBMITTED', 'IN_TALENT_REVIEW', 'IN_SERVICE_LINE_REVIEW')
-      ORDER BY cb.data_submissao DESC, cb.data_abertura DESC`
+      ${escopo.sql}
+      ORDER BY cb.data_submissao DESC, cb.data_abertura DESC`,
+    escopo.params
   );
 
   const dados = linhas.map(l => {
@@ -157,7 +181,7 @@ async function responsaveisPorFase(fase, idServiceLine) {
 async function candidaturasForaSLA(req, res, next) {
   try {
     const incluirTodos = req.query.todos === '1' || req.query.todos === 'true';
-    res.json({ dados: await listarForaSLA(incluirTodos) });
+    res.json({ dados: await listarForaSLA(incluirTodos, req.utilizador) });
   } catch (err) { next(err); }
 }
 
@@ -180,6 +204,7 @@ async function notificar(req, res, next) {
 
     const enviarPlataforma = await podeNotificarPlataforma('alerta_sla_ultrapassado');
     const enviarEmailSla = await podeEnviarEmail('alerta_sla_ultrapassado');
+    const enviarPushSla = await podeEnviarPush('alerta_sla_ultrapassado');
 
     const conn = await pool.getConnection();
     try {
@@ -226,11 +251,24 @@ async function notificar(req, res, next) {
       })));
     }
 
+    const resultadoPush = enviarPushSla
+      ? await enviarPushParaUtilizadores(
+        destinatarios.map((d) => d.id_utilizador),
+        {
+          titulo,
+          mensagem,
+          dados: { tipo: 'SLA_ALERTA', candidatura: String(candidatura.id_candidatura) },
+        }
+      )
+      : { enviadas: 0 };
+
     res.json({
       mensagem: 'Notificação processada.',
       total_destinatarios: destinatarios.length,
       plataforma: enviarPlataforma,
       email: enviarEmailSla,
+      push: enviarPushSla,
+      push_resultado: resultadoPush,
     });
   } catch (err) { next(err); }
 }

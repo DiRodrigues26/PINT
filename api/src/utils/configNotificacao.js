@@ -49,9 +49,14 @@ async function podeNotificarPlataforma(evento) {
   return Boolean(c.canal_plataforma) && Boolean(c[evento]);
 }
 
+async function podeEnviarPush(evento) {
+  const c = await obterConfig();
+  return Boolean(c.canal_push) && Boolean(c[evento]);
+}
+
 function invalidarCache() {
   cache = null;
   cacheExpira = 0;
 }
 
-module.exports = { obterConfig, podeEnviarEmail, podeNotificarPlataforma, invalidarCache };
+module.exports = { obterConfig, podeEnviarEmail, podeNotificarPlataforma, podeEnviarPush, invalidarCache };

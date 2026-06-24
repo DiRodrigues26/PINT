@@ -88,27 +88,21 @@ function textoCurto(valor, max = 18) {
   return texto.length > max ? `${texto.slice(0, max - 1)}…` : texto;
 }
 
-function formatarSlaRestante(candidatura, slas, t) {
-  if (!candidatura?.data_submissao) return '-';
+function formatarSlaRestante(slaInfo, t) {
+  if (!slaInfo) return '-';
+  if (!slaInfo.limite_horas) return t('admin_sla_sem_sla');
+  if (slaInfo.estado_sla === 'ULTRAPASSADO') return t('admin_dash_sla_overdue_short');
 
-  const fase = ['SUBMITTED', 'IN_TALENT_REVIEW'].includes(candidatura.estado_atual)
-    ? 'TALENT_REVIEW'
-    : candidatura.estado_atual === 'IN_SERVICE_LINE_REVIEW'
-      ? 'SERVICE_LINE_REVIEW'
-      : null;
+  const restantes = Number(slaInfo.limite_horas || 0) - Number(slaInfo.horas_em_fase || 0);
+  if (restantes <= 0) return t('admin_dash_sla_overdue_short');
+  if (restantes < 24) {
+    const horas = Math.max(1, Math.ceil(restantes));
+    return t(horas === 1 ? 'admin_dash_unit_hour' : 'admin_dash_unit_hours').replace('{n}', horas);
+  }
 
-  if (!fase) return '-';
-
-  const config = slas.find((s) => s.fase === fase && s.ativo !== 0);
-  if (!config) return '-';
-
-  const limiteHoras = Number(config.limite || 0) * (config.unidade === 'dias' ? 24 : 1);
-  const decorridas = (Date.now() - new Date(candidatura.data_submissao).getTime()) / 36e5;
-  const restantes = Math.ceil((limiteHoras - decorridas) / 24);
-
-  if (restantes < 0) return t('admin_dash_sla_overdue_short');
-  if (restantes === 0) return t('admin_dash_sla_today');
-  return t(restantes === 1 ? 'admin_dash_sla_day' : 'admin_dash_sla_days').replace('{n}', restantes);
+  const dias = Math.ceil(restantes / 24);
+  if (dias === 0) return t('admin_dash_sla_today');
+  return t(dias === 1 ? 'admin_dash_sla_day' : 'admin_dash_sla_days').replace('{n}', dias);
 }
 
 function formatarLimiteSla(sla, t) {
@@ -255,7 +249,7 @@ export default function AdminDashboard() {
 
   const foraSla = useQuery({
     queryKey: ['admin-dashboard', 'sla-fora-prazo'],
-    queryFn: async () => (await api.get('/api/sla/fora-prazo')).data,
+    queryFn: async () => (await api.get('/api/sla/fora-prazo', { params: { todos: 1 } })).data,
     refetchInterval: 15000,
   });
 
@@ -269,7 +263,15 @@ export default function AdminDashboard() {
   const listaSlas = slas.data?.dados || [];
   const recentes = candidaturas.data?.dados || [];
   const listaAvisos = avisos.data?.dados || [];
-  const foraPrazo = foraSla.data?.dados || [];
+  const monitorSla = foraSla.data?.dados || [];
+  const foraPrazo = useMemo(
+    () => monitorSla.filter((item) => item.estado_sla === 'ULTRAPASSADO'),
+    [monitorSla],
+  );
+  const slaPorCandidatura = useMemo(
+    () => new Map(monitorSla.map((item) => [Number(item.id_candidatura), item])),
+    [monitorSla],
+  );
 
   const taxaAtribuicao = useMemo(
     () => percentagem(dados.total_badges_atribuidos, dados.total_badges_ativos),
@@ -609,7 +611,9 @@ export default function AdminDashboard() {
                     <td className="px-5 py-4 text-slate-500">{c.nome_service_line}</td>
                     <td className="px-5 py-4"><span className={`badge-pill ${info.cor}`}>{info.label}</span></td>
                     <td className="px-5 py-4 text-slate-500">{formatarDataIdioma(c.data_submissao || c.data_abertura, idioma)}</td>
-                    <td className="px-5 py-4 text-slate-500">{formatarSlaRestante(c, listaSlas, t)}</td>
+                    <td className="px-5 py-4 text-slate-500">
+                      {formatarSlaRestante(slaPorCandidatura.get(Number(c.id_candidatura)), t)}
+                    </td>
                     <td className="px-5 py-4">
                       <Link to="/admin/candidaturas" state={{ abrirCandidaturaId: c.id_candidatura }} className="font-semibold text-softinsa-700 hover:underline">{t('admin_dash_view_process')}</Link>
                     </td>

@@ -78,7 +78,7 @@ function numero(valor) {
 }
 
 function dadosPontos(items, t) {
-  const headers = [t('admin_pontos_col_badge'), t('admin_rel_col_lp'), 'Service Line', t('admin_rel_col_area'), t('admin_dash_level'), t('admin_pontos_atuais'), t('admin_dash_col_state')];
+  const headers = [t('admin_pontos_col_badge'), t('admin_rel_col_lp'), t('admin_dash_col_service_line'), t('admin_rel_col_area'), t('admin_dash_level'), t('admin_pontos_atuais'), t('admin_dash_col_state')];
   const linhas = items.map((badge) => [
     badge.titulo,
     badge.nome_learning_path || '',
@@ -243,7 +243,7 @@ export default function AdminPontos({ onEditarBadge }) {
   return (
     <div className="mx-auto max-w-none">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px] 2xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <header className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_pontos')}</h1>
             <div className="flex flex-wrap gap-3">
@@ -294,13 +294,65 @@ export default function AdminPontos({ onEditarBadge }) {
           </section>
 
           <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
+            <div className="divide-y divide-slate-100 lg:hidden">
+              {badges.isLoading ? (
+                <div className="px-5 py-12 text-center text-sm text-slate-500">{t('admin_pontos_a_carregar')}</div>
+              ) : lista.map((badge) => {
+                const estado = estadoBadgeValor(badge);
+                return (
+                  <article key={badge.id_badge} className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h2 className="break-words text-base font-semibold text-slate-900">{badge.titulo}</h2>
+                        <p className="mt-1 text-sm text-slate-500">{dificuldade(badge)}</p>
+                      </div>
+                      <span className="shrink-0 rounded-md border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-semibold text-slate-800">
+                        {numero(badge.pontos)}
+                      </span>
+                    </div>
+
+                    <dl className="mt-4 grid grid-cols-1 gap-3 text-sm">
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('admin_rel_col_lp')}</dt>
+                        <dd className="mt-0.5 text-slate-700">{badge.nome_learning_path || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('admin_dash_col_service_line')}</dt>
+                        <dd className="mt-0.5 text-slate-700">{badge.nome_service_line || '-'}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('admin_rel_col_area')}</dt>
+                        <dd className="mt-0.5 text-slate-700">{badge.nome_area || '-'}</dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('admin_dash_col_state')}</dt>
+                        <dd><span className={`badge-pill ${estadoClasses(estado)}`}>{estadoLabel(estado, t)}</span></dd>
+                      </div>
+                    </dl>
+
+                    <button
+                      type="button"
+                      className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md border border-softinsa-200 px-3 py-2 text-sm font-semibold text-softinsa-700 hover:bg-blue-50"
+                      onClick={() => onEditarBadge?.(badge.id_badge)}
+                    >
+                      <Icon icon={Pencil} className="h-4 w-4" />
+                      {t('admin_pontos_editar_badge')}
+                    </button>
+                  </article>
+                );
+              })}
+              {!badges.isLoading && lista.length === 0 && (
+                <div className="px-5 py-12 text-center text-sm text-slate-500">{t('admin_pontos_vazio')}</div>
+              )}
+            </div>
+
+            <div className="hidden overflow-x-auto lg:block">
               <table className="min-w-[1180px] w-full text-sm">
                 <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="px-4 py-4 text-left">{t('admin_pontos_col_badge')}</th>
                     <th className="px-4 py-4 text-left">{t('admin_rel_col_lp')}</th>
-                    <th className="px-4 py-4 text-left">Service Line</th>
+                    <th className="px-4 py-4 text-left">{t('admin_dash_col_service_line')}</th>
                     <th className="px-4 py-4 text-left">{t('admin_rel_col_area')}</th>
                     <th className="px-4 py-4 text-left">{t('admin_dash_level')}</th>
                     <th className="px-4 py-4 text-center">{t('admin_pontos_atuais')}</th>
@@ -358,7 +410,7 @@ export default function AdminPontos({ onEditarBadge }) {
           </section>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="min-w-0 space-y-4">
           <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-5 flex items-center gap-2 text-base font-bold text-slate-800">
               <Icon icon={Trophy} className="h-5 w-5 text-softinsa-600" />

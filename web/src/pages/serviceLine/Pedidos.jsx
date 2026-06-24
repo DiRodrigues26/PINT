@@ -21,14 +21,15 @@ function usePedidos() {
   });
 }
 
-function useSLA() {
+function useSlaMonitor() {
   return useQuery({
-    queryKey: ['sla-config'],
+    queryKey: ['sl-sla-monitor'],
     queryFn: async () => {
-      const { data } = await api.get('/api/sla');
+      const { data } = await api.get('/api/sla/fora-prazo', { params: { todos: 1 } });
       return data.dados || [];
     },
-    staleTime: 300_000,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 }
 
@@ -65,27 +66,23 @@ function getEstadoCfg(t) {
   };
 }
 
-function calcularSLA(candidatura, slaConfig, labelExpirado) {
-  if (!candidatura.data_submissao) return null;
-  if (['APPROVED', 'REJECTED', 'CLOSED'].includes(candidatura.estado_atual)) return null;
+function formatarTempoRestante(info, t) {
+  const restante = Number(info.limite_horas || 0) - Number(info.horas_em_fase || 0);
+  if (restante <= 0) return t('admin_sla_ultrapassado');
+  if (restante < 24) {
+    const horas = Math.max(1, Math.ceil(restante));
+    return t(horas === 1 ? 'admin_dash_unit_hour' : 'admin_dash_unit_hours').replace('{n}', horas);
+  }
+  const dias = Math.ceil(restante / 24);
+  return t(dias === 1 ? 'admin_dash_unit_day' : 'admin_dash_unit_days').replace('{n}', dias);
+}
 
-  const fase = candidatura.estado_atual === 'IN_SERVICE_LINE_REVIEW'
-    ? 'SERVICE_LINE_REVIEW'
-    : 'TALENT_REVIEW';
-
-  const cfg = slaConfig?.find(s => s.fase === fase);
-  if (!cfg) return null;
-
-  const limiteHoras = cfg.unidade === 'dias' ? cfg.limite * 24 : cfg.limite;
-  const inicioFase = new Date(candidatura.data_submissao);
-  const agora = new Date();
-  const horasDecorridas = (agora - inicioFase) / 3_600_000;
-  const horasRestantes = limiteHoras - horasDecorridas;
-
-  if (horasRestantes <= 0) return { label: labelExpirado, cls: 'text-rose-600 font-semibold' };
-  const diasRestantes = Math.ceil(horasRestantes / 24);
-  const cor = horasRestantes < 48 ? 'text-orange-500 font-semibold' : 'text-slate-600';
-  return { label: `${diasRestantes} dia${diasRestantes !== 1 ? 's' : ''}`, cls: cor };
+function calcularSLA(info, t) {
+  if (!info) return null;
+  if (!info.limite_horas) return { label: t('admin_sla_sem_sla'), cls: 'text-slate-400' };
+  if (info.estado_sla === 'ULTRAPASSADO') return { label: t('admin_sla_ultrapassado'), cls: 'text-rose-600 font-semibold' };
+  if (info.estado_sla === 'PROXIMO_LIMITE') return { label: formatarTempoRestante(info, t), cls: 'text-orange-500 font-semibold' };
+  return { label: formatarTempoRestante(info, t), cls: 'text-emerald-600' };
 }
 
 function iniciais(nome) {
@@ -159,7 +156,7 @@ export default function ServiceLinePedidos() {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const { data: pedidos = [], isLoading, isFetching, refetch } = usePedidos();
-  const { data: slaConfig = [] } = useSLA();
+  const { data: slaMonitor = [] } = useSlaMonitor();
   const { data: areas = [] } = useAreasSL();
 
   const [pesquisa, setPesquisa] = useState('');
@@ -193,19 +190,27 @@ export default function ServiceLinePedidos() {
   }
 
   const temFiltros = pesquisa || filtroArea || filtroNivel || filtroEstado;
+  const slaPorCandidatura = useMemo(
+    () => new Map(slaMonitor.map((item) => [Number(item.id_candidatura), item])),
+    [slaMonitor]
+  );
 
   const CSV_HEADERS = [
     t('sl_ped_csv_consultor'), t('sl_ped_csv_area'), t('sl_ped_csv_badge'),
-    t('sl_ped_csv_nivel'), t('sl_ped_csv_data'), t('sl_ped_csv_estado'), t('sl_ped_csv_validado'),
+    t('sl_ped_csv_nivel'), t('sl_ped_csv_data'), t('sl_ped_col_sla'), t('sl_ped_csv_estado'), t('sl_ped_csv_validado'),
   ];
   const hoje = new Date().toISOString().slice(0, 10);
   function pedidosParaLinhas(lista) {
-    return lista.map(p => [
-      p.nome_consultor, p.nome_area, p.titulo_badge, p.codigo_nivel,
-      p.data_submissao ? new Date(p.data_submissao).toLocaleDateString('pt-PT') : '',
-      ESTADO_CFG[p.estado_atual]?.label || p.estado_atual,
-      p.validado_por || '',
-    ]);
+    return lista.map(p => {
+      const slaInfo = calcularSLA(slaPorCandidatura.get(Number(p.id_candidatura)), t);
+      return [
+        p.nome_consultor, p.nome_area, p.titulo_badge, p.codigo_nivel,
+        p.data_submissao ? new Date(p.data_submissao).toLocaleDateString('pt-PT') : '',
+        slaInfo?.label || '',
+        ESTADO_CFG[p.estado_atual]?.label || p.estado_atual,
+        p.validado_por || '',
+      ];
+    });
   }
 
   return (
@@ -338,7 +343,7 @@ export default function ServiceLinePedidos() {
                         <LinhaPedido
                           key={c.id_candidatura}
                           c={c}
-                          slaInfo={calcularSLA(c, slaConfig, t('sl_ped_expirado'))}
+                          slaInfo={calcularSLA(slaPorCandidatura.get(Number(c.id_candidatura)), t)}
                           navigate={navigate}
                           ESTADO_CFG={ESTADO_CFG}
                           labelRever={t('sl_ped_rever')}

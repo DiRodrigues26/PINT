@@ -11,7 +11,7 @@
  */
 const { pool } = require('../db/connection');
 const { listarForaSLA, responsaveisPorFase } = require('../controllers/slaController');
-const { podeEnviarEmail, podeNotificarPlataforma } = require('../utils/configNotificacao');
+const { podeEnviarEmail, podeEnviarPush, podeNotificarPlataforma } = require('../utils/configNotificacao');
 const { notificarAlertaSla } = require('../utils/email');
 const { enviarPushParaUtilizadores } = require('../utils/push');
 
@@ -19,12 +19,20 @@ const HORAS_DEDUP = parseInt(process.env.SLA_ALERT_DEDUP_HOURS || '24', 10);
 
 async function jaNotificadoRecentemente(idCandidatura) {
   const [[{ total }]] = await pool.query(
-    `SELECT COUNT(*) AS total
-       FROM notificacao
-      WHERE tipo = 'SLA_ALERTA'
-        AND entidade_relacionada = ?
-        AND data_criacao >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL ? HOUR)`,
-    [`Candidatura #${idCandidatura}`, HORAS_DEDUP]
+    `SELECT (
+        (SELECT COUNT(*)
+           FROM notificacao
+          WHERE tipo = 'SLA_ALERTA'
+            AND entidade_relacionada = ?
+            AND data_criacao >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL ? HOUR))
+        +
+        (SELECT COUNT(*)
+           FROM historico_candidatura
+          WHERE id_candidatura = ?
+            AND acao IN ('SLA_ALERTA_AUTO', 'SLA_NOTIFICACAO')
+            AND data_evento >= DATE_SUB(CURRENT_TIMESTAMP, INTERVAL ? HOUR))
+      ) AS total`,
+    [`Candidatura #${idCandidatura}`, HORAS_DEDUP, idCandidatura, HORAS_DEDUP]
   );
   return total > 0;
 }
@@ -33,7 +41,8 @@ async function executarVerificacaoSLA() {
   try {
     const plataforma = await podeNotificarPlataforma('alerta_sla_ultrapassado');
     const email = await podeEnviarEmail('alerta_sla_ultrapassado');
-    if (!plataforma && !email) return { criadas: 0, motivo: 'alerta_sla_ultrapassado desativado' };
+    const push = await podeEnviarPush('alerta_sla_ultrapassado');
+    if (!plataforma && !email && !push) return { criadas: 0, motivo: 'alerta_sla_ultrapassado desativado' };
 
     const fora = await listarForaSLA(false);
     let criadas = 0;
@@ -58,7 +67,9 @@ async function executarVerificacaoSLA() {
               [r.id_utilizador, titulo, mensagem, `Candidatura #${c.id_candidatura}`]
             );
           }
+        }
 
+        if (push) {
           // Notificação PUSH para a app mobile (bónus: SLA ultrapassado).
           // Best-effort: nunca aborta o tick nem a contagem.
           await enviarPushParaUtilizadores(
@@ -97,6 +108,19 @@ async function executarVerificacaoSLA() {
             badge: c.titulo_badge,
           }))).catch((errEmail) => console.warn(`⚠️ [SLA] Falha no email da candidatura #${c.id_candidatura}:`, errEmail.message));
         }
+
+        await pool.query(
+          `INSERT INTO historico_candidatura
+             (id_candidatura, id_utilizador_responsavel, estado_origem, estado_destino, acao, comentario)
+           VALUES (?, ?, ?, ?, 'SLA_ALERTA_AUTO', ?)`,
+          [
+            c.id_candidatura,
+            responsaveis[0].id_utilizador,
+            c.estado_atual,
+            c.estado_atual,
+            `${mensagem} Canais: plataforma=${plataforma ? '1' : '0'}, email=${email ? '1' : '0'}, push=${push ? '1' : '0'}.`,
+          ]
+        );
 
         criadas += 1;
       } catch (errItem) {
