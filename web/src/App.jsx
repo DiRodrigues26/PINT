@@ -60,8 +60,6 @@ import TalentBadgeDetalhe from './pages/talentManager/BadgeDetalhe';
 import TalentRelatorios from './pages/talentManager/Relatorios';
 import TalentNotificacoes from './pages/talentManager/Notificacoes';
 import TalentPerfil from './pages/talentManager/Perfil';
-import TalentPedidos from './pages/talentManager/Pedidos';
-import TalentPedidoDetalhe from './pages/talentManager/PedidoDetalhe';
 
 function PerfilEmDesenvolvimento() {
   const { utilizador, logout } = useAuth();
@@ -250,15 +248,12 @@ export default function App() {
       <Route path="/tm/perfil" element={
         <RotaProtegida perfis={['Talent Manager']}><TalentPerfil /></RotaProtegida>
       } />
-      <Route path="/tm/pedidos" element={
-        <RotaProtegida perfis={['Talent Manager']}><TalentPedidos /></RotaProtegida>
-      } />
-      <Route path="/tm/pedidos/:id" element={
-        <RotaProtegida perfis={['Talent Manager']}><TalentPedidoDetalhe /></RotaProtegida>
-      } />
-      <Route path="/tm/*" element={
-        <RotaProtegida perfis={['Talent Manager']}><PerfilEmDesenvolvimento /></RotaProtegida>
-      } />
+      {/* Ecrã antigo de "pedidos" substituído por "candidaturas" */}
+      <Route path="/tm/pedidos" element={<Navigate to="/tm/candidaturas" replace />} />
+      <Route path="/tm/pedidos/:id" element={<Navigate to="/tm/candidaturas" replace />} />
+      {/* /tm e qualquer rota TM desconhecida → dashboard */}
+      <Route path="/tm" element={<Navigate to="/tm/dashboard" replace />} />
+      <Route path="/tm/*" element={<Navigate to="/tm/dashboard" replace />} />
 
       <Route path="*" element={
         <div className="min-h-screen flex items-center justify-center text-slate-500">

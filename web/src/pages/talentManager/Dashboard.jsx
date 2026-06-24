@@ -120,7 +120,7 @@ export default function TalentDashboard() {
 
   const topConsultores = useMemo(() => consultores.slice(0, 3), [consultores]);
   const badgesRecentes = useMemo(
-    () => candidaturas.filter(c => c.estado_atual === 'APPROVED')
+    () => candidaturas.filter(c => c.estado_atual === 'APPROVED' && Number(c.is_conquista_especial) === 1)
       .sort((a, b) => new Date(b.data_fecho || b.data_submissao) - new Date(a.data_fecho || a.data_submissao)).slice(0, 3),
     [candidaturas],
   );

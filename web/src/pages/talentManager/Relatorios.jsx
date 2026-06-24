@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Filter, X, FileText, CheckCircle, XCircle, TrendingUp, Clock, AlertCircle,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, Download, ChevronDown,
 } from 'lucide-react';
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis,
@@ -11,6 +11,7 @@ import {
 import { api } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
+import { exportCSV, exportPDF } from '../../lib/exportUtils';
 import { useTM } from './i18n';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -74,6 +75,7 @@ export default function TalentRelatorios() {
   const [dataIni, setDataIni] = useState('');
   const [dataFim, setDataFim] = useState('');
   const [aplicados, setAplicados] = useState({ sl: '', area: '', dataIni: '', dataFim: '' });
+  const [exportAberto, setExportAberto] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['tm-candidaturas'],
@@ -151,6 +153,37 @@ export default function TalentRelatorios() {
   function aplicar() { setAplicados({ sl, area, dataIni, dataFim }); }
   function limpar() { setSl(''); setArea(''); setDataIni(''); setDataFim(''); setAplicados({ sl: '', area: '', dataIni: '', dataFim: '' }); }
 
+  // Exportação: resumo por área (dados que alimentam os gráficos, respeitando os filtros)
+  function dadosExport() {
+    const headers = [tt('col_area'), tt('candidaturas_n'), tt('aprovadas'), tt('rejeitadas'), tt('rkpi_em_validacao')];
+    const porAreaMap = new Map();
+    for (const c of cands) {
+      const a = c.nome_area || '—';
+      const o = porAreaMap.get(a) || { total: 0, aprov: 0, rej: 0, val: 0 };
+      o.total++;
+      if (c.estado_atual === 'APPROVED') o.aprov++;
+      else if (c.estado_atual === 'REJECTED') o.rej++;
+      else if (EM_VALIDACAO.includes(c.estado_atual)) o.val++;
+      porAreaMap.set(a, o);
+    }
+    const rows = [...porAreaMap.entries()].map(([a, o]) => [a, o.total, o.aprov, o.rej, o.val]);
+    // linha de totais
+    rows.push([
+      'TOTAL', kpis.total, kpis.aprov, kpis.rej, kpis.emVal,
+    ]);
+    return { headers, rows };
+  }
+  function exportarExcel() {
+    const { headers, rows } = dadosExport();
+    exportCSV(`relatorio_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+    setExportAberto(false);
+  }
+  function exportarPdf() {
+    const { headers, rows } = dadosExport();
+    exportPDF(`relatorio_${new Date().toISOString().slice(0, 10)}.pdf`, tt('rel_titulo'), headers, rows, tt('rel_sub'));
+    setExportAberto(false);
+  }
+
   return (
     <div className="min-h-screen bg-[#f3f6fa]">
       <TalentManagerSidebar />
@@ -187,9 +220,21 @@ export default function TalentRelatorios() {
                     <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600 outline-none focus:border-softinsa-400" />
                   </div>
                 </div>
-                <div className="mt-4 flex gap-3">
+                <div className="mt-4 flex flex-wrap items-center gap-3">
                   <button type="button" onClick={aplicar} className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800">{tt('aplicar_filtros')}</button>
                   <button type="button" onClick={limpar} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"><X className="h-4 w-4" /> {tt('limpar_filtros')}</button>
+                  <div className="relative ml-auto">
+                    <button type="button" onClick={() => setExportAberto(v => !v)}
+                      className="flex items-center gap-2 rounded-lg bg-softinsa-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700">
+                      <Download className="h-4 w-4" /> {tt('exportar')} <ChevronDown className="h-4 w-4" />
+                    </button>
+                    {exportAberto && (
+                      <div className="absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+                        <button type="button" onClick={exportarExcel} className="block w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50">Excel (CSV)</button>
+                        <button type="button" onClick={exportarPdf} className="block w-full px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50">PDF</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 

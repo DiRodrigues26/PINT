@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
 import { FileText, X, CheckCircle, XCircle, AlertTriangle, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
@@ -43,7 +42,6 @@ function Campo({ label, children }) {
 
 export default function CandidaturaDetalheModal({ idCandidatura, onFechar }) {
   const tt = useTM();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [comentario, setComentario] = useState('');
 
@@ -244,9 +242,9 @@ export default function CandidaturaDetalheModal({ idCandidatura, onFechar }) {
                 </button>
               </div>
             ) : (
-              <button type="button" onClick={() => { onFechar(); navigate(`/tm/pedidos/${c.id_candidatura}`); }}
+              <button type="button" onClick={onFechar}
                 className="w-full rounded-lg bg-softinsa-600 py-2.5 text-sm font-semibold text-white transition hover:bg-softinsa-700">
-                {tt('ver_candidatura')}
+                {tt('fechar')}
               </button>
             )}
           </div>
