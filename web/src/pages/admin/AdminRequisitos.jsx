@@ -18,7 +18,7 @@ import UploadImagemAdmin from '../../components/UploadImagemAdmin';
 import Paginacao from '../../components/admin/Paginacao';
 import { useLanguage } from '../../context/LanguageContext';
 
-const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Badge', 'Outro'];
+const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Outro'];
 
 function niveisMap(t) {
   return {
@@ -36,7 +36,6 @@ function tipoEvidenciaLabel(tipo, t) {
     Certificado: t('admin_badges_tipo_certificado'),
     Curso: t('admin_eventos_tipo_curso'),
     Documento: t('admin_badges_tipo_documento'),
-    Badge: t('admin_dash_col_badge'),
     Outro: t('admin_badges_tipo_outro'),
   }[tipo] || tipo;
 }
@@ -337,7 +336,7 @@ export default function AdminRequisitos() {
       titulo: requisito.titulo || '',
       descricao: requisito.descricao || '',
       imagem_url: requisito.imagem_url || '',
-      tipo_evidencia: requisito.tipo_evidencia || 'Certificado',
+      tipo_evidencia: TIPOS_EVIDENCIA.includes(requisito.tipo_evidencia) ? requisito.tipo_evidencia : 'Outro',
       codigo_nivel: requisito.codigo_nivel || 'A',
       id_nivel: requisito.id_nivel ? String(requisito.id_nivel) : '',
       ativo: requisito.ativo !== 0,

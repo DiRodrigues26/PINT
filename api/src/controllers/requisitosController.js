@@ -1,5 +1,13 @@
 const { pool } = require('../db/connection');
 
+const TIPOS_EVIDENCIA_PERMITIDOS = new Set(['Certificado', 'Curso', 'Documento', 'Outro']);
+
+function normalizarTipoEvidencia(valor) {
+  if (valor === undefined || valor === null || String(valor).trim() === '') return null;
+  const tipo = String(valor).trim();
+  return TIPOS_EVIDENCIA_PERMITIDOS.has(tipo) ? tipo : false;
+}
+
 async function contarDependenciasRequisito(idRequisito) {
   const [[evidencias]] = await pool.query(
     'SELECT COUNT(*) AS total FROM evidencia WHERE id_requisito = ?',
@@ -104,6 +112,11 @@ async function criar(req, res, next) {
       return res.status(400).json({ erro: 'id_badge e titulo são obrigatórios. Requisitos só podem ser criados dentro de um badge.' });
     }
 
+    const tipoValidado = normalizarTipoEvidencia(tipo_evidencia);
+    if (tipoValidado === false) {
+      return res.status(400).json({ erro: 'Tipo de evidência inválido.' });
+    }
+
     const [[badge]] = await pool.query('SELECT id_badge, id_nivel FROM badge WHERE id_badge = ?', [id_badge]);
     if (!badge) return res.status(404).json({ erro: 'Badge não encontrado.' });
 
@@ -124,7 +137,7 @@ async function criar(req, res, next) {
         `INSERT INTO requisito
            (id_nivel, codigo_requisito, titulo, descricao, tipo_evidencia, imagem_url, ordem, obrigatorio, ativo)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [idNivelFinal, codigo, titulo, descricao || null, tipo_evidencia || null,
+        [idNivelFinal, codigo, titulo, descricao || null, tipoValidado,
          imagem_url || null, ordem, obrigatorio ? 1 : 0, ativo ? 1 : 0]
       );
 
@@ -151,11 +164,16 @@ async function atualizar(req, res, next) {
     const campos = [];
     const valores = [];
 
+    const tipoValidado = normalizarTipoEvidencia(tipo_evidencia);
+    if (tipoValidado === false) {
+      return res.status(400).json({ erro: 'Tipo de evidência inválido.' });
+    }
+
     if (id_nivel !== undefined)          { campos.push('id_nivel = ?');          valores.push(id_nivel); }
     if (codigo_requisito !== undefined) { campos.push('codigo_requisito = ?'); valores.push(codigo_requisito); }
     if (titulo !== undefined)            { campos.push('titulo = ?');            valores.push(titulo); }
     if (descricao !== undefined)         { campos.push('descricao = ?');         valores.push(descricao); }
-    if (tipo_evidencia !== undefined)    { campos.push('tipo_evidencia = ?');    valores.push(tipo_evidencia); }
+    if (tipo_evidencia !== undefined)    { campos.push('tipo_evidencia = ?');    valores.push(tipoValidado); }
     if (imagem_url !== undefined)        { campos.push('imagem_url = ?');        valores.push(imagem_url); }
     if (ordem !== undefined)             { campos.push('ordem = ?');             valores.push(ordem); }
     if (obrigatorio !== undefined)       { campos.push('obrigatorio = ?');       valores.push(obrigatorio ? 1 : 0); }

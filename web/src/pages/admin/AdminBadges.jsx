@@ -38,7 +38,7 @@ const ICONES = {
 
 const CODIGOS_NIVEL = ['A', 'B', 'C', 'D', 'E'];
 
-const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Badge', 'Outro'];
+const TIPOS_EVIDENCIA = ['Certificado', 'Curso', 'Documento', 'Outro'];
 
 /* Converte um campo guardado (JSON array ou texto multi-linha) em texto, uma linha por item. */
 function textoDeLista(campo) {
@@ -308,7 +308,6 @@ function tipoEvidenciaLabel(tipo, t) {
     Certificado: t('admin_badges_tipo_certificado'),
     Curso: t('admin_eventos_tipo_curso'),
     Documento: t('admin_badges_tipo_documento'),
-    Badge: t('admin_dash_col_badge'),
     Outro: t('admin_badges_tipo_outro'),
   }[tipo] || tipo;
 }

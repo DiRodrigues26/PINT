@@ -8,11 +8,11 @@ router.use(autenticar);
 
 router.get('/', ctrl.listarAtivos);
 router.get('/todos',
-  autorizarPerfis('Administrador', 'Talent Manager', 'Service Line'),
+  autorizarPerfis('Administrador'),
   ctrl.listarTodos
 );
 
-router.use(autorizarPerfis('Administrador', 'Talent Manager', 'Service Line'));
+router.use(autorizarPerfis('Administrador'));
 router.post('/',       ctrl.criar);
 router.put('/:id',     ctrl.atualizar);
 router.delete('/:id',  ctrl.eliminar);
