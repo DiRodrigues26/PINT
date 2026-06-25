@@ -64,13 +64,6 @@ export function ServiceLineSidebar() {
           </div>
         </nav>
 
-<<<<<<< Updated upstream
-        <div className="border-t border-white/10 px-5 py-5">
-          <button
-            type="button"
-            onClick={() => setConfirmarLogout(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white/80 transition hover:border-white/25 hover:bg-white/15 hover:text-white"
-=======
         <div className="border-t border-slate-200 px-5 py-5">
           <div className="truncate text-sm font-semibold text-slate-900">{utilizador?.nome || 'Utilizador'}</div>
           <div className="mt-0.5 truncate text-[11px] text-slate-400">{utilizador?.email || '-'}</div>
@@ -79,7 +72,6 @@ export function ServiceLineSidebar() {
             type="button"
             onClick={() => setConfirmarLogout(true)}
             className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition"
->>>>>>> Stashed changes
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
             {t('admin_logout_title')}
@@ -158,13 +150,8 @@ export function ServiceLineTopbar({ subtitulo }) {
             <Bell className="h-5 w-5" strokeWidth={1.8} />
             <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
           </NavLink>
-<<<<<<< Updated upstream
-          <div className="hidden text-sm font-semibold text-white sm:block">{nome}</div>
-          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} profileTo="/sl/perfil" onLogout={handleLogout} />
-=======
           <div className="hidden text-sm font-semibold text-slate-700 sm:block">{nome}</div>
-          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} onLogout={handleLogout} />
->>>>>>> Stashed changes
+          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} profileTo="/sl/perfil" onLogout={handleLogout} />
         </div>
       </div>
     </header>
