@@ -2,11 +2,17 @@ const { pool } = require('../db/connection');
 
 async function obterCandidaturaComAcesso(utilizador, idCandidatura) {
   const [linhas] = await pool.query(
-    `SELECT cb.*, b.titulo AS titulo_badge, b.id_nivel, n.id_area, a.id_service_line
+    `SELECT cb.*, b.titulo AS titulo_badge, b.id_nivel,
+            n.codigo_nivel, n.nome_nivel,
+            n.id_area, a.nome AS nome_area,
+            a.id_service_line, sl.nome AS nome_service_line,
+            u.nome AS nome_consultor
        FROM candidatura_badge cb
        JOIN badge b ON b.id_badge = cb.id_badge
        JOIN nivel n ON n.id_nivel = b.id_nivel
        JOIN area a  ON a.id_area  = n.id_area
+       JOIN service_line sl ON sl.id_service_line = a.id_service_line
+       JOIN utilizador u ON u.id_utilizador = cb.id_consultor
       WHERE cb.id_candidatura = ?`,
     [idCandidatura]
   );

@@ -308,8 +308,10 @@ export default function ServiceLinePedidoDetalhe() {
 
   const { candidatura, consultor, requisitos = [], evidencias = [], avaliacoes = [], historico = [] } = data;
   const estadoCfg = ESTADO_CFG[candidatura.estado_atual] || { label: candidatura.estado_atual, cls: 'bg-slate-100 text-slate-600' };
-  const tmAvaliacao = avaliacoes.find(a => a.tipo_avaliador === 'TALENT_MANAGER');
-  const slAvaliacao = avaliacoes.find(a => a.tipo_avaliador === 'SERVICE_LINE');
+  // Avaliações vêm ordenadas por data ASC — usar a MAIS RECENTE de cada tipo
+  // (ex.: TM rejeitou, consultor resubmeteu, TM aprovou → mostrar a aprovação).
+  const tmAvaliacao = [...avaliacoes].reverse().find(a => a.tipo_avaliador === 'TALENT_MANAGER');
+  const slAvaliacao = [...avaliacoes].reverse().find(a => a.tipo_avaliador === 'SERVICE_LINE');
 
   return (
     <div className="flex min-h-screen bg-[#f3f6fa]">

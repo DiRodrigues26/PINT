@@ -34,12 +34,12 @@ export function ServiceLineSidebar() {
   return (
     <>
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[260px] bg-softinsa-gradient lg:flex lg:flex-col">
-        <div className="flex h-[72px] items-center gap-3 px-5">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-base font-bold text-white">S</div>
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-[260px] border-r border-slate-200 bg-white lg:flex lg:flex-col">
+        <div className="flex h-[72px] items-center gap-3 border-b border-slate-100 px-5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-softinsa-600 text-base font-bold text-white">S</div>
           <div>
-            <div className="text-sm font-bold text-white">Softinsa</div>
-            <div className="text-[11px] text-white/60">Badges Platform</div>
+            <div className="text-sm font-bold text-slate-900">Softinsa</div>
+            <div className="text-[11px] text-slate-400">Badges Platform</div>
           </div>
         </div>
 
@@ -52,8 +52,8 @@ export function ServiceLineSidebar() {
                 className={({ isActive }) =>
                   `flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                     isActive
-                      ? 'bg-white/15 text-white shadow-[inset_3px_0_0_rgba(255,255,255,0.7)]'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white'
+                      ? 'bg-softinsa-50 text-softinsa-700 shadow-[inset_3px_0_0_#0B5CAB]'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-softinsa-700'
                   }`
                 }
               >
@@ -64,11 +64,22 @@ export function ServiceLineSidebar() {
           </div>
         </nav>
 
+<<<<<<< Updated upstream
         <div className="border-t border-white/10 px-5 py-5">
           <button
             type="button"
             onClick={() => setConfirmarLogout(true)}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/15 bg-white/10 px-4 py-3 text-sm font-semibold text-white/80 transition hover:border-white/25 hover:bg-white/15 hover:text-white"
+=======
+        <div className="border-t border-slate-200 px-5 py-5">
+          <div className="truncate text-sm font-semibold text-slate-900">{utilizador?.nome || 'Utilizador'}</div>
+          <div className="mt-0.5 truncate text-[11px] text-slate-400">{utilizador?.email || '-'}</div>
+          <div className="mt-1.5 truncate text-[11px] font-medium text-softinsa-600">Service Line</div>
+          <button
+            type="button"
+            onClick={() => setConfirmarLogout(true)}
+            className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition"
+>>>>>>> Stashed changes
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
             {t('admin_logout_title')}
@@ -122,33 +133,38 @@ export function ServiceLineTopbar({ subtitulo }) {
   const IDIOMAS = ['pt', 'en', 'es'];
 
   return (
-    <header className="sticky top-0 z-10 bg-softinsa-gradient">
+    <header className="sticky top-0 z-10 border-b border-slate-200 bg-white">
       <div className="flex h-[72px] items-center justify-between gap-3 px-5 lg:px-8">
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-base font-bold text-white sm:text-lg">{saudacao}</h1>
-          {subtitulo && <p className="mt-0.5 truncate text-xs text-white/60">{subtitulo}</p>}
+          <h1 className="truncate text-base font-bold text-slate-900 sm:text-lg">{saudacao}</h1>
+          {subtitulo && <p className="mt-0.5 truncate text-xs text-slate-500">{subtitulo}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-3 sm:gap-5">
           <div className="hidden items-center gap-2 text-sm font-semibold sm:flex">
             {IDIOMAS.map((lang, i) => (
               <span key={lang} className="flex items-center gap-2">
-                {i > 0 && <span className="h-4 w-px bg-white/30" />}
+                {i > 0 && <span className="h-4 w-px bg-slate-300" />}
                 <button
                   type="button"
                   onClick={() => mudarIdioma(lang)}
-                  className={`transition ${idioma === lang ? 'text-white' : 'text-white/40 hover:text-white/80'}`}
+                  className={`transition ${idioma === lang ? 'text-softinsa-700' : 'text-slate-400 hover:text-slate-700'}`}
                 >
                   {lang.toUpperCase()}
                 </button>
               </span>
             ))}
           </div>
-          <NavLink to="/sl/notificacoes" className="relative text-white/70 hover:text-white" aria-label="Notificações">
+          <NavLink to="/sl/notificacoes" className="relative text-slate-500 hover:text-slate-800" aria-label="Notificações">
             <Bell className="h-5 w-5" strokeWidth={1.8} />
             <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
           </NavLink>
+<<<<<<< Updated upstream
           <div className="hidden text-sm font-semibold text-white sm:block">{nome}</div>
           <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} profileTo="/sl/perfil" onLogout={handleLogout} />
+=======
+          <div className="hidden text-sm font-semibold text-slate-700 sm:block">{nome}</div>
+          <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} onLogout={handleLogout} />
+>>>>>>> Stashed changes
         </div>
       </div>
     </header>

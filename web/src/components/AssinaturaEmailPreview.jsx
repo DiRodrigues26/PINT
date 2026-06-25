@@ -72,6 +72,7 @@ const AssinaturaEmailPreview = forwardRef(function AssinaturaEmailPreview({
   cargo,
   email,
   badges = [],
+  rotuloBadges = 'Badges verificados',
   origin = window.location.origin,
 }, ref) {
   const nomeFinal = nome?.trim() || 'Nome';
@@ -114,12 +115,12 @@ const AssinaturaEmailPreview = forwardRef(function AssinaturaEmailPreview({
             {badgesVisiveis.length > 0 && (
               <td style={{ paddingLeft: '4px', verticalAlign: 'top', width: '180px' }}>
                 <div style={{ color: '#64748b', fontSize: '11px', fontWeight: 'bold', marginBottom: '6px' }}>
-                  Badges verificados
+                  {rotuloBadges}
                 </div>
                 <div>
                   {badgesVisiveis.map((badge) => (
                     <BadgeAssinatura
-                      key={badge.id_badge_atribuido || badge.token_publico || badge.titulo}
+                      key={badge.id_badge_atribuido || badge.id_badge || badge.token_publico || badge.titulo}
                       badge={badge}
                       origin={origin}
                     />

@@ -279,14 +279,46 @@ function SecçãoAssinatura() {
   const { utilizador } = useAuth();
   const assinaturaRef = useRef(null);
 
-  const { data: badges = [] } = useQuery({
-    queryKey: ['sl-meus-badges'],
+  // Service Line do leader
+  const { data: minhaSL } = useQuery({
+    queryKey: ['sl-info-basica'],
     queryFn: async () => {
-      const { data } = await api.get('/api/badge-atribuido/meus');
-      return data.dados || [];
+      const { data } = await api.get('/api/estatisticas/service-line');
+      return { id: data.id_service_line, nome: data.nome_service_line };
     },
+    staleTime: 300_000,
+  });
+
+  // Badges da Service Line do leader (catálogo)
+  const { data: badgesSL = [] } = useQuery({
+    queryKey: ['sl-badges-assinatura', minhaSL?.id],
+    queryFn: async () => {
+      const { data } = await api.get('/api/badges', { params: { ativo: 1, por_pagina: 200 } });
+      return (data.dados || []).filter((b) => String(b.id_service_line) === String(minhaSL.id));
+    },
+    enabled: !!minhaSL?.id,
     staleTime: 60_000,
   });
+
+  // Seleção de badges para a assinatura (persistida localmente por utilizador)
+  const STORAGE_KEY = `sl_assinatura_badges_${utilizador?.id_utilizador || 'x'}`;
+  const [selecionados, setSelecionados] = useState([]);
+  useEffect(() => {
+    try {
+      const guardado = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      if (Array.isArray(guardado)) setSelecionados(guardado);
+    } catch { /* ignora */ }
+  }, [STORAGE_KEY]);
+
+  function toggleBadge(id) {
+    setSelecionados((prev) => {
+      const novo = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(novo)); } catch { /* ignora */ }
+      return novo;
+    });
+  }
+
+  const badgesEscolhidos = badgesSL.filter((b) => selecionados.includes(b.id_badge));
 
   function copiarAssinatura() {
     try {
@@ -306,18 +338,47 @@ function SecçãoAssinatura() {
       </h2>
       <p className="mt-1 text-sm text-slate-500">{t('sl_perfil_assinatura_desc')}</p>
 
+      {/* Seleção de badges da Service Line */}
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          {t('sl_perfil_assinatura_escolher')}
+        </p>
+        {badgesSL.length === 0 ? (
+          <p className="text-xs text-slate-400">{t('sl_perfil_assinatura_sem_sl')}</p>
+        ) : (
+          <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+            {badgesSL.map((b) => (
+              <label key={b.id_badge} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded text-softinsa-600"
+                  checked={selecionados.includes(b.id_badge)}
+                  onChange={() => toggleBadge(b.id_badge)}
+                />
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-softinsa-100 text-[10px] font-bold text-softinsa-700">
+                  {b.codigo_nivel}
+                </span>
+                <span className="truncate text-slate-700">{b.titulo}</span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Pré-visualização */}
       <div className="mt-4 overflow-x-auto rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5">
         <AssinaturaEmailPreview
           ref={assinaturaRef}
           nome={utilizador?.nome}
           cargo="Service Line · Softinsa"
           email={utilizador?.email}
-          badges={badges}
+          badges={badgesEscolhidos}
+          rotuloBadges={t('sl_perfil_assinatura_rotulo')}
         />
       </div>
 
-      {badges.length === 0 && (
-        <p className="mt-2 text-xs text-slate-400">{t('sl_perfil_assinatura_sem_badges')}</p>
+      {badgesEscolhidos.length === 0 && badgesSL.length > 0 && (
+        <p className="mt-2 text-xs text-slate-400">{t('sl_perfil_assinatura_nenhum_sel')}</p>
       )}
 
       <button
