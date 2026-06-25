@@ -180,7 +180,9 @@ async function obter(req, res, next) {
       [candidatura.id_badge]
     );
 
-    // Requisitos deste badge que o consultor já cumpriu noutras candidaturas (reutilizáveis)
+    // Requisitos deste badge que o consultor já cumpriu noutras candidaturas (reutilizáveis).
+    // Excluímos candidaturas com resultado negativo (rejeitadas/devolvidas/fechadas): essas
+    // evidências NÃO foram suficientes, por isso não devem ser oferecidas para reutilização.
     const [externos] = await pool.query(
       `SELECT e.id_requisito, e.id_evidencia, e.nome_ficheiro, e.ficheiro_url, e.uploaded_at,
               b.titulo AS badge_origem, cb.id_candidatura AS id_candidatura_origem,
@@ -190,6 +192,7 @@ async function obter(req, res, next) {
          JOIN badge b              ON b.id_badge = cb.id_badge
         WHERE cb.id_consultor = ?
           AND e.id_candidatura <> ?
+          AND cb.estado_atual NOT IN ('REJECTED', 'SENT_BACK', 'CLOSED')
           AND e.id_requisito IN (SELECT br.id_requisito FROM badge_requisito br WHERE br.id_badge = ?)
         ORDER BY (cb.estado_atual = 'APPROVED') DESC, e.uploaded_at DESC`,
       [candidatura.id_consultor, req.params.id, candidatura.id_badge]

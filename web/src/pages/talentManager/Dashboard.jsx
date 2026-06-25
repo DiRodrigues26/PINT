@@ -8,6 +8,7 @@ import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/Tale
 import Carregando from '../../components/Carregando';
 import ConsultorPerfilModal from './ConsultorPerfilModal';
 import CandidaturaDetalheModal from './CandidaturaDetalheModal';
+import { exportCSV } from '../../lib/exportUtils';
 import { useTM } from './i18n';
 
 const ESTADO_LABEL = {
@@ -61,13 +62,10 @@ function formatarData(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
+/* Delega no exportCSV partilhado (separador ';' — o que o Excel em PT espera),
+   para o formato ser consistente com o resto da plataforma. */
 function exportarCSV(nome, cabecalho, linhas) {
-  const csv = [cabecalho, ...linhas].map(l => l.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `${nome}_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
+  exportCSV(`${nome}_${new Date().toISOString().slice(0, 10)}.csv`, cabecalho, linhas);
 }
 
 function Kpi({ icon: Icon, label, valor, cor }) {
@@ -92,6 +90,7 @@ export default function TalentDashboard() {
   const [paginaConsultores, setPaginaConsultores] = useState(1);
   const [modalConsultor, setModalConsultor] = useState(null);
   const [filtroAreaCons, setFiltroAreaCons] = useState('');
+  const [filtroSLCons, setFiltroSLCons] = useState('');
   const [modalCandidatura, setModalCandidatura] = useState(null);
 
   const TABS = [
@@ -121,9 +120,13 @@ export default function TalentDashboard() {
   const candidaturas = candData?.dados ?? [];
   const consultores = (rankData?.dados ?? []).filter(c => Number(c.total_badges) > 0 || Number(c.pontos_totais) > 0);
   const areasConsultores = useMemo(() => [...new Set(consultores.map(c => c.nome_area).filter(Boolean))].sort(), [consultores]);
+  const serviceLinesConsultores = useMemo(() => [...new Set(consultores.map(c => c.nome_service_line).filter(Boolean))].sort(), [consultores]);
   const consultoresFiltrados = useMemo(
-    () => (filtroAreaCons ? consultores.filter(c => c.nome_area === filtroAreaCons) : consultores),
-    [consultores, filtroAreaCons],
+    () => consultores.filter(c =>
+      (!filtroSLCons || c.nome_service_line === filtroSLCons) &&
+      (!filtroAreaCons || c.nome_area === filtroAreaCons)
+    ),
+    [consultores, filtroSLCons, filtroAreaCons],
   );
   const slaPorCandidatura = useMemo(
     () => new Map((slaData?.dados || []).map((item) => [Number(item.id_candidatura), item])),
@@ -178,7 +181,7 @@ export default function TalentDashboard() {
 
   useEffect(() => {
     setPaginaConsultores(1);
-  }, [filtroAreaCons]);
+  }, [filtroAreaCons, filtroSLCons]);
 
   useEffect(() => {
     setPaginaConsultores((pagina) => Math.min(pagina, totalPaginasConsultores));
@@ -328,7 +331,12 @@ export default function TalentDashboard() {
               <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <h2 className="text-base font-bold text-slate-900">{tt('progresso_consultores')}</h2>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select value={filtroSLCons} onChange={e => setFiltroSLCons(e.target.value)}
+                      className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-softinsa-400">
+                      <option value="">{tt('todas_sl')}</option>
+                      {serviceLinesConsultores.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
                     <select value={filtroAreaCons} onChange={e => setFiltroAreaCons(e.target.value)}
                       className="rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-softinsa-400">
                       <option value="">{tt('todas_areas')}</option>

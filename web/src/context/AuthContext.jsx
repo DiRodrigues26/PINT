@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const [saudacao, setSaudacao] = useState(null);
   const [carregando, setCarregando] = useState(true);
 
-  const carregarEu = useCallback(async () => {
+  const carregarEu = useCallback(async ({ silencioso = false } = {}) => {
     const token = obterToken();
     if (!token) {
       setUtilizador(null);
@@ -19,8 +19,12 @@ export function AuthProvider({ children }) {
       const { data } = await api.get('/api/auth/eu');
       setUtilizador(data.utilizador);
     } catch {
-      limparToken();
-      setUtilizador(null);
+      // Em modo silencioso (logo após login) não destruímos a sessão por uma
+      // falha transitória do /eu — mantemos o utilizador já carregado.
+      if (!silencioso) {
+        limparToken();
+        setUtilizador(null);
+      }
     } finally {
       setCarregando(false);
     }
@@ -40,6 +44,9 @@ export function AuthProvider({ children }) {
       guardarToken(data.token, opcoes.guardarLogin !== false);
       setUtilizador(data.utilizador);
       setSaudacao(data.saudacao);
+      // Enriquecer com os dados completos do /eu (área, service line, etc.),
+      // que a resposta do login não traz. Silencioso: não desloga em falha.
+      carregarEu({ silencioso: true });
       return { ok: true, dados: data };
     } catch (err) {
       return { ok: false, erro: extrairErro(err, 'Falha ao iniciar sessão.') };
