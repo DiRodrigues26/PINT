@@ -8,18 +8,21 @@ const NIVEL_COR = {
   E: '#6B21A8',
 };
 
-function urlVerificar(badge, origin) {
-  if (!badge?.token_publico) return origin;
-  return `${origin}/verificar/${badge.token_publico}`;
+function urlVerificar(badge, origin, urlBadgeBase) {
+  // Badge atribuído (com token público) → página de verificação pública
+  if (badge?.token_publico) return `${origin}/verificar/${badge.token_publico}`;
+  // Badge do catálogo (sem token) → página de detalhe, se houver base definida
+  if (urlBadgeBase && badge?.id_badge) return `${origin}${urlBadgeBase}/${badge.id_badge}`;
+  return origin;
 }
 
-function BadgeAssinatura({ badge, origin }) {
+function BadgeAssinatura({ badge, origin, urlBadgeBase }) {
   const titulo = badge.titulo || badge.nome_badge || 'Badge';
   const nivel = badge.codigo_nivel || badge.nivel || '★';
 
   return (
     <a
-      href={urlVerificar(badge, origin)}
+      href={urlVerificar(badge, origin, urlBadgeBase)}
       target="_blank"
       rel="noreferrer"
       title={titulo}
@@ -73,6 +76,7 @@ const AssinaturaEmailPreview = forwardRef(function AssinaturaEmailPreview({
   email,
   badges = [],
   rotuloBadges = 'Badges verificados',
+  urlBadgeBase = null,
   origin = window.location.origin,
 }, ref) {
   const nomeFinal = nome?.trim() || 'Nome';
@@ -123,6 +127,7 @@ const AssinaturaEmailPreview = forwardRef(function AssinaturaEmailPreview({
                       key={badge.id_badge_atribuido || badge.id_badge || badge.token_publico || badge.titulo}
                       badge={badge}
                       origin={origin}
+                      urlBadgeBase={urlBadgeBase}
                     />
                   ))}
                 </div>
