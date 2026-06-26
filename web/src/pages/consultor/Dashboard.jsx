@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Award, Activity, Star, Target, CheckCircle, Send, Sparkles, Calendar, PartyPopper, Trophy } from 'lucide-react';
+import { Award, Activity, Star, Target, CheckCircle, Send, Sparkles, Calendar, Trophy, ListTodo, Plus, ArrowRight } from 'lucide-react';
 import { api } from '../../lib/api';
 import { ConsultorSidebar, ConsultorTopbar } from '../../components/ConsultorShell';
 import Carregando from '../../components/Carregando';
 import BadgeModal from '../../components/BadgeModal';
 import { useLanguage } from '../../context/LanguageContext';
+import ItemLembrete from '../../components/lembretes/ItemLembrete';
 
 function useDashboard() {
   return useQuery({
@@ -31,6 +32,92 @@ function KpiCard({ icon: Icon, iconBg, label, valor }) {
         <p className="mt-0.5 text-2xl font-bold text-slate-900">{valor}</p>
       </div>
     </div>
+  );
+}
+
+function ordenarLembretesPendentes(lista) {
+  return [...lista]
+    .filter((lembrete) => !lembrete.concluido)
+    .sort((a, b) => {
+      const dataA = a.data_limite ? new Date(a.data_limite).getTime() : Number.MAX_SAFE_INTEGER;
+      const dataB = b.data_limite ? new Date(b.data_limite).getTime() : Number.MAX_SAFE_INTEGER;
+      return dataA - dataB;
+    });
+}
+
+function WidgetLembretes() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['lembretes', 'pendentes'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/lembretes?concluidos=0');
+      return data;
+    },
+    staleTime: 60_000,
+  });
+
+  const toggleLembrete = useMutation({
+    mutationFn: (lembrete) => api.put(`/api/lembretes/${lembrete.id_lembrete}`, { concluido: !lembrete.concluido }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['lembretes'] }),
+  });
+
+  const lembretes = ordenarLembretesPendentes(data?.dados ?? []).slice(0, 3);
+
+  return (
+    <section className="mt-10 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-softinsa-100 text-softinsa-700">
+              <ListTodo className="h-5 w-5" strokeWidth={1.8} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">Próximos lembretes</h2>
+          </div>
+          <p className="mt-1 text-sm text-slate-500">Tarefas pessoais pendentes com maior prioridade temporal.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/lembretes')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Ver todos
+            <ArrowRight className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/lembretes')}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-softinsa-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700"
+          >
+            <Plus className="h-4 w-4" />
+            Novo
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="flex min-h-[120px] items-center justify-center">
+          <Carregando />
+        </div>
+      ) : lembretes.length === 0 ? (
+        <p className="mt-5 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+          Não tens lembretes pendentes.
+        </p>
+      ) : (
+        <div className="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-3">
+          {lembretes.map((lembrete) => (
+            <ItemLembrete
+              key={lembrete.id_lembrete}
+              lembrete={lembrete}
+              compacto
+              onToggle={(item) => toggleLembrete.mutate(item)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -254,6 +341,8 @@ export default function ConsultorDashboard() {
                   <KpiCard icon={Target}   iconBg="bg-azulciano-500" label={t('proximo_nivel')}    valor={`${data?.proximo_nivel_progresso ?? 0}%`} />
                 </div>
               </section>
+
+              <WidgetLembretes />
 
               {/* Progresso do Learning Path (por Service Line) */}
               {data?.progresso_service_lines?.length > 0 && (

@@ -173,19 +173,19 @@ export default function BadgeModal({ idBadge, onFechar }) {
                 </section>
               )}
 
-              {/* Página completa do badge */}
+              {/* Página pública do badge */}
               <section className="border-b border-dashed border-slate-200 pb-5">
-                <h3 className="text-sm font-bold text-slate-900">Página do badge</h3>
+                <h3 className="text-sm font-bold text-slate-900">Página pública do badge</h3>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Vê todos os requisitos, benefícios e competências numa página dedicada antes de te candidatares.
+                  Vê todos os requisitos, benefícios e competências numa página pública acessível sem autenticação.
                 </p>
                 <button
                   type="button"
-                  onClick={() => { onFechar(); navigate(`/badges/${idBadge}`); }}
+                  onClick={() => { onFechar(); navigate(`/badge/${idBadge}`); }}
                   className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition"
                 >
                   <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
-                  Ver página completa do badge
+                  Ver página pública do badge
                 </button>
               </section>
 
@@ -238,7 +238,7 @@ export default function BadgeModal({ idBadge, onFechar }) {
                   onClick={() => window.open(`/verificar/${obtido.token_publico}`, '_blank')}
                   className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
                 >
-                  <ExternalLink className="h-4 w-4" /> Ver página pública
+                  <ExternalLink className="h-4 w-4" /> Ver página de verificação
                 </button>
               ) : (
                 <button
@@ -276,7 +276,7 @@ export default function BadgeModal({ idBadge, onFechar }) {
             </button>
           </div>
           <p className="mt-2 text-center text-xs text-slate-400">
-            Todos os badges possuem uma página pública de verificação.
+            Todos os badges têm uma página pública; badges atribuídos têm também página de verificação.
           </p>
         </div>
       </div>

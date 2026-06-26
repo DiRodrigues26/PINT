@@ -60,6 +60,7 @@ const Candidaturas = lazy(() => import('./pages/consultor/Candidaturas'));
 const CandidaturaDetalhe = lazy(() => import('./pages/consultor/CandidaturaDetalhe'));
 const Conquistas = lazy(() => import('./pages/consultor/Conquistas'));
 const ObjetivosConsultor = lazy(() => import('./pages/consultor/Objetivos'));
+const Lembretes = lazy(() => import('./pages/consultor/Lembretes'));
 const Notificacoes = lazy(() => import('./pages/consultor/Notificacoes'));
 const Perfil = lazy(() => import('./pages/consultor/Perfil'));
 const BadgeDetalhe = lazy(() => import('./pages/consultor/BadgeDetalhe'));
@@ -207,6 +208,7 @@ export default function App() {
       <Route path="/assinatura-email" element={<RotaProtegida perfis={['Consultor']}><AssinaturaEmail /></RotaProtegida>} />
       <Route path="/conquistas" element={<RotaProtegida perfis={['Consultor']}><Conquistas /></RotaProtegida>} />
       <Route path="/objetivos" element={<RotaProtegida perfis={['Consultor']}><ObjetivosConsultor /></RotaProtegida>} />
+      <Route path="/lembretes" element={<RotaProtegida perfis={['Consultor']}><Lembretes /></RotaProtegida>} />
       <Route path="/notificacoes" element={<RotaProtegida perfis={['Consultor']}><Notificacoes /></RotaProtegida>} />
         <Route path="/perfil" element={<RotaProtegida perfis={['Consultor']}><Perfil /></RotaProtegida>} />
         <Route path="/gestao" element={<RotaProtegida perfis={['Administrador']}><PerfilEmDesenvolvimento /></RotaProtegida>} />

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Award, Bell, BookOpen, FileText, LayoutDashboard, LogOut, Target, Trophy, User } from 'lucide-react';
+import { Award, Bell, BookOpen, FileText, LayoutDashboard, ListTodo, LogOut, Target, Trophy, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { api } from '../lib/api';
@@ -22,6 +22,7 @@ export function ConsultorSidebar() {
     { labelKey: 'candidaturas', to: '/candidaturas', icon: FileText },
     { labelKey: 'conquistas',   to: '/conquistas',   icon: Trophy },
     { labelKey: 'objetivos',     to: '/objetivos',    icon: Target },
+    { labelKey: 'tab_lembretes', to: '/lembretes',    icon: ListTodo },
     { labelKey: 'notificacoes', to: '/notificacoes', icon: Bell },
     { labelKey: 'perfil',       to: '/perfil',       icon: User },
   ];
