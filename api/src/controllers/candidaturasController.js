@@ -420,6 +420,10 @@ async function avaliarTalent(req, res, next) {
     if (!['CORRETO', 'INCORRETO'].includes(decisao)) {
       return res.status(400).json({ erro: 'Decisão deve ser CORRETO ou INCORRETO.' });
     }
+    // Devolver ao consultor (INCORRETO) exige justificação — auditabilidade
+    if (decisao === 'INCORRETO' && !String(comentario || '').trim()) {
+      return res.status(400).json({ erro: 'Comentário obrigatório ao devolver a candidatura.' });
+    }
 
     const candidatura = await obterCandidaturaOuErro(req.params.id);
     if (!candidatura) return res.status(404).json({ erro: 'Candidatura não encontrada.' });
@@ -569,6 +573,10 @@ async function avaliarServiceLine(req, res, next) {
     const { decisao, comentario } = req.body;
     if (!['APROVAR', 'REJEITAR', 'SEND_BACK'].includes(decisao)) {
       return res.status(400).json({ erro: 'Decisão deve ser APROVAR, REJEITAR ou SEND_BACK.' });
+    }
+    // Rejeitar ou devolver exige justificação — auditabilidade
+    if (['REJEITAR', 'SEND_BACK'].includes(decisao) && !String(comentario || '').trim()) {
+      return res.status(400).json({ erro: 'Comentário obrigatório ao rejeitar ou devolver a candidatura.' });
     }
 
     const candidatura = await obterCandidaturaOuErro(req.params.id);

@@ -72,6 +72,37 @@ function BarraProgresso({ nivel }) {
   );
 }
 
+/* ─── Barra de Progresso por Service Line (Learning Path) ──────────────── */
+function BarraServiceLine({ sl }) {
+  const total = sl.total_badges || 0;
+  const obtidos = sl.badges_obtidos || 0;
+  const pct = sl.percentagem || 0;
+  const concluida = !!sl.concluida;
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white ${concluida ? 'bg-emerald-500' : 'bg-softinsa-600'}`}>
+            {concluida ? <CheckCircle className="h-5 w-5" strokeWidth={2} /> : <Award className="h-5 w-5" strokeWidth={1.8} />}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-semibold text-slate-800">{sl.nome_service_line}</p>
+            <p className="text-xs text-slate-500">{obtidos}/{total} badges</p>
+          </div>
+        </div>
+        <span className={`text-lg font-bold ${concluida ? 'text-emerald-600' : 'text-softinsa-700'}`}>{pct}%</span>
+      </div>
+      <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+        <div
+          className={`h-full rounded-full transition-all duration-500 ${concluida ? 'bg-emerald-500' : 'bg-softinsa-600'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 /* ─── Badge Card ────────────────────────────────────────────────────────── */
 function BadgeCard({ badge, onCandidatar }) {
   const navigate = useNavigate();
@@ -224,16 +255,16 @@ export default function ConsultorDashboard() {
                 </div>
               </section>
 
-              {/* Progresso por Nível */}
-              {data?.progresso_niveis?.length > 0 && (
+              {/* Progresso do Learning Path (por Service Line) */}
+              {data?.progresso_service_lines?.length > 0 && (
                 <section className="mt-10">
-                  <h2 className="text-lg font-bold text-slate-900">{t('progresso_nivel')}</h2>
+                  <h2 className="text-lg font-bold text-slate-900">{t('progresso_lp')}</h2>
                   {data.nome_learning_path && (
                     <p className="mt-0.5 text-sm text-slate-500">Learning Path: {data.nome_learning_path}</p>
                   )}
-                  <div className="mt-4 space-y-3">
-                    {data.progresso_niveis.map((nivel) => (
-                      <BarraProgresso key={nivel.codigo_nivel} nivel={nivel} />
+                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {data.progresso_service_lines.map((sl) => (
+                      <BarraServiceLine key={sl.id_service_line} sl={sl} />
                     ))}
                   </div>
                 </section>
@@ -293,7 +324,7 @@ export default function ConsultorDashboard() {
               )}
 
               {/* Estado vazio */}
-              {!isLoading && !data?.progresso_niveis?.length && !data?.atividade_recente?.length && (
+              {!isLoading && !data?.progresso_service_lines?.length && !data?.atividade_recente?.length && (
                 <div className="mt-16 flex flex-col items-center text-center">
                   <Award className="h-14 w-14 text-slate-300" strokeWidth={1} />
                   <p className="mt-4 text-base font-semibold text-slate-600">{t('sem_atividade')}</p>

@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import {
   FileText, AlertCircle, Award, Clock, AlertTriangle, Search, Download, Eye, Trophy,
 } from 'lucide-react';
-import { api } from '../../lib/api';
+import toast from 'react-hot-toast';
+import { api, obterTodasDaRota } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
 import ConsultorPerfilModal from './ConsultorPerfilModal';
@@ -193,12 +194,24 @@ export default function TalentDashboard() {
     [candidaturas],
   );
 
-  function exportarCandidaturas() {
-    exportarCSV('candidaturas',
-      [tt('col_consultor'), tt('col_badge'), tt('col_area'), tt('col_estado'), tt('col_evidencias'), tt('col_data_sub'), tt('col_pontos')],
-      tabela.map(c => [c.nome_consultor, c.titulo_badge, c.nome_area,
-        tt(ESTADO_LABEL[c.estado_atual]?.key), `${c.evidencias_count}/${c.total_requisitos}`,
-        formatarData(c.data_submissao || c.data_abertura), c.pontos]));
+  async function exportarCandidaturas() {
+    try {
+      const { dados } = await obterTodasDaRota('/api/candidaturas');
+      let l = dados;
+      if (tab === 'OPEN') l = l.filter(c => ['OPEN', 'SENT_BACK'].includes(c.estado_atual));
+      else if (tab === 'SUBMITTED') l = l.filter(c => c.estado_atual === 'SUBMITTED');
+      else if (tab === 'VALIDACAO') l = l.filter(c => EM_VALIDACAO.includes(c.estado_atual));
+      else if (tab === 'FECHADO') l = l.filter(c => FECHADOS.includes(c.estado_atual));
+      if (pesquisa) {
+        const q = pesquisa.toLowerCase();
+        l = l.filter(c => c.titulo_badge?.toLowerCase().includes(q) || c.nome_consultor?.toLowerCase().includes(q));
+      }
+      exportarCSV('candidaturas',
+        [tt('col_consultor'), tt('col_badge'), tt('col_area'), tt('col_estado'), tt('col_evidencias'), tt('col_data_sub'), tt('col_pontos')],
+        l.map(c => [c.nome_consultor, c.titulo_badge, c.nome_area,
+          tt(ESTADO_LABEL[c.estado_atual]?.key), `${c.evidencias_count}/${c.total_requisitos}`,
+          formatarData(c.data_submissao || c.data_abertura), c.pontos]));
+    } catch { toast.error(tt('exportar') + ' — erro'); }
   }
   function exportarConsultores() {
     exportarCSV('consultores',

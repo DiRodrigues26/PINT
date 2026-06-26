@@ -48,3 +48,19 @@ api.interceptors.response.use(
 export function extrairErro(err, fallback = 'Ocorreu um erro inesperado.') {
   return err?.response?.data?.erro || err?.message || fallback;
 }
+
+/*
+ * Busca TODOS os registos de uma rota paginada (segue todas as páginas).
+ * Evita exportações truncadas pela primeira página. Devolve { dados: [...] }.
+ */
+export async function obterTodasDaRota(rota, params = {}) {
+  const porPagina = 100;
+  const primeira = (await api.get(rota, { params: { ...params, pagina: 1, por_pagina: porPagina } })).data;
+  const todas = [...(primeira.dados || [])];
+  const totalPaginas = Math.ceil((primeira.total || todas.length) / (primeira.por_pagina || porPagina));
+  for (let p = 2; p <= totalPaginas; p += 1) {
+    const resp = (await api.get(rota, { params: { ...params, pagina: p, por_pagina: porPagina } })).data;
+    todas.push(...(resp.dados || []));
+  }
+  return { dados: todas };
+}

@@ -8,7 +8,8 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis,
   Tooltip, Legend, CartesianGrid, ResponsiveContainer,
 } from 'recharts';
-import { api } from '../../lib/api';
+import toast from 'react-hot-toast';
+import { api, obterTodasDaRota } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
 import { exportCSV, exportPDF } from '../../lib/exportUtils';
@@ -154,33 +155,45 @@ export default function TalentRelatorios() {
   function limpar() { setSl(''); setArea(''); setDataIni(''); setDataFim(''); setAplicados({ sl: '', area: '', dataIni: '', dataFim: '' }); }
 
   // Exportação: resumo por área (dados que alimentam os gráficos, respeitando os filtros)
-  function dadosExport() {
+  function dadosExport(itens) {
     const headers = [tt('col_area'), tt('candidaturas_n'), tt('aprovadas'), tt('rejeitadas'), tt('rkpi_em_validacao')];
     const porAreaMap = new Map();
-    for (const c of cands) {
+    const tot = { total: 0, aprov: 0, rej: 0, val: 0 };
+    for (const c of itens) {
       const a = c.nome_area || '—';
       const o = porAreaMap.get(a) || { total: 0, aprov: 0, rej: 0, val: 0 };
-      o.total++;
-      if (c.estado_atual === 'APPROVED') o.aprov++;
-      else if (c.estado_atual === 'REJECTED') o.rej++;
-      else if (EM_VALIDACAO.includes(c.estado_atual)) o.val++;
+      o.total++; tot.total++;
+      if (c.estado_atual === 'APPROVED') { o.aprov++; tot.aprov++; }
+      else if (c.estado_atual === 'REJECTED') { o.rej++; tot.rej++; }
+      else if (EM_VALIDACAO.includes(c.estado_atual)) { o.val++; tot.val++; }
       porAreaMap.set(a, o);
     }
     const rows = [...porAreaMap.entries()].map(([a, o]) => [a, o.total, o.aprov, o.rej, o.val]);
-    // linha de totais
-    rows.push([
-      'TOTAL', kpis.total, kpis.aprov, kpis.rej, kpis.emVal,
-    ]);
+    rows.push(['TOTAL', tot.total, tot.aprov, tot.rej, tot.val]);
     return { headers, rows };
   }
-  function exportarExcel() {
-    const { headers, rows } = dadosExport();
-    exportCSV(`relatorio_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+  // Todas as candidaturas (todas as páginas) com os filtros aplicados
+  async function obterListaCompleta() {
+    const { dados } = await obterTodasDaRota('/api/candidaturas');
+    let l = dados;
+    if (aplicados.sl) l = l.filter(c => c.nome_service_line === aplicados.sl);
+    if (aplicados.area) l = l.filter(c => c.nome_area === aplicados.area);
+    if (aplicados.dataIni) l = l.filter(c => dataDe(c) >= new Date(aplicados.dataIni));
+    if (aplicados.dataFim) l = l.filter(c => dataDe(c) <= new Date(aplicados.dataFim + 'T23:59:59'));
+    return l;
+  }
+  async function exportarExcel() {
+    try {
+      const { headers, rows } = dadosExport(await obterListaCompleta());
+      exportCSV(`relatorio_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+    } catch { toast.error(tt('exportar') + ' — erro'); }
     setExportAberto(false);
   }
-  function exportarPdf() {
-    const { headers, rows } = dadosExport();
-    exportPDF(`relatorio_${new Date().toISOString().slice(0, 10)}.pdf`, tt('rel_titulo'), headers, rows, tt('rel_sub'));
+  async function exportarPdf() {
+    try {
+      const { headers, rows } = dadosExport(await obterListaCompleta());
+      exportPDF(`relatorio_${new Date().toISOString().slice(0, 10)}.pdf`, tt('rel_titulo'), headers, rows, tt('rel_sub'));
+    } catch { toast.error(tt('exportar') + ' — erro'); }
     setExportAberto(false);
   }
 

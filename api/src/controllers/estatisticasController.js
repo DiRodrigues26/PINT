@@ -49,13 +49,43 @@ async function dashboardConsultor(req, res, next) {
     );
 
     let progressoNiveis = [];
+    let progressoServiceLines = [];
     let proximoNivelProgresso = 0;
     let nomeLP = null;
     let badgesRecomendados = [];
 
     if (areaRows.length > 0) {
-      const { id_area, nome_learning_path } = areaRows[0];
+      const { id_area, id_learning_path, nome_learning_path } = areaRows[0];
       nomeLP = nome_learning_path;
+
+      // Progresso do Learning Path por Service Line: badges obtidos / total de badges
+      // de cada Service Line do Learning Path do consultor.
+      const [sls] = await pool.query(
+        `SELECT sl.id_service_line, sl.nome AS nome_service_line,
+                COUNT(DISTINCT b.id_badge) AS total_badges,
+                COUNT(DISTINCT ba.id_badge_atribuido) AS badges_obtidos
+           FROM service_line sl
+           JOIN area a   ON a.id_service_line = sl.id_service_line
+           JOIN nivel n  ON n.id_area = a.id_area AND n.ativo = 1
+           JOIN badge b  ON b.id_nivel = n.id_nivel AND b.ativo = 1
+           LEFT JOIN badge_atribuido ba ON ba.id_badge = b.id_badge AND ba.id_consultor = ?
+          WHERE sl.id_learning_path = ?
+          GROUP BY sl.id_service_line, sl.nome
+          ORDER BY sl.nome ASC`,
+        [idUtilizador, id_learning_path]
+      );
+      progressoServiceLines = sls.map((s) => {
+        const total = Number(s.total_badges) || 0;
+        const obtidos = Number(s.badges_obtidos) || 0;
+        return {
+          id_service_line: s.id_service_line,
+          nome_service_line: s.nome_service_line,
+          total_badges: total,
+          badges_obtidos: obtidos,
+          percentagem: total > 0 ? Math.round((obtidos / total) * 100) : 0,
+          concluida: total > 0 && obtidos >= total,
+        };
+      });
 
       const [niveis] = await pool.query(
         `SELECT n.id_nivel, n.codigo_nivel, n.nome_nivel, n.ordem,
@@ -140,6 +170,7 @@ async function dashboardConsultor(req, res, next) {
       nome_learning_path: nomeLP,
       candidaturas_por_estado: candidaturasPorEstado,
       progresso_niveis: progressoNiveis,
+      progresso_service_lines: progressoServiceLines,
       badges_recomendados: badgesRecomendados,
       atividade_recente: atividadeRecente,
     });

@@ -4,12 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import {
   Mail, Pencil, KeyRound, Globe, ShieldCheck, FileCheck, CheckCircle, XCircle,
   Send, Bell, AlertCircle, Copy, FileText, Award, Users,
-  ClipboardList, BarChart3, BookOpen, ClipboardCheck, X, LogOut,
+  ClipboardList, BarChart3, BookOpen, ClipboardCheck, X, LogOut, Shield,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api, extrairErro } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import { ConfirmarLogoutModal } from '../../components/ConfirmarLogoutModal';
+import { Modal2FA, ModalDesativar2FA } from '../../components/PerfilSeguranca';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { exportCSV, exportPDF } from '../../lib/exportUtils';
@@ -45,6 +46,15 @@ export default function TalentPerfil() {
   const assinaturaRef = useRef(null);
   const [modal, setModal] = useState(null); // 'password' | 'editar'
   const [confirmarLogout, setConfirmarLogout] = useState(false);
+  const [modal2FA, setModal2FA] = useState(false);
+  const [modalDesativar2FA, setModalDesativar2FA] = useState(false);
+
+  const { data: totpData, refetch: refetchTotp } = useQuery({
+    queryKey: ['totp-estado'],
+    queryFn: async () => { const { data } = await api.get('/api/totp/estado'); return data; },
+    staleTime: 60_000,
+  });
+  const totpAtivo = totpData?.ativo ?? !!utilizador?.totp_ativo;
 
   function handleLogout() {
     logout();
@@ -171,6 +181,12 @@ export default function TalentPerfil() {
                   <div className="flex gap-2">
                     <button onClick={() => setModal('editar')} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><Pencil className="h-4 w-4" /> {tt('editar_perfil')}</button>
                     <button onClick={() => setModal('password')} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"><KeyRound className="h-4 w-4" /> {tt('alterar_password')}</button>
+                    <button
+                      onClick={() => (totpAtivo ? setModalDesativar2FA(true) : setModal2FA(true))}
+                      className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition ${totpAtivo ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}
+                    >
+                      <Shield className="h-4 w-4" /> {totpAtivo ? tt('seg_2fa_ativo') : tt('seg_ativar_2fa')}
+                    </button>
                   </div>
                 </div>
                 <div className="mt-5 grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 sm:grid-cols-3">
@@ -344,6 +360,8 @@ export default function TalentPerfil() {
 
       {modal === 'password' && <ModalPassword onFechar={() => setModal(null)} />}
       {modal === 'editar' && <ModalEditar nomeAtual={nome} onFechar={() => setModal(null)} onGuardado={recarregar} />}
+      {modal2FA && <Modal2FA onFechar={() => setModal2FA(false)} onSucesso={() => { refetchTotp(); recarregar(); }} />}
+      {modalDesativar2FA && <ModalDesativar2FA onFechar={() => setModalDesativar2FA(false)} onSucesso={() => { refetchTotp(); recarregar(); }} />}
       {confirmarLogout && (
         <ConfirmarLogoutModal
           onConfirmar={() => { setConfirmarLogout(false); handleLogout(); }}

@@ -2,12 +2,28 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Filter, Search, X, Eye, Download, ChevronDown } from 'lucide-react';
-import { api } from '../../lib/api';
+import toast from 'react-hot-toast';
+import { api, obterTodasDaRota } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
 import CandidaturaDetalheModal from './CandidaturaDetalheModal';
 import { exportCSV, exportPDF } from '../../lib/exportUtils';
 import { useTM } from './i18n';
+
+/* Aplica os filtros da vista a uma lista de candidaturas (reutilizável na exportação) */
+function aplicarFiltrosCandidaturas(todas, { fEstado, fPrioridade, fArea, dataIni, dataFim, pesquisa }) {
+  let l = todas;
+  if (fEstado) l = l.filter(c => (ESTADO_CFG[c.estado_atual]?.grupo) === fEstado);
+  if (fPrioridade) l = l.filter(c => prioridade(c.pontos).key === fPrioridade);
+  if (fArea) l = l.filter(c => c.nome_area === fArea);
+  if (dataIni) l = l.filter(c => new Date(c.data_submissao || c.data_abertura) >= new Date(dataIni));
+  if (dataFim) l = l.filter(c => new Date(c.data_submissao || c.data_abertura) <= new Date(dataFim + 'T23:59:59'));
+  if (pesquisa) {
+    const q = pesquisa.toLowerCase();
+    l = l.filter(c => c.nome_consultor?.toLowerCase().includes(q) || c.titulo_badge?.toLowerCase().includes(q));
+  }
+  return [...l].sort((a, b) => new Date(b.data_submissao || b.data_abertura) - new Date(a.data_submissao || a.data_abertura));
+}
 
 const FECHADOS = ['APPROVED', 'REJECTED', 'CLOSED'];
 const POR_PAGINA_CANDIDATURAS = 12;
@@ -84,19 +100,11 @@ export default function TalentCandidaturas() {
   );
   const areas = useMemo(() => [...new Set(todas.map(c => c.nome_area).filter(Boolean))], [todas]);
 
-  const lista = useMemo(() => {
-    let l = todas;
-    if (fEstado) l = l.filter(c => (ESTADO_CFG[c.estado_atual]?.grupo) === fEstado);
-    if (fPrioridade) l = l.filter(c => prioridade(c.pontos).key === fPrioridade);
-    if (fArea) l = l.filter(c => c.nome_area === fArea);
-    if (dataIni) l = l.filter(c => new Date(c.data_submissao || c.data_abertura) >= new Date(dataIni));
-    if (dataFim) l = l.filter(c => new Date(c.data_submissao || c.data_abertura) <= new Date(dataFim + 'T23:59:59'));
-    if (pesquisa) {
-      const q = pesquisa.toLowerCase();
-      l = l.filter(c => c.nome_consultor?.toLowerCase().includes(q) || c.titulo_badge?.toLowerCase().includes(q));
-    }
-    return [...l].sort((a, b) => new Date(b.data_submissao || b.data_abertura) - new Date(a.data_submissao || a.data_abertura));
-  }, [todas, fEstado, fPrioridade, fArea, dataIni, dataFim, pesquisa]);
+  const filtros = { fEstado, fPrioridade, fArea, dataIni, dataFim, pesquisa };
+  const lista = useMemo(
+    () => aplicarFiltrosCandidaturas(todas, filtros),
+    [todas, fEstado, fPrioridade, fArea, dataIni, dataFim, pesquisa],
+  );
 
   const totalPaginas = Math.max(1, Math.ceil(lista.length / POR_PAGINA_CANDIDATURAS));
   const paginaAtual = Math.min(pagina, totalPaginas);
@@ -115,9 +123,9 @@ export default function TalentCandidaturas() {
   const temFiltros = pesquisa || fEstado || fPrioridade || fArea || dataIni || dataFim;
   function limpar() { setPesquisa(''); setFEstado(''); setFPrioridade(''); setFArea(''); setDataIni(''); setDataFim(''); }
 
-  function dadosExport() {
+  function dadosExport(itens) {
     const headers = [tt('col_consultor'), tt('col_badge'), tt('col_area'), tt('col_data_sub'), tt('col_estado'), tt('col_prioridade'), tt('col_evidencias'), tt('col_prazo'), tt('col_pontos')];
-    const rows = lista.map(c => {
+    const rows = itens.map(c => {
       const pz = prazo(c, slaPorCandidatura.get(Number(c.id_candidatura)), tt);
       return [
         c.nome_consultor, c.titulo_badge, c.nome_area || '—', formatarData(c.data_submissao || c.data_abertura),
@@ -130,14 +138,23 @@ export default function TalentCandidaturas() {
     });
     return { headers, rows };
   }
-  function exportarExcel() {
-    const { headers, rows } = dadosExport();
-    exportCSV(`candidaturas_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+  // Exporta TODAS as candidaturas que correspondem aos filtros (não só a 1.ª página)
+  async function obterListaCompleta() {
+    const { dados } = await obterTodasDaRota('/api/candidaturas');
+    return aplicarFiltrosCandidaturas(dados, filtros);
+  }
+  async function exportarExcel() {
+    try {
+      const { headers, rows } = dadosExport(await obterListaCompleta());
+      exportCSV(`candidaturas_${new Date().toISOString().slice(0, 10)}.csv`, headers, rows);
+    } catch { toast.error(tt('exportar') + ' — erro'); }
     setExportAberto(false);
   }
-  function exportarPdf() {
-    const { headers, rows } = dadosExport();
-    exportPDF(`candidaturas_${new Date().toISOString().slice(0, 10)}.pdf`, tt('cand_titulo'), headers, rows, tt('cand_sub'));
+  async function exportarPdf() {
+    try {
+      const { headers, rows } = dadosExport(await obterListaCompleta());
+      exportPDF(`candidaturas_${new Date().toISOString().slice(0, 10)}.pdf`, tt('cand_titulo'), headers, rows, tt('cand_sub'));
+    } catch { toast.error(tt('exportar') + ' — erro'); }
     setExportAberto(false);
   }
 
