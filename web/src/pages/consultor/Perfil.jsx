@@ -177,7 +177,7 @@ export default function Perfil() {
 
   /* Estado local preferências */
   const [prefs, setPrefs]   = useState({ email_aprovacao_badge: true, notif_expiracao: true, notif_recomendacoes: false });
-  const [rgpd, setRgpd]     = useState({ publicacao_badge: false, partilha_linkedin: false, partilha_auto_linkedin: false, tratamento_dados: false });
+  const [rgpd, setRgpd]     = useState({ publicacao_badge: false, partilha_linkedin: false, tratamento_dados: false });
 
   useEffect(() => {
     if (prefData?.preferencias) {
@@ -318,7 +318,6 @@ export default function Perfil() {
                   {[
                     { tipo: 'publicacao_badge',      label: t('rgpd_pub') },
                     { tipo: 'partilha_linkedin',      label: t('rgpd_linkedin') },
-                    { tipo: 'partilha_auto_linkedin', label: t('rgpd_auto') },
                   ].map(({ tipo, label }) => (
                     <label key={tipo} className="flex cursor-pointer items-center gap-3">
                       <input type="checkbox" checked={!!rgpd[tipo]} onChange={e => toggleRgpd(tipo, e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-softinsa-600 focus:ring-softinsa-400" />
