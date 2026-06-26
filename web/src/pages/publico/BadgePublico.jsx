@@ -122,7 +122,7 @@ export default function BadgePublico() {
                   <Star className="h-4 w-4 fill-current" /> {b.pontos} pontos
                 </p>
               )}
-              {meses && (
+              {meses > 0 && (
                 <p className="flex items-center gap-1.5 text-sm font-semibold text-slate-600">
                   <Timer className="h-4 w-4 text-amber-500" /> Válido {meses} {meses === 1 ? 'mês' : 'meses'}
                 </p>

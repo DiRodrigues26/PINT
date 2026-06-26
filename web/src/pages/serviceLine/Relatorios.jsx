@@ -133,7 +133,7 @@ export default function ServiceLineRelatorios() {
     setFiltroEstados(prev => prev.includes(v) ? prev.filter(e => e !== v) : [...prev, v]);
   }
 
-  const temFiltros = filtroArea || filtroNivel || filtroInicio || filtroFim || filtroEstados.length;
+  const temFiltros = Boolean(filtroArea || filtroNivel || filtroInicio || filtroFim || filtroEstados.length);
 
   const REL_HEADERS = [
     t('sl_rel_csv_consultor'), t('sl_rel_csv_area'), t('sl_rel_csv_badge'),
