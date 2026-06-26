@@ -4,7 +4,7 @@ import { Award, CheckCircle, Clock, Download, FileText, Filter, PercentCircle, T
 import { api } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
-import { exportCSV, exportPDF } from '../../lib/exportUtils';
+import { exportCSV, exportPDF } from '../../lib/exportar';
 import { useLanguage } from '../../context/LanguageContext';
 
 function getEstadoCfg(t) {

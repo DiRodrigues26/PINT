@@ -9,7 +9,7 @@ import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/Tale
 import Carregando from '../../components/Carregando';
 import ConsultorPerfilModal from './ConsultorPerfilModal';
 import CandidaturaDetalheModal from './CandidaturaDetalheModal';
-import { exportCSV } from '../../lib/exportUtils';
+import { exportCSV } from '../../lib/exportar';
 import { useTM } from './i18n';
 
 const ESTADO_LABEL = {
