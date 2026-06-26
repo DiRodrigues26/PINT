@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Award, Users, Clock, Info, Search, Sparkles, Star, Trophy } from 'lucide-react';
+import { Award, Users, Clock, Info, Search, Sparkles, Star, Trophy, Crown } from 'lucide-react';
 import { api } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
@@ -39,18 +39,36 @@ function BadgeCard({ badge, idx, stats, onVerCandidaturas, onVerDetalhes }) {
   const cor = CORES[idx % CORES.length];
   const st = statusBadge(badge);
   const exp = expiracaoMeses(badge);
+  const ehEspecial = !!badge.is_conquista_especial;
 
   return (
-    <div className="relative flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div className={`relative flex flex-col rounded-2xl border p-5 shadow-sm transition-shadow hover:shadow-md ${
+      ehEspecial
+        ? 'border-amber-300 ring-1 ring-amber-200 bg-gradient-to-b from-amber-50/60 to-white'
+        : 'border-slate-200 bg-white'
+    }`}>
+      {ehEspecial && (
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+          <Crown className="h-3 w-3" strokeWidth={2} /> {tt('sl_badges_premium')}
+        </span>
+      )}
       <button type="button" onClick={onVerDetalhes} className="absolute right-3 top-3 text-softinsa-400 hover:text-softinsa-600" title={tt('ver_detalhes')}>
         <Info className="h-5 w-5" />
       </button>
 
       {badge.imagem_url ? (
-        <img src={badge.imagem_url} alt={badge.titulo} className="mx-auto mt-2 h-20 w-20 rounded-full object-cover" />
+        <img
+          src={badge.imagem_url}
+          alt={badge.titulo}
+          className={`mx-auto mt-2 h-20 w-20 rounded-full object-cover ${ehEspecial ? 'ring-2 ring-amber-400 ring-offset-2' : ''}`}
+        />
       ) : (
-        <div className={`mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-full ${cor.bg}`}>
-          <Award className={`h-10 w-10 ${cor.icon}`} strokeWidth={1.5} />
+        <div className={`mx-auto mt-2 flex h-20 w-20 items-center justify-center rounded-full ${ehEspecial ? 'bg-gradient-to-br from-amber-400 to-amber-600' : cor.bg}`}>
+          {ehEspecial ? (
+            <Crown className="h-10 w-10 text-white" strokeWidth={1.5} />
+          ) : (
+            <Award className={`h-10 w-10 ${cor.icon}`} strokeWidth={1.5} />
+          )}
         </div>
       )}
 
@@ -152,6 +170,7 @@ export default function TalentBadges() {
   const [fNivel, setFNivel] = useState('');
   const [fPontos, setFPontos] = useState('');
   const [fExp, setFExp] = useState('');
+  const [fEspecial, setFEspecial] = useState('');
   const [pesquisa, setPesquisa] = useState('');
 
   const { data: badgesData, isLoading } = useQuery({
@@ -193,11 +212,13 @@ export default function TalentBadges() {
     if (fPontos === 'sem') l = l.filter(b => !b.pontos);
     if (fExp === 'com') l = l.filter(b => b.tem_expiracao);
     if (fExp === 'sem') l = l.filter(b => !b.tem_expiracao);
+    if (fEspecial === 'sim') l = l.filter(b => !!b.is_conquista_especial);
+    if (fEspecial === 'nao') l = l.filter(b => !b.is_conquista_especial);
     if (pesquisa) l = l.filter(b => b.titulo?.toLowerCase().includes(pesquisa.toLowerCase()));
     return l;
-  }, [badges, fLP, fSL, fArea, fNivel, fPontos, fExp, pesquisa]);
+  }, [badges, fLP, fSL, fArea, fNivel, fPontos, fExp, fEspecial, pesquisa]);
 
-  function limpar() { setFLP(''); setFSL(''); setFArea(''); setFNivel(''); setFPontos(''); setFExp(''); setPesquisa(''); }
+  function limpar() { setFLP(''); setFSL(''); setFArea(''); setFNivel(''); setFPontos(''); setFExp(''); setFEspecial(''); setPesquisa(''); }
 
   return (
     <div className="min-h-screen bg-[#f3f6fa]">
@@ -243,8 +264,6 @@ export default function TalentBadges() {
                   <option value="">{tt('todos')}</option>{['A', 'B', 'C', 'D', 'E'].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </Campo>
-            </div>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Campo label={tt('col_pontos')}>
                 <select value={fPontos} onChange={e => setFPontos(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
                   <option value="">{tt('todos')}</option><option value="com">{tt('com_pontos')}</option><option value="sem">{tt('sem_pontos')}</option>
@@ -255,6 +274,13 @@ export default function TalentBadges() {
                   <option value="">{tt('todos')}</option><option value="com">{tt('com_expiracao')}</option><option value="sem">{tt('sem_expiracao')}</option>
                 </select>
               </Campo>
+              <Campo label={tt('col_tipo_badge')}>
+                <select value={fEspecial} onChange={e => setFEspecial(e.target.value)} className="w-full rounded-lg border border-slate-200 px-3 py-2.5 text-sm outline-none focus:border-softinsa-400">
+                  <option value="">{tt('todos')}</option>
+                  <option value="sim">{tt('tipo_especiais')}</option>
+                  <option value="nao">{tt('tipo_normais')}</option>
+                </select>
+              </Campo>
               <Campo label={tt('pesquisar')}>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
@@ -262,12 +288,12 @@ export default function TalentBadges() {
                     className="w-full rounded-lg border border-slate-200 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-softinsa-400" />
                 </div>
               </Campo>
-              <div className="flex items-end">
-                <button type="button" onClick={limpar}
-                  className="w-full rounded-lg border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                  {tt('limpar_filtros_btn')}
-                </button>
-              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button type="button" onClick={limpar}
+                className="rounded-lg border border-slate-200 px-6 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                {tt('limpar_filtros_btn')}
+              </button>
             </div>
           </div>
 

@@ -27,7 +27,7 @@ const NIVEL_BG   = { A: 'bg-softinsa-600', B: 'bg-blue-500', C: 'bg-indigo-500',
 const NIVEL_TEXT = { A: 'text-softinsa-600', B: 'text-blue-600', C: 'text-indigo-600', D: 'text-violet-700', E: 'text-purple-700' };
 
 /* ─── Card de badge obtido ──────────────────────────────────────────────── */
-function CardObtido({ item, onAbrirModal, podePublicar, podeLinkedin }) {
+function CardObtido({ item, onAbrirModal, podePublicar, podeLinkedin, candidaturaEmCurso, onRenovar, isRenovando }) {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const expirado = item.data_expiracao && new Date(item.data_expiracao) < new Date();
@@ -144,6 +144,22 @@ function CardObtido({ item, onAbrirModal, podePublicar, podeLinkedin }) {
         >
           {t('ver_detalhes')}
         </button>
+
+        {(expirado || expiraEmBreve) && (
+          <button
+            type="button"
+            disabled={candidaturaEmCurso || isRenovando}
+            onClick={() => onRenovar(item.id_badge)}
+            className={`w-full rounded-lg py-2 text-sm font-semibold transition flex items-center justify-center gap-1.5 ${
+              candidaturaEmCurso
+                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                : 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
+            }`}
+          >
+            <Sparkles className="h-4 w-4" />
+            {candidaturaEmCurso ? t('renovacao_em_curso') : t('renovar_badge')}
+          </button>
+        )}
 
         {/* Linha: LinkedIn + PDF */}
         <div className="flex gap-2">
@@ -283,6 +299,8 @@ function CardEmProgresso({ item, onAbrirModal }) {
 export default function MeusBadges() {
   const { t } = useLanguage();
   const { utilizador } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const slug = utilizador?.url_slug;
   const [modalBadgeId, setModalBadgeId] = useState(null);
   const [pesquisa, setPesquisa] = useState('');
@@ -316,6 +334,17 @@ export default function MeusBadges() {
   }, [rgpdData]);
   const podePublicar = !!consents.publicacao_badge;
   const podeLinkedin = !!consents.partilha_linkedin;
+
+  const renovarMutation = useMutation({
+    mutationFn: (idBadge) => api.post('/api/candidaturas', { id_badge: Number(idBadge) }),
+    onSuccess: ({ data }) => {
+      queryClient.invalidateQueries({ queryKey: ['meus-badges'] });
+      queryClient.invalidateQueries({ queryKey: ['candidaturas-ativas'] });
+      toast.success('Candidatura de renovação criada!');
+      navigate(`/candidaturas/${data.id_candidatura}`);
+    },
+    onError: (err) => toast.error(extrairErro(err, 'Erro ao criar candidatura de renovação.')),
+  });
 
   const isLoading = loadObtidos || loadCand;
   const obtidos = obtidosData?.dados ?? [];
@@ -468,7 +497,18 @@ export default function MeusBadges() {
               )}
               {mostrarObtidos && badgesObtidosFiltrados.length > 0 && (
                 <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 ${mostrarCandidaturas && candidaturasFiltradas.length > 0 ? 'mt-5' : 'mt-6'}`}>
-                  {badgesObtidosFiltrados.map(b => <CardObtido key={b.id_badge_atribuido} item={b} onAbrirModal={setModalBadgeId} podePublicar={podePublicar} podeLinkedin={podeLinkedin} />)}
+                  {badgesObtidosFiltrados.map(b => (
+                    <CardObtido
+                      key={b.id_badge_atribuido}
+                      item={b}
+                      onAbrirModal={setModalBadgeId}
+                      podePublicar={podePublicar}
+                      podeLinkedin={podeLinkedin}
+                      candidaturaEmCurso={candidaturasAtivas.some(c => c.id_badge === b.id_badge)}
+                      onRenovar={(idBadge) => renovarMutation.mutate(idBadge)}
+                      isRenovando={renovarMutation.isPending}
+                    />
+                  ))}
                 </div>
               )}
               {candidaturasFiltradas.length === 0 && badgesObtidosFiltrados.length === 0 && (

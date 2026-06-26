@@ -223,13 +223,22 @@ async function criar(req, res, next) {
     if (badge.length === 0) return res.status(404).json({ erro: 'Badge não encontrado.' });
     if (!badge[0].ativo) return res.status(400).json({ erro: 'Badge inativo.' });
 
-    // impedir candidatar a um badge já obtido
+    // verificar se o consultor já tem este badge atribuído e se pode ser renovado
     const [jaTem] = await pool.query(
-      'SELECT id_badge_atribuido FROM badge_atribuido WHERE id_consultor = ? AND id_badge = ? LIMIT 1',
+      'SELECT id_badge_atribuido, data_expiracao FROM badge_atribuido WHERE id_consultor = ? AND id_badge = ? LIMIT 1',
       [req.utilizador.id_utilizador, id_badge]
     );
     if (jaTem.length > 0) {
-      return res.status(409).json({ erro: 'Já tens este badge atribuído.' });
+      const ba = jaTem[0];
+      if (!ba.data_expiracao) {
+        return res.status(409).json({ erro: 'Já tens este badge atribuído permanentemente.' });
+      }
+      const dataExp = new Date(ba.data_expiracao);
+      const limiteRenovacao = new Date();
+      limiteRenovacao.setDate(limiteRenovacao.getDate() + 30);
+      if (dataExp > limiteRenovacao) {
+        return res.status(409).json({ erro: 'Este badge está ativo e não necessita de renovação de momento.' });
+      }
     }
 
     // impedir duplicar candidaturas abertas ao mesmo badge
@@ -647,7 +656,7 @@ async function avaliarServiceLine(req, res, next) {
         });
       }
 
-      // se aprovado, criar badge_atribuido
+      // se aprovado, criar ou atualizar badge_atribuido (renovação)
       let idBadgeAtribuido = null;
       let urlPublicaBadge = null;
       if (novoEstado === 'APPROVED') {
@@ -663,28 +672,63 @@ async function avaliarServiceLine(req, res, next) {
           dataExpiracao = expira;
         }
 
-        const [result] = await conn.query(
-          `INSERT INTO badge_atribuido
-             (id_consultor, id_badge, id_candidatura, data_expiracao, pontos_atribuidos, token_publico)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [
-            candidatura.id_consultor,
-            candidatura.id_badge,
-            req.params.id,
-            dataExpiracao,
-            Number(badgeInfo[0]?.pontos) || 0,
-            token,
-          ]
+        // Verificar se já existe um badge atribuído
+        const [existente] = await conn.query(
+          'SELECT id_badge_atribuido FROM badge_atribuido WHERE id_consultor = ? AND id_badge = ? LIMIT 1',
+          [candidatura.id_consultor, candidatura.id_badge]
         );
-        idBadgeAtribuido = result.insertId;
 
-        const codigoPublico = gerarCodigoPublico(idBadgeAtribuido);
-        const baseFrontend = process.env.FRONTEND_URL || process.env.APP_URL || '';
-        urlPublicaBadge = `${baseFrontend}/verificar/${token}`;
-        await conn.query(
-          `UPDATE badge_atribuido SET codigo_publico = ?, url_publica = ? WHERE id_badge_atribuido = ?`,
-          [codigoPublico, urlPublicaBadge, idBadgeAtribuido]
-        );
+        if (existente.length > 0) {
+          idBadgeAtribuido = existente[0].id_badge_atribuido;
+          const codigoPublico = gerarCodigoPublico(idBadgeAtribuido);
+          const baseFrontend = process.env.FRONTEND_URL || process.env.APP_URL || '';
+          urlPublicaBadge = `${baseFrontend}/verificar/${token}`;
+
+          await conn.query(
+            `UPDATE badge_atribuido
+                SET id_candidatura = ?,
+                    data_atribuicao = CURRENT_TIMESTAMP,
+                    data_expiracao = ?,
+                    pontos_atribuidos = ?,
+                    token_publico = ?,
+                    codigo_publico = ?,
+                    url_publica = ?,
+                    linkedin_shared = 0
+              WHERE id_badge_atribuido = ?`,
+            [
+              req.params.id,
+              dataExpiracao,
+              Number(badgeInfo[0]?.pontos) || 0,
+              token,
+              codigoPublico,
+              urlPublicaBadge,
+              idBadgeAtribuido
+            ]
+          );
+        } else {
+          const [result] = await conn.query(
+            `INSERT INTO badge_atribuido
+               (id_consultor, id_badge, id_candidatura, data_expiracao, pontos_atribuidos, token_publico)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+              candidatura.id_consultor,
+              candidatura.id_badge,
+              req.params.id,
+              dataExpiracao,
+              Number(badgeInfo[0]?.pontos) || 0,
+              token,
+            ]
+          );
+          idBadgeAtribuido = result.insertId;
+
+          const codigoPublico = gerarCodigoPublico(idBadgeAtribuido);
+          const baseFrontend = process.env.FRONTEND_URL || process.env.APP_URL || '';
+          urlPublicaBadge = `${baseFrontend}/verificar/${token}`;
+          await conn.query(
+            `UPDATE badge_atribuido SET codigo_publico = ?, url_publica = ? WHERE id_badge_atribuido = ?`,
+            [codigoPublico, urlPublicaBadge, idBadgeAtribuido]
+          );
+        }
       }
 
       await conn.commit();

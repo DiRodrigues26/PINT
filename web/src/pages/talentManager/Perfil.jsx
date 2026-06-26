@@ -95,6 +95,37 @@ export default function TalentPerfil() {
     }
   }, [prefData]);
 
+  // Badges da plataforma para a assinatura (todos os ativos)
+  const { data: todosBadgesData } = useQuery({
+    queryKey: ['todos-badges-ativos'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/badges', { params: { ativo: 1, por_pagina: 200 } });
+      return data.dados || [];
+    },
+    staleTime: 60_000,
+  });
+  const todosBadges = todosBadgesData ?? [];
+
+  // Seleção de badges para a assinatura (persistida localmente por utilizador)
+  const STORAGE_KEY = `tm_assinatura_badges_${utilizador?.id_utilizador || 'x'}`;
+  const [selecionados, setSelecionados] = useState([]);
+  useEffect(() => {
+    try {
+      const guardado = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      if (Array.isArray(guardado)) setSelecionados(guardado);
+    } catch { /* ignora */ }
+  }, [STORAGE_KEY]);
+
+  function toggleBadge(id) {
+    setSelecionados((prev) => {
+      const novo = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(novo)); } catch { /* ignora */ }
+      return novo;
+    });
+  }
+
+  const badgesEscolhidos = todosBadges.filter((b) => selecionados.includes(b.id_badge));
+
   const guardarPref = useMutation({
     mutationFn: (payload) => api.put('/api/preferencias', payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['preferencias'] }),
@@ -110,7 +141,7 @@ export default function TalentPerfil() {
       const html = assinaturaRef.current.innerHTML;
       navigator.clipboard.write([new ClipboardItem({
         'text/html': new Blob([html], { type: 'text/html' }),
-        'text/plain': new Blob([`${nome}\nTalent Manager\n${email}`], { type: 'text/plain' }),
+        'text/plain': new Blob([`${nome}\nTalent Manager · Softinsa\n${email}`], { type: 'text/plain' }),
       })]);
       toast.success(tt('assinatura_copiada'));
     } catch { toast.error(tt('nao_copiar')); }
@@ -290,16 +321,59 @@ export default function TalentPerfil() {
 
           {/* Assinatura de Email */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="flex items-center gap-2 text-base font-bold text-slate-900"><Mail className="h-5 w-5 text-slate-500" /> {tt('assinatura_email')}</h3>
-            <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5">
+            <h3 className="flex items-center gap-2 text-base font-bold text-slate-900">
+              <Mail className="h-5 w-5 text-slate-500" /> {tt('assinatura_email')}
+            </h3>
+            <p className="mt-1 text-sm text-slate-500">Escolha os badges do catálogo para mostrar na assinatura de email.</p>
+
+            {/* Seleção de badges */}
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Badges a mostrar na assinatura
+              </p>
+              {todosBadges.length === 0 ? (
+                <p className="text-xs text-slate-400">Nenhum badge disponível no catálogo.</p>
+              ) : (
+                <div className="max-h-44 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                  {todosBadges.map((b) => (
+                    <label key={b.id_badge} className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-slate-50">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded text-softinsa-600"
+                        checked={selecionados.includes(b.id_badge)}
+                        onChange={() => toggleBadge(b.id_badge)}
+                      />
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-softinsa-100 text-[10px] font-bold text-softinsa-700">
+                        {b.codigo_nivel}
+                      </span>
+                      <span className="truncate text-slate-700">{b.titulo}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Pré-visualização */}
+            <div className="mt-4 overflow-x-auto rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5">
               <AssinaturaEmailPreview
                 ref={assinaturaRef}
                 nome={nome}
                 cargo="Talent Manager · Softinsa"
                 email={email}
+                badges={badgesEscolhidos}
+                rotuloBadges="Badges"
+                urlBadgeBase="/badge"
               />
             </div>
-            <button onClick={copiarAssinatura} className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-softinsa-600 py-2.5 text-sm font-semibold text-white hover:bg-softinsa-700">
+
+            {badgesEscolhidos.length === 0 && todosBadges.length > 0 && (
+              <p className="mt-2 text-xs text-slate-400">Nenhum badge selecionado (será mostrada a assinatura simples).</p>
+            )}
+
+            <button
+              onClick={copiarAssinatura}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-softinsa-600 py-2.5 text-sm font-semibold text-white hover:bg-softinsa-700 transition"
+            >
               <Copy className="h-4 w-4" />
               {tt('copiar_assinatura')}
             </button>

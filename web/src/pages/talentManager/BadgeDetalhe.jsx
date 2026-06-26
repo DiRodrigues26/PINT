@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, Award, Cloud, Calendar, AlertTriangle, Users, FileText,
   TrendingUp, Clock, Download, ChevronDown, CheckCircle, ClipboardList,
+  Crown,
 } from 'lucide-react';
 import { api } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
@@ -40,6 +41,7 @@ export default function TalentBadgeDetalhe() {
 
   const badge = detalheData?.badge;
   const requisitos = detalheData?.requisitos ?? [];
+  const ehEspecial = !!badge?.is_conquista_especial;
   const candidaturas = useMemo(
     () => (candData?.dados ?? []).filter(c => String(c.id_badge) === String(id)),
     [candData, id],
@@ -128,16 +130,34 @@ export default function TalentBadgeDetalhe() {
           </button>
 
           {/* Cartão principal */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <div className={`rounded-2xl border p-8 shadow-sm ${
+            ehEspecial
+              ? 'border-amber-300 ring-1 ring-amber-200 bg-gradient-to-b from-amber-50/60 to-white'
+              : 'border-slate-200 bg-white'
+          }`}>
             <div className="flex flex-col gap-6 sm:flex-row">
               {badge.imagem_url ? (
-                <img src={badge.imagem_url} alt={badge.titulo} className="h-32 w-32 shrink-0 rounded-full object-cover ring-4 ring-softinsa-50" />
+                <img
+                  src={badge.imagem_url}
+                  alt={badge.titulo}
+                  className={`h-32 w-32 shrink-0 rounded-full object-cover ${ehEspecial ? 'ring-2 ring-amber-400 ring-offset-2' : 'ring-4 ring-softinsa-50'}`}
+                />
               ) : (
-                <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-softinsa-50">
-                  <Award className="h-16 w-16 text-softinsa-500" strokeWidth={1.4} />
+                <div className={`flex h-32 w-32 shrink-0 items-center justify-center rounded-full ${ehEspecial ? 'bg-gradient-to-br from-amber-400 to-amber-600' : 'bg-softinsa-50'}`}>
+                  {ehEspecial ? (
+                    <Crown className="h-16 w-16 text-white" strokeWidth={1.4} />
+                  ) : (
+                    <Award className="h-16 w-16 text-softinsa-500" strokeWidth={1.4} />
+                  )}
                 </div>
               )}
               <div className="flex-1">
+                {ehEspecial && (
+                  <span className="mb-2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm w-fit">
+                    <Crown className="h-3 w-3" strokeWidth={2} />
+                    {tt('sl_badges_premium')}
+                  </span>
+                )}
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <h1 className="text-2xl font-bold text-slate-900">{badge.titulo}</h1>
                   <div className="relative">
