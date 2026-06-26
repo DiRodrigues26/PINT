@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, Award, BarChart3, Bell, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Award, BarChart3, Bell, User, LogOut, History } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { api } from '../lib/api';
@@ -13,6 +13,7 @@ const MENU = [
   { key: 'candidaturas',  to: '/tm/candidaturas', icon: FileText },
   { key: 'tm_badges',     to: '/tm/badges',       icon: Award },
   { key: 'tm_relatorios', to: '/tm/relatorios',   icon: BarChart3 },
+  { key: 'tm_historico',  to: '/tm/historico',    icon: History },
   { key: 'notificacoes',  to: '/tm/notificacoes', icon: Bell },
   { key: 'perfil',        to: '/tm/perfil',       icon: User },
 ];
