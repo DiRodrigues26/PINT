@@ -101,6 +101,7 @@ export default function AdminLayout() {
           utilizador={utilizador}
           onLogout={() => setMostrarLogout(true)}
           notificacoesTo="/admin/notificacoes"
+          profileTo="/admin/perfil"
         />
         <main className={`mx-auto pb-28 pt-8 lg:pb-8 ${mainClass(vistaAtiva)}`}>
           <Outlet />

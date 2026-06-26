@@ -19,6 +19,7 @@ import {
   Shield,
   TrendingUp,
   Trophy,
+  User,
   Users,
   X,
 } from 'lucide-react';
@@ -37,6 +38,7 @@ const ICONES = {
   mail: Mail,
   info: Info,
   shield: Shield,
+  user: User,
   logout: LogOut,
   x: X,
   menu: Menu,
@@ -140,7 +142,7 @@ export function AppSidebar({ menu, ativo, onSelect, utilizador, onLogout }) {
   );
 }
 
-export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoesTo = '/notificacoes' }) {
+export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoesTo = '/notificacoes', profileTo }) {
   const [aberto, setAberto] = useState(false);
   const { idioma, mudarIdioma, t } = useLanguage();
   const perfis = utilizador?.perfis?.join(', ') || t('admin_user_fallback');
@@ -223,17 +225,31 @@ export function AppTopbar({ titulo, subtitulo, utilizador, onLogout, notificacoe
                     {perfis}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:text-softinsa-700"
-                  onClick={() => {
-                    setAberto(false);
-                    onLogout?.();
-                  }}
-                >
-                  <ShellIcon nome="logout" className="h-4 w-4" />
-                  {t('admin_logout_title')}
-                </button>
+                <div className="grid grid-cols-2 gap-2 p-3">
+                  {profileTo && (
+                    <Link
+                      to={profileTo}
+                      className="flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:bg-[#eaf3ff] hover:text-softinsa-700"
+                      role="menuitem"
+                      onClick={() => setAberto(false)}
+                    >
+                      <ShellIcon nome="user" className="h-4 w-4" />
+                      {t('perfil')}
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    className={`${profileTo ? '' : 'col-span-2'} flex items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-softinsa-300 hover:bg-slate-50 hover:text-softinsa-700`}
+                    role="menuitem"
+                    onClick={() => {
+                      setAberto(false);
+                      onLogout?.();
+                    }}
+                  >
+                    <ShellIcon nome="logout" className="h-4 w-4" />
+                    {t('admin_logout_title')}
+                  </button>
+                </div>
               </div>
             )}
           </div>

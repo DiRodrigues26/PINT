@@ -1,8 +1,58 @@
-import { lazy, Suspense, useEffect } from 'react';
+import { Component, lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
 import RotaProtegida from './components/RotaProtegida';
 import Carregando from './components/Carregando';
 import { useAuth } from './context/AuthContext';
+
+function erroCarregamentoChunk(error) {
+  const mensagem = String(error?.message || error || '').toLowerCase();
+  return mensagem.includes('failed to fetch dynamically imported module')
+    || mensagem.includes('loading chunk')
+    || mensagem.includes('importing a module script failed')
+    || mensagem.includes('dynamically imported module');
+}
+
+class LazyErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { erro: null };
+  }
+
+  static getDerivedStateFromError(erro) {
+    return { erro };
+  }
+
+  componentDidCatch(erro) {
+    if (erroCarregamentoChunk(erro) && sessionStorage.getItem('chunk_reload_tentado') !== '1') {
+      sessionStorage.setItem('chunk_reload_tentado', '1');
+      window.location.reload();
+    }
+  }
+
+  render() {
+    if (this.state.erro) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-[#f3f6fa] px-6 text-center">
+          <div className="max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h1 className="text-lg font-bold text-slate-900">Não foi possível carregar a página</h1>
+            <p className="mt-2 text-sm text-slate-500">
+              Atualize a página para carregar a versão mais recente da aplicação.
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="mt-5 rounded-lg bg-softinsa-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-softinsa-700"
+            >
+              Atualizar página
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // Importações Lazy das páginas por perfil
 // Auth
@@ -146,12 +196,13 @@ function AdminPontosRoute() {
 
 export default function App() {
   return (
-    <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center bg-[#f3f6fa]">
-        <Carregando texto="A carregar a plataforma..." />
-      </div>
-    }>
-      <Routes>
+    <LazyErrorBoundary>
+      <Suspense fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#f3f6fa]">
+          <Carregando texto="A carregar a plataforma..." />
+        </div>
+      }>
+        <Routes>
         {/* Páginas públicas (sem autenticação) */}
         <Route path="/microsite" element={<Microsite />} />
         <Route path="/projeto" element={<Navigate to="/microsite" replace />} />
@@ -295,7 +346,8 @@ export default function App() {
             </div>
           </div>
         } />
-      </Routes>
-    </Suspense>
+        </Routes>
+      </Suspense>
+    </LazyErrorBoundary>
   );
 }
