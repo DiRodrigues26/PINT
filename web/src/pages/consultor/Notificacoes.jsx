@@ -29,8 +29,6 @@ function acaoNotificacao(notif, navigate) {
   return null;
 }
 
-// TABS are built dynamically inside the component using t()
-
 export default function Notificacoes() {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
@@ -41,6 +39,7 @@ export default function Notificacoes() {
     { key: '',            label: t('tab_todas') },
     { key: 'CANDIDATURA', label: t('tab_candidaturas') },
     { key: 'BADGE',       label: t('tab_badges') },
+    { key: 'EXPIRACAO',   label: t('tab_expiracao') },
     { key: 'SISTEMA',     label: t('tab_sistema') },
   ];
 
@@ -70,7 +69,11 @@ export default function Notificacoes() {
   const notificacoes = useMemo(() => {
     const lista = data?.dados ?? [];
     if (!tabAtiva) return lista;
+    if (tabAtiva === 'EXPIRACAO') {
+      return lista.filter(n => classificarNotificacao(n) === 'EXPIRACAO');
+    }
     return lista.filter(n => {
+      if (classificarNotificacao(n) === 'EXPIRACAO') return false;
       return classificarNotificacao(n) === tabAtiva || n.categoria === tabAtiva;
     });
   }, [data, tabAtiva]);
@@ -105,13 +108,13 @@ export default function Notificacoes() {
           </div>
 
           {/* Tabs */}
-          <div className="mt-6 flex gap-2">
+          <div className="mt-6 flex gap-2 overflow-x-auto pb-1">
             {TABS.map(t => (
               <button
                 key={t.key}
                 type="button"
                 onClick={() => setTabAtiva(t.key)}
-                className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                className={`shrink-0 rounded-lg px-4 py-2 text-sm font-semibold transition ${
                   tabAtiva === t.key
                     ? 'bg-softinsa-600 text-white'
                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'

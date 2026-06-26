@@ -69,6 +69,7 @@ export function classificarNotificacao(notif) {
   const texto = textoNormalizado(notif);
   const categoria = (notif?.categoria || '').toUpperCase();
 
+  if (texto.includes('EXPIR')) return 'EXPIRACAO';
   if (texto.includes('SLA')) return 'SLA';
   if (categoria === 'BADGE' || texto.includes('BADGE')) return 'BADGE';
   if (
@@ -121,7 +122,18 @@ export function tipoNotificacaoVisual(notif) {
     };
   }
 
-  if (texto.includes('SLA') || texto.includes('LIMITE') || texto.includes('EXPIR')) {
+  if (texto.includes('EXPIR')) {
+    return {
+      label: 'Expiração',
+      icon: TriangleAlert,
+      iconBg: 'bg-amber-50',
+      iconColor: 'text-amber-600',
+      badge: 'bg-amber-100 text-amber-700',
+      border: 'border-l-amber-400',
+    };
+  }
+
+  if (texto.includes('SLA') || texto.includes('LIMITE')) {
     return {
       label: 'Alerta',
       icon: TriangleAlert,
