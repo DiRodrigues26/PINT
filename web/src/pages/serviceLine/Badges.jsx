@@ -108,7 +108,7 @@ function BadgeCard({ badge, onDetalhe, ehMinhaSL }) {
               {badge.pontos} {t('sl_badges_pontos_tag')}
             </span>
           ) : <span />}
-          {meses && (
+          {meses > 0 && (
             <span className="flex items-center gap-1 text-amber-500 font-medium">
               <Timer className="h-3.5 w-3.5" strokeWidth={1.8} />
               {meses === 1 ? t('sl_badges_expira').replace('{n}', meses) : t('sl_badges_expira_pl').replace('{n}', meses)}

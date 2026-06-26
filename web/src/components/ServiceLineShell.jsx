@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, FileText, Award, Users, BarChart2, Trophy, Bell, User, LogOut, History, Star } from 'lucide-react';
+import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { saudacaoTexto } from '../lib/saudacao';
@@ -65,13 +67,10 @@ export function ServiceLineSidebar() {
         </nav>
 
         <div className="border-t border-slate-200 px-5 py-5">
-          <div className="truncate text-sm font-semibold text-slate-900">{utilizador?.nome || 'Utilizador'}</div>
-          <div className="mt-0.5 truncate text-[11px] text-slate-400">{utilizador?.email || '-'}</div>
-          <div className="mt-1.5 truncate text-[11px] font-medium text-softinsa-600">Service Line</div>
           <button
             type="button"
             onClick={() => setConfirmarLogout(true)}
-            className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition"
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-800 transition"
           >
             <LogOut className="h-4 w-4" strokeWidth={1.8} />
             {t('admin_logout_title')}
@@ -117,6 +116,17 @@ export function ServiceLineTopbar({ subtitulo }) {
   const saudacao = `${saudacaoTexto(t)}, ${nome}!`;
   const perfilLabel = utilizador?.perfis?.join(', ') || 'Service Line';
 
+  const { data: notifData } = useQuery({
+    queryKey: ['topbar-notificacoes-nao-lidas'],
+    queryFn: async () => {
+      const { data } = await api.get('/api/notificacoes', { params: { por_pagina: 1 } });
+      return data;
+    },
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+  });
+  const naoLidas = notifData?.nao_lidas || 0;
+
   function handleLogout() {
     logout();
     navigate('/login');
@@ -148,7 +158,11 @@ export function ServiceLineTopbar({ subtitulo }) {
           </div>
           <NavLink to="/sl/notificacoes" className="relative text-slate-500 hover:text-slate-800" aria-label="Notificações">
             <Bell className="h-5 w-5" strokeWidth={1.8} />
-            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-rose-500" />
+            {naoLidas > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white">
+                {naoLidas > 9 ? '9+' : naoLidas}
+              </span>
+            )}
           </NavLink>
           <div className="hidden text-sm font-semibold text-slate-700 sm:block">{nome}</div>
           <UserMenu utilizador={utilizador} perfilLabel={perfilLabel} profileTo="/sl/perfil" onLogout={handleLogout} />
