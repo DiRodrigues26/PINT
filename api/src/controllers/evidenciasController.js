@@ -3,6 +3,47 @@ const path = require('path');
 const { pool } = require('../db/connection');
 const { pastaUploads } = require('../middleware/upload');
 const { obterCandidaturaComAcesso } = require('../utils/candidaturasPermissoes');
+const {
+  uploadFicheiro,
+  eliminarCloudinary,
+  extrairPublicId,
+  extrairResourceType,
+  temCloudinaryConfigurado,
+} = require('../utils/uploadService');
+
+/* ─── Segurança: validação server-side de tipo e tamanho ──────────── */
+const EXTENSOES_PERMITIDAS = ['pdf', 'png', 'jpg', 'jpeg', 'webp', 'zip', 'doc', 'docx'];
+const MAX_FILE_SIZE_BYTES = (parseInt(process.env.MAX_FILE_SIZE_MB || '10', 10)) * 1024 * 1024;
+
+function validarFicheiroSeguro(file) {
+  if (!file) return 'Ficheiro em falta.';
+
+  // Validar tamanho
+  const tamanho = file.size || file.buffer?.length || 0;
+  if (tamanho > MAX_FILE_SIZE_BYTES) {
+    return `Ficheiro demasiado grande (máx. ${process.env.MAX_FILE_SIZE_MB || '10'} MB).`;
+  }
+
+  // Validar extensão
+  const ext = (path.extname(file.originalname || '').slice(1) || '').toLowerCase();
+  if (!EXTENSOES_PERMITIDAS.includes(ext)) {
+    return `Tipo de ficheiro não permitido (.${ext}). Aceites: ${EXTENSOES_PERMITIDAS.join(', ')}.`;
+  }
+
+  // Validar mimetype (proteção contra spoofing de extensão)
+  const MIMETYPES_PERMITIDOS = [
+    'application/pdf',
+    'image/png', 'image/jpeg', 'image/jpg', 'image/webp',
+    'application/zip', 'application/x-zip-compressed',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ];
+  if (!MIMETYPES_PERMITIDOS.includes(file.mimetype)) {
+    return `Tipo MIME não permitido (${file.mimetype}).`;
+  }
+
+  return null; // sem erro
+}
 
 async function listarPorCandidatura(req, res, next) {
   try {
@@ -26,7 +67,11 @@ async function carregar(req, res, next) {
   try {
     const { id } = req.params;
     const { id_requisito, descricao } = req.body;
-    if (!req.file) return res.status(400).json({ erro: 'Ficheiro em falta.' });
+
+    // Validação de segurança server-side
+    const erroFicheiro = validarFicheiroSeguro(req.file);
+    if (erroFicheiro) return res.status(400).json({ erro: erroFicheiro });
+
     if (!id_requisito) return res.status(400).json({ erro: 'id_requisito é obrigatório.' });
 
     const [cand] = await pool.query(
@@ -53,19 +98,21 @@ async function carregar(req, res, next) {
       return res.status(400).json({ erro: 'Requisito não pertence a este badge.' });
     }
 
-    const urlRelativa = `/${process.env.UPLOAD_DIR || 'uploads'}/${req.file.filename}`;
+    // Upload para Cloudinary (ou local como fallback)
+    const resultado = await uploadFicheiro(req.file, 'evidencias');
+    const urlFicheiro = resultado.url;
 
     const [result] = await pool.query(
       `INSERT INTO evidencia
          (id_candidatura, id_requisito, ficheiro_url, nome_ficheiro, tipo_ficheiro, descricao)
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, id_requisito, urlRelativa, req.file.originalname, req.file.mimetype, descricao || null]
+      [id, id_requisito, urlFicheiro, req.file.originalname, req.file.mimetype, descricao || null]
     );
 
     res.status(201).json({
       mensagem: 'Evidência carregada.',
       id_evidencia: result.insertId,
-      ficheiro_url: urlRelativa,
+      ficheiro_url: urlFicheiro,
     });
   } catch (err) { next(err); }
 }
@@ -91,11 +138,25 @@ async function remover(req, res, next) {
 
     await pool.query('DELETE FROM evidencia WHERE id_evidencia = ?', [idEvidencia]);
 
-    // remover ficheiro do disco
-    try {
-      const nomeFicheiro = path.basename(ev[0].ficheiro_url);
-      fs.unlinkSync(path.join(pastaUploads, nomeFicheiro));
-    } catch (_) { /* ignora erros de filesystem */ }
+    // Apagar ficheiro do storage
+    const ficheiroUrl = ev[0].ficheiro_url;
+    if (ficheiroUrl && ficheiroUrl.includes('cloudinary.com')) {
+      // Apagar do Cloudinary
+      const publicId = extrairPublicId(ficheiroUrl);
+      const resourceType = extrairResourceType(ficheiroUrl);
+      if (publicId) {
+        eliminarCloudinary(publicId, resourceType)
+          .catch((e) => console.warn('[CLOUDINARY] Erro ao eliminar:', e.message));
+      }
+    } else {
+      // Apagar do disco local (fallback)
+      try {
+        const nomeFicheiro = path.basename(ficheiroUrl || '');
+        if (nomeFicheiro) {
+          fs.unlinkSync(path.join(pastaUploads, nomeFicheiro));
+        }
+      } catch (_) { /* ignora erros de filesystem */ }
+    }
 
     res.json({ mensagem: 'Evidência removida.' });
   } catch (err) { next(err); }
@@ -146,15 +207,21 @@ async function reutilizar(req, res, next) {
     );
     if (jaTem.length > 0) return res.status(409).json({ erro: 'Já existe evidência para este requisito.' });
 
-    // copiar o ficheiro físico para serem independentes (se falhar, referencia o original)
+    // Para ficheiros no Cloudinary, reutilizamos o mesmo URL (não há cópia necessária).
+    // Para ficheiros locais, mantemos o comportamento de cópia anterior.
     let novaUrl = origem[0].ficheiro_url;
-    try {
-      const srcPath = path.join(pastaUploads, path.basename(origem[0].ficheiro_url));
-      const ext = path.extname(origem[0].ficheiro_url);
-      const novoNome = `reuse-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-      fs.copyFileSync(srcPath, path.join(pastaUploads, novoNome));
-      novaUrl = `/${process.env.UPLOAD_DIR || 'uploads'}/${novoNome}`;
-    } catch (_) { /* mantém a referência original */ }
+    const eCloudinary = novaUrl && novaUrl.includes('cloudinary.com');
+
+    if (!eCloudinary) {
+      // Cópia local (fallback — ficheiros antigos em disco)
+      try {
+        const srcPath = path.join(pastaUploads, path.basename(origem[0].ficheiro_url));
+        const ext = path.extname(origem[0].ficheiro_url);
+        const novoNome = `reuse-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
+        fs.copyFileSync(srcPath, path.join(pastaUploads, novoNome));
+        novaUrl = `/${process.env.UPLOAD_DIR || 'uploads'}/${novoNome}`;
+      } catch (_) { /* mantém a referência original */ }
+    }
 
     const [result] = await pool.query(
       `INSERT INTO evidencia (id_candidatura, id_requisito, ficheiro_url, nome_ficheiro, tipo_ficheiro, descricao)

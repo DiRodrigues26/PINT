@@ -72,4 +72,12 @@ const uploadMemoria = multer({
   limits: { fileSize: limiteImagemMB * 1024 * 1024 },
 });
 
-module.exports = { upload, uploadMemoria, pastaUploads };
+// Evidências — memoryStorage para permitir upload direto para Cloudinary,
+// mas aceita todos os tipos de ficheiro permitidos (não apenas imagens)
+const uploadEvidencia = multer({
+  storage: memoryStorage,
+  fileFilter: filtroFicheiro,
+  limits: { fileSize: limiteMB * 1024 * 1024 },
+});
+
+module.exports = { upload, uploadMemoria, uploadEvidencia, pastaUploads };

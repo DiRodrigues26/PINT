@@ -4,7 +4,7 @@ const ctrl = require('../controllers/candidaturasController');
 const ev = require('../controllers/evidenciasController');
 const { autenticar } = require('../middleware/autenticar');
 const { autorizarPerfis } = require('../middleware/autorizar');
-const { upload } = require('../middleware/upload');
+const { uploadEvidencia } = require('../middleware/upload');
 
 router.use(autenticar);
 
@@ -19,7 +19,7 @@ router.delete('/:id',          ctrl.cancelar);
 
 // Evidências
 router.get('/:id/evidencias',                    ev.listarPorCandidatura);
-router.post('/:id/evidencias', upload.single('ficheiro'), ev.carregar);
+router.post('/:id/evidencias', uploadEvidencia.single('ficheiro'), ev.carregar);
 router.post('/:id/evidencias/reutilizar',                ev.reutilizar);
 router.delete('/:id/evidencias/:idEvidencia',    ev.remover);
 

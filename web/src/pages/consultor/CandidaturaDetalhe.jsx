@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  AlertCircle, ArrowLeft, CheckCircle, Clock,
+  AlertCircle, ArrowLeft, CheckCircle, Clock, Download,
   FileText, Info, Shield, Trash2, Upload, X,
 } from 'lucide-react';
 import { api, extrairErro } from '../../lib/api';
@@ -12,6 +12,13 @@ import toast from 'react-hot-toast';
 import { useLanguage } from '../../context/LanguageContext';
 
 const EDITAVEIS = ['OPEN', 'SENT_BACK'];
+
+/* Helper: resolver URL de ficheiro (Cloudinary ou local) */
+function ficheiroUrl(u) {
+  if (!u) return '#';
+  if (/^https?:\/\//i.test(u)) return u;
+  return `${api.defaults.baseURL || ''}${u.startsWith('/') ? '' : '/'}${u}`;
+}
 
 /* ─── Timeline de validação ─────────────────────────────────────────────── */
 const PASSOS = [
@@ -187,10 +194,17 @@ function CardRequisito({ req, evidencias, externo, podeEditar, idCandidatura }) 
         <ul className="mt-3 space-y-2">
           {minhasEv.map(ev => (
             <li key={ev.id_evidencia} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <FileText className="h-4 w-4 shrink-0 text-slate-400" strokeWidth={1.8} />
-                <span className="truncate text-xs font-medium text-slate-700">{ev.nome_ficheiro}</span>
-              </div>
+              <a
+                href={ficheiroUrl(ev.ficheiro_url)}
+                target="_blank"
+                rel="noreferrer"
+                className="flex min-w-0 items-center gap-2 group"
+                title={`Abrir ${ev.nome_ficheiro}`}
+              >
+                <FileText className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-softinsa-600 transition" strokeWidth={1.8} />
+                <span className="truncate text-xs font-medium text-slate-700 group-hover:text-softinsa-600 group-hover:underline transition">{ev.nome_ficheiro}</span>
+                <Download className="h-3.5 w-3.5 shrink-0 text-slate-300 group-hover:text-softinsa-500 transition" strokeWidth={1.8} />
+              </a>
               {podeEditar && (
                 <button
                   type="button"
