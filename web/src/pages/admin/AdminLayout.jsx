@@ -20,6 +20,7 @@ export const ADMIN_MENU = [
   { chave: 'pontos', labelKey: 'admin_menu_pontos', shortKey: 'admin_short_pontos', icon: 'trophy', to: '/admin/pontos' },
   { chave: 'sla', labelKey: 'admin_menu_sla', shortKey: 'admin_short_sla', icon: 'clock', to: '/admin/sla' },
   { chave: 'notificacoes', labelKey: 'admin_menu_notificacoes', icon: 'bell', to: '/admin/notificacoes' },
+  { chave: 'templates-email', labelKey: 'admin_menu_templates_email', shortKey: 'admin_short_templates_email', icon: 'mail', to: '/admin/templates-email' },
   { chave: 'relatorios', labelKey: 'admin_menu_relatorios', shortKey: 'admin_short_relatorios', icon: 'trend', to: '/admin/relatorios' },
   { chave: 'avisos', labelKey: 'admin_menu_avisos', shortKey: 'admin_short_avisos', icon: 'info', to: '/admin/avisos' },
   { chave: 'rgpd', labelKey: 'admin_menu_rgpd', shortKey: 'admin_short_rgpd', icon: 'shield', to: '/admin/rgpd' },
@@ -39,7 +40,7 @@ function secaoPorPath(pathname) {
 function mainClass(vistaAtiva) {
   if (vistaAtiva === 'utilizadores') return 'max-w-[1720px] px-5 lg:px-8 xl:px-10';
   if (vistaAtiva === 'pontos') return 'max-w-[1660px] px-5 lg:px-8 xl:px-10';
-  if (['candidaturas', 'learning-paths', 'service-lines', 'areas', 'niveis', 'badges', 'eventos', 'requisitos', 'sla', 'avisos', 'rgpd'].includes(vistaAtiva)) {
+  if (['candidaturas', 'learning-paths', 'service-lines', 'areas', 'niveis', 'badges', 'eventos', 'requisitos', 'sla', 'avisos', 'rgpd', 'templates-email'].includes(vistaAtiva)) {
     return 'max-w-[1560px] px-5 lg:px-10 xl:px-16';
   }
   return 'max-w-[1760px] px-5 lg:px-8 xl:px-10 2xl:px-12';

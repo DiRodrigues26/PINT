@@ -34,6 +34,7 @@ const AdminRequisitos = lazy(() => import('./pages/admin/AdminRequisitos'));
 const AdminRGPD = lazy(() => import('./pages/admin/AdminRGPD'));
 const AdminServiceLines = lazy(() => import('./pages/admin/AdminServiceLines'));
 const AdminSLA = lazy(() => import('./pages/admin/AdminSLA'));
+const AdminTemplatesEmail = lazy(() => import('./pages/admin/AdminTemplatesEmail'));
 const AdminUtilizadores = lazy(() => import('./pages/admin/AdminUtilizadores'));
 
 // Service Line
@@ -186,6 +187,7 @@ export default function App() {
           <Route path="sla" element={<AdminSLA />} />
           <Route path="notificacoes" element={<AdminNotificacoes />} />
           <Route path="notificacoes/definicoes" element={<AdminNotificacoesDefinicoes />} />
+          <Route path="templates-email" element={<AdminTemplatesEmail />} />
           <Route path="relatorios" element={<AdminRelatorios />} />
           <Route path="avisos" element={<AdminAvisos />} />
           <Route path="rgpd" element={<AdminRGPD />} />
