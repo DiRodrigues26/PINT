@@ -52,6 +52,7 @@ import Perfil from './pages/consultor/Perfil';
 import BadgeDetalhe from './pages/consultor/BadgeDetalhe';
 import AssinaturaEmail from './pages/consultor/AssinaturaEmail';
 import VerificarBadge from './pages/publico/VerificarBadge';
+import BadgePublico from './pages/publico/BadgePublico';
 import PerfilPublico from './pages/publico/PerfilPublico';
 import Microsite from './pages/publico/Microsite';
 import TalentDashboard from './pages/talentManager/Dashboard';
@@ -132,6 +133,7 @@ export default function App() {
       <Route path="/microsite" element={<Microsite />} />
       <Route path="/projeto" element={<Navigate to="/microsite" replace />} />
       <Route path="/verificar/:token" element={<VerificarBadge />} />
+      <Route path="/badge/:id" element={<BadgePublico />} />
       <Route path="/perfil-publico/:slug" element={<PerfilPublico />} />
 
       <Route path="/login" element={<Login />} />

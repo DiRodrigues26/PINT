@@ -143,6 +143,42 @@ async function obter(req, res, next) {
   } catch (err) { next(err); }
 }
 
+/* Página pública do badge (catálogo) — acessível sem autenticação.
+   Devolve apenas campos não sensíveis e só badges ativos. */
+async function badgePublico(req, res, next) {
+  try {
+    const [linhas] = await pool.query(
+      `SELECT b.id_badge, b.titulo, b.descricao, b.imagem_url, b.pontos,
+              b.tem_expiracao, b.validade_dias, b.is_conquista_especial,
+              b.beneficios, b.competencias_certificadas, b.sobre_certificacao,
+              n.codigo_nivel, n.nome_nivel,
+              a.nome AS nome_area,
+              sl.nome AS nome_service_line,
+              lp.nome AS nome_learning_path
+         FROM badge b
+         JOIN nivel n         ON n.id_nivel         = b.id_nivel
+         JOIN area a          ON a.id_area          = n.id_area
+         JOIN service_line sl ON sl.id_service_line = a.id_service_line
+         JOIN learning_path lp ON lp.id_learning_path = sl.id_learning_path
+        WHERE b.id_badge = ? AND b.ativo = 1`,
+      [req.params.id]
+    );
+    if (linhas.length === 0) return res.status(404).json({ erro: 'Badge não encontrado.' });
+
+    const [requisitos] = await pool.query(
+      `SELECT r.id_requisito, r.codigo_requisito, r.titulo, r.descricao, r.tipo_evidencia,
+              br.ordem AS ordem_associacao, br.obrigatorio AS obrigatorio_badge
+         FROM badge_requisito br
+         JOIN requisito r ON r.id_requisito = br.id_requisito
+        WHERE br.id_badge = ?
+        ORDER BY br.ordem ASC, r.ordem ASC, r.codigo_requisito ASC`,
+      [req.params.id]
+    );
+
+    res.json({ badge: linhas[0], requisitos });
+  } catch (err) { next(err); }
+}
+
 async function criar(req, res, next) {
   try {
     const {
@@ -356,4 +392,4 @@ async function recomendacoesParaMim(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { listar, obter, criar, atualizar, eliminar, recomendacoesParaMim };
+module.exports = { listar, obter, badgePublico, criar, atualizar, eliminar, recomendacoesParaMim };

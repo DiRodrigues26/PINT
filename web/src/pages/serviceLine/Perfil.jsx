@@ -374,7 +374,7 @@ function SecçãoAssinatura() {
           email={utilizador?.email}
           badges={badgesEscolhidos}
           rotuloBadges={t('sl_perfil_assinatura_rotulo')}
-          urlBadgeBase="/sl/badges"
+          urlBadgeBase="/badge"
         />
       </div>
 
