@@ -28,6 +28,11 @@ import {
   Video,
 } from 'lucide-react';
 
+import adminPrint from '../../assets/screenshots/admin.png';
+import consultorPrint from '../../assets/screenshots/consultor.png';
+import tmPrint from '../../assets/screenshots/talent_manager.png';
+import slPrint from '../../assets/screenshots/service_line.png';
+
 const LINKS = {
   producao: 'https://pint-production.up.railway.app/',
   apk: '#',
@@ -49,6 +54,7 @@ const perfis = [
     nome: 'Administrador',
     rota: '/admin',
     Icon: UserCog,
+    print: adminPrint,
     classeBotao: 'border-softinsa-500 bg-softinsa-600 text-white shadow-sm',
     classeIcone: 'bg-softinsa-50 text-softinsa-700 ring-softinsa-100',
     resumo: 'Configura a plataforma, gere utilizadores, políticas, hierarquia, SLA, relatórios e módulos administrativos.',
@@ -65,6 +71,7 @@ const perfis = [
     nome: 'Consultor',
     rota: '/dashboard',
     Icon: GraduationCap,
+    print: consultorPrint,
     classeBotao: 'border-emerald-500 bg-emerald-600 text-white shadow-sm',
     classeIcone: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
     resumo: 'Consulta badges, submete candidaturas, carrega evidências, acompanha progresso e publica conquistas.',
@@ -81,6 +88,7 @@ const perfis = [
     nome: 'Talent Manager',
     rota: '/tm/dashboard',
     Icon: Users,
+    print: tmPrint,
     classeBotao: 'border-cyan-500 bg-cyan-700 text-white shadow-sm',
     classeIcone: 'bg-cyan-50 text-cyan-700 ring-cyan-100',
     resumo: 'Acompanha candidaturas, valida evidências e garante que o fluxo avança com qualidade.',
@@ -97,6 +105,7 @@ const perfis = [
     nome: 'Service Line',
     rota: '/sl/dashboard',
     Icon: Briefcase,
+    print: slPrint,
     classeBotao: 'border-amber-500 bg-amber-500 text-slate-950 shadow-sm',
     classeIcone: 'bg-amber-50 text-amber-700 ring-amber-100',
     resumo: 'Faz a validação final dentro da sua Service Line e acompanha consultores, rankings e histórico.',
@@ -330,7 +339,6 @@ function HeroScene() {
 }
 
 function HeroShowcase({ perfil, passo }) {
-  const barras = [66, 44, 82, 58, 72, 38];
   const IconPerfil = perfil.Icon;
   const IconPasso = passo.Icon;
 
@@ -347,34 +355,12 @@ function HeroShowcase({ perfil, passo }) {
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          {[
-            ['52', 'Candidaturas'],
-            ['22', 'Badges aprovados'],
-            ['19', 'Prazo crítico'],
-          ].map(([valor, label]) => (
-            <div key={label} className="min-h-24 rounded-lg border border-slate-100 bg-slate-50 p-3">
-              <p className="text-2xl font-black text-slate-950">{valor}</p>
-              <p className="mt-1 text-xs font-semibold text-slate-500">{label}</p>
-            </div>
-          ))}
-        </div>
-
-        <div className="mt-4 rounded-lg border border-slate-100 bg-white p-3">
-          <div className="flex items-center justify-between">
-            <p className="text-xs font-black uppercase text-slate-500">Evolução mensal</p>
-            <span className="rounded bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">+18%</span>
-          </div>
-          <div className="mt-4 flex h-28 items-end gap-2">
-            {barras.map((altura, index) => (
-              <div key={index} className="flex flex-1 items-end rounded bg-slate-100">
-                <div
-                  className="w-full rounded bg-gradient-to-t from-softinsa-700 to-cyan-400"
-                  style={{ height: `${altura}%` }}
-                />
-              </div>
-            ))}
-          </div>
+        <div className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <img
+            src={perfil.print}
+            alt={`Ecrã do dashboard do perfil ${perfil.nome}`}
+            className="w-full h-auto object-contain transition-all duration-300 hover:scale-[1.01]"
+          />
         </div>
       </div>
 
