@@ -24,6 +24,7 @@ export default function ConsultorPerfilModal({ consultor, onFechar }) {
   const [mostrarForm, setMostrarForm] = useState(false);
   const [titulo, setTitulo] = useState('');
   const [descricao, setDescricao] = useState('');
+  const [dataInicio, setDataInicio] = useState('');
   const [dataFim, setDataFim] = useState('');
 
   useEffect(() => {
@@ -52,7 +53,7 @@ export default function ConsultorPerfilModal({ consultor, onFechar }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tm-timeline', id] });
       toast.success(tt('novo_objetivo') + ' ✓');
-      setMostrarForm(false); setTitulo(''); setDescricao(''); setDataFim('');
+      setMostrarForm(false); setTitulo(''); setDescricao(''); setDataInicio(''); setDataFim('');
     },
     onError: (err) => toast.error(extrairErro(err)),
   });
@@ -78,7 +79,13 @@ export default function ConsultorPerfilModal({ consultor, onFechar }) {
 
   function submeterObjetivo() {
     if (!titulo.trim()) { toast.error(tt('objetivo_ph')); return; }
-    criarObjetivo.mutate({ titulo: titulo.trim(), descricao: descricao.trim() || null, data_fim: dataFim || null, estado: 'PENDENTE' });
+    criarObjetivo.mutate({
+      titulo: titulo.trim(),
+      descricao: descricao.trim() || null,
+      data_inicio: dataInicio || null,
+      data_fim: dataFim || null,
+      estado: 'PENDENTE'
+    });
   }
 
   return (
@@ -159,17 +166,27 @@ export default function ConsultorPerfilModal({ consultor, onFechar }) {
             </div>
 
             {mostrarForm && (
-              <div className="mt-3 space-y-2 rounded-xl border border-slate-200 p-4">
+              <div className="mt-3 space-y-3 rounded-xl border border-slate-200 p-4">
                 <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder={tt('objetivo_ph')}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-softinsa-400" autoFocus />
                 <input value={descricao} onChange={e => setDescricao(e.target.value)} placeholder={tt('descricao_opcional')}
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-softinsa-400" />
-                <div className="flex items-center gap-2">
-                  <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)} title={tt('prazo_lbl')}
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 outline-none focus:border-softinsa-400" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-500">{tt('data_inicio')}</label>
+                    <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 outline-none focus:border-softinsa-400" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-500">{tt('prazo_lbl')}</label>
+                    <input type="date" value={dataFim} onChange={e => setDataFim(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 outline-none focus:border-softinsa-400" />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-1 border-t border-slate-100">
+                  <button type="button" onClick={() => { setMostrarForm(false); setDataInicio(''); setDataFim(''); }} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">{tt('cancelar')}</button>
                   <button type="button" onClick={submeterObjetivo} disabled={criarObjetivo.isPending}
                     className="rounded-lg bg-softinsa-600 px-4 py-2 text-sm font-semibold text-white hover:bg-softinsa-700 disabled:opacity-60">{tt('adicionar')}</button>
-                  <button type="button" onClick={() => setMostrarForm(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">{tt('cancelar')}</button>
                 </div>
               </div>
             )}
