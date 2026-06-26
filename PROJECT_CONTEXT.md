@@ -424,6 +424,37 @@ Perfis com UI própria:
 - Service Line: `/sl/*`
 - Talent Manager: `/tm/*`
 
+Rotas públicas adicionais:
+
+- Microsite do projeto: `/microsite`
+- Alias do microsite: `/projeto`
+- Verificação pública de badge: `/verificar/:token`
+- Perfil público de consultor: `/perfil-publico/:slug`
+
+### Microsite público
+
+Página: `web/src/pages/publico/Microsite.jsx`.
+
+Responsabilidade: apresentar o projeto de forma resumida, visual e interativa para entrega final, relatório, demonstração e eventual microsite público.
+
+Conteúdo incluído:
+
+- Visão geral do PINT / Softinsa Badges.
+- Perfis de utilizador: Administrador, Consultor, Talent Manager e Service Line.
+- Funcionalidades principais por categoria: plataforma, candidaturas, gestão e mobile.
+- Workflow interativo da candidatura ao badge público.
+- Área de demonstração preparada para dois vídeos futuros: web e mobile.
+- Área de acesso com website em produção, download APK e contas de teste por perfil.
+- Lista dos criadores e números mecanográficos.
+
+Notas de configuração:
+
+- O link de produção e o link do APK ficam centralizados no objeto `LINKS` dentro do componente.
+- URL de produção configurado no microsite: `https://pint-production.up.railway.app/`.
+- O link do APK ainda fica como `#` até a equipa disponibilizar o ficheiro final.
+- As credenciais de teste estão estruturadas por perfil, mas com valores "A preencher" até a equipa definir contas finais de demonstração.
+- A secção de demonstração está preparada para dois vídeos: aplicação web e aplicação mobile, com duração máxima recomendada de 90 segundos por vídeo.
+
 ### Administrador
 
 Páginas principais:
@@ -859,6 +890,7 @@ O resultado é uma plataforma funcional com separação clara de perfis, fluxo c
 - Certificados usam PDFKit e QRCode.
 - O frontend usa React, Vite, Axios, React Query, React Router e Tailwind.
 - Existem rotas e páginas para Administrador, Consultor, Talent Manager e Service Line.
+- Existe microsite público em `/microsite`, com alias `/projeto`.
 - Existe i18n PT/EN/ES no frontend.
 - Existe suporte a email via SendGrid e SMTP/Nodemailer.
 - Existe suporte a push mobile via Firebase Admin.

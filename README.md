@@ -32,6 +32,7 @@ O projeto permite gerir uma hierarquia de aprendizagem, publicar badges, receber
 - Dashboards, estatísticas e relatórios por perfil.
 - Exportações CSV/PDF no frontend.
 - Upload administrativo de imagens/ficheiros, com suporte opcional a Cloudinary.
+- Microsite público em `/microsite` para apresentação do projeto, perfis, funcionalidades, demos, acessos de teste e links de produção/APK.
 
 ## Stack Técnica
 
@@ -58,7 +59,7 @@ O projeto permite gerir uma hierarquia de aprendizagem, publicar badges, receber
 O repositório é um monorepo com duas aplicações principais:
 
 - `api/`: API REST em Express, responsável por autenticação, regras de negócio, acesso à base de dados, uploads, emails, push mobile, certificados e dashboards.
-- `web/`: frontend React/Vite, responsável pela experiência dos perfis Consultor, Talent Manager, Service Line e Administrador.
+- `web/`: frontend React/Vite, responsável pela experiência dos perfis Consultor, Talent Manager, Service Line, Administrador e pelo microsite público do projeto.
 
 Em desenvolvimento, a API corre normalmente em `http://localhost:3000` e o frontend Vite em `http://localhost:5173`.
 
@@ -119,6 +120,19 @@ PINT/
 | TOTP | `/api/totp` | Estado, setup, ativação e desativação de 2FA |
 | Público | `/api/publico` e `/publico` | Verificação pública de badges e perfil público |
 | Health check | `/health` | Estado básico da API |
+
+## Rotas Públicas do Frontend
+
+| Rota | Objetivo |
+|---|---|
+| `/microsite` | Microsite informativo e interativo para apresentação final do projeto |
+| `/projeto` | Alias que redireciona para `/microsite` |
+| `/verificar/:token` | Verificação pública de badge atribuído |
+| `/perfil-publico/:slug` | Perfil público do consultor, condicionado por consentimento RGPD |
+
+URL de produção da aplicação web: `https://pint-production.up.railway.app/`.
+
+O microsite inclui a área para dois vídeos de demonstração: aplicação web e aplicação mobile, com duração máxima recomendada de 90 segundos por vídeo.
 
 ## Setup Local
 
@@ -344,5 +358,11 @@ Checklist antes de produção:
 
 Projeto desenvolvido no âmbito académico PINT, com aplicação ao contexto de badges digitais da Softinsa.
 
-Equipa/autores: a preencher pela equipa do projeto.
+Equipa/autores:
+
+- Sérgio Costa - 27428
+- Diogo Caçador - 27427
+- Jaime Ribeiro - 27412
+- Helder Albuquerque - 27409
+- Francisco Pereira - 27422
 
