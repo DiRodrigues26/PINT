@@ -7,7 +7,7 @@ import { api, obterTodasDaRota } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
 import CandidaturaDetalheModal from './CandidaturaDetalheModal';
-import { exportCSV, exportPDF } from '../../lib/exportUtils';
+import { exportCSV, exportPDF } from '../../lib/exportar';
 import { useTM } from './i18n';
 
 /* Aplica os filtros da vista a uma lista de candidaturas (reutilizável na exportação) */

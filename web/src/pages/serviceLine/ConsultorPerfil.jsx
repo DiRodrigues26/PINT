@@ -4,7 +4,7 @@ import { ArrowLeft, Award, CheckCircle, Clock, Download, Star } from 'lucide-rea
 import { api } from '../../lib/api';
 import { ServiceLineSidebar, ServiceLineTopbar } from '../../components/ServiceLineShell';
 import Carregando from '../../components/Carregando';
-import { gerarCertificadoBadge } from '../../lib/exportUtils';
+import { gerarCertificadoBadge } from '../../lib/exportar';
 import { useLanguage } from '../../context/LanguageContext';
 
 /* ─── Cores por nível ────────────────────────────────────────────────── */

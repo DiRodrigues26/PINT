@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Award, Bell, BookOpen, FileText, LayoutDashboard, LogOut, Trophy, User } from 'lucide-react';
+import { Award, Bell, BookOpen, FileText, LayoutDashboard, LogOut, Target, Trophy, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { api } from '../lib/api';
@@ -21,6 +21,7 @@ export function ConsultorSidebar() {
     { labelKey: 'meus_badges',  to: '/meus-badges',  icon: Award },
     { labelKey: 'candidaturas', to: '/candidaturas', icon: FileText },
     { labelKey: 'conquistas',   to: '/conquistas',   icon: Trophy },
+    { labelKey: 'objetivos',     to: '/objetivos',    icon: Target },
     { labelKey: 'notificacoes', to: '/notificacoes', icon: Bell },
     { labelKey: 'perfil',       to: '/perfil',       icon: User },
   ];
@@ -44,7 +45,7 @@ export function ConsultorSidebar() {
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <div className="space-y-0.5">
-            {MENU.map(({ labelKey, to, icon: Icon }) => (
+            {MENU.map(({ labelKey, label, to, icon: Icon }) => (
               <NavLink
                 key={to}
                 to={to}
@@ -57,7 +58,7 @@ export function ConsultorSidebar() {
                 }
               >
                 <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
-                <span>{t(labelKey)}</span>
+                <span>{label || t(labelKey)}</span>
               </NavLink>
             ))}
           </div>
@@ -78,7 +79,7 @@ export function ConsultorSidebar() {
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-slate-200 bg-white/95 px-3 py-2 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
         <div className="flex gap-1 overflow-x-auto pb-1">
-          {MENU.map(({ labelKey, to, icon: Icon }) => (
+          {MENU.map(({ labelKey, label, to, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -89,7 +90,7 @@ export function ConsultorSidebar() {
               }
             >
               <Icon className="h-5 w-5 shrink-0" strokeWidth={1.8} />
-              <span className="line-clamp-1 max-w-[56px] text-center">{t(labelKey)}</span>
+              <span className="line-clamp-1 max-w-[56px] text-center">{label || t(labelKey)}</span>
             </NavLink>
           ))}
         </div>

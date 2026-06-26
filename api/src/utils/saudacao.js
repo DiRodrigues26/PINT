@@ -6,6 +6,8 @@
  * isso devolvemos apenas 'HORA' e deixamos o frontend calcular a hora local.
  * Já 'BEM_VINDO' (1.º login) e 'NOVAMENTE' (15+ dias sem login) dependem de
  * dados que só o servidor conhece, por isso são decididos aqui.
+ *
+ * Mapeamento correspondente no frontend: `web/src/lib/saudacao.js`.
  */
 function tipoSaudacao({ ultimoLogin, primeiroLoginPendente } = {}) {
   if (primeiroLoginPendente) return 'BEM_VINDO';

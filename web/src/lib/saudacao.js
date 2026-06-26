@@ -4,8 +4,10 @@
  * A hora do dia é SEMPRE calculada no cliente (`new Date().getHours()`), para
  * respeitar o fuso horário do utilizador — nunca o do servidor. Os casos
  * "Bem-vindo" (1.º login) e "Seja bem-vindo novamente" (15+ dias) dependem de
- * dados que só o servidor conhece, por isso chegam como `tipo` na resposta de
- * login e aqui apenas escolhemos o texto traduzido.
+ * dados que só o servidor conhece, por isso chegam como `tipo` vindo do backend na resposta de
+ * login, e aqui apenas escolhemos o texto traduzido correspondente.
+ *
+ * Mapeamento correspondente no backend: `api/src/utils/saudacao.js`.
  */
 
 function saudacaoHora(t) {

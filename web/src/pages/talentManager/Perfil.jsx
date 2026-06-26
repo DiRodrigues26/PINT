@@ -13,7 +13,7 @@ import { ConfirmarLogoutModal } from '../../components/ConfirmarLogoutModal';
 import { Modal2FA, ModalDesativar2FA } from '../../components/PerfilSeguranca';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { exportCSV, exportPDF } from '../../lib/exportUtils';
+import { exportCSV, exportPDF } from '../../lib/exportar';
 import { useTM } from './i18n';
 import AssinaturaEmailPreview from '../../components/AssinaturaEmailPreview';
 

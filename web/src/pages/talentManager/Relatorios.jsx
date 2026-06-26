@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 import { api, obterTodasDaRota } from '../../lib/api';
 import { TalentManagerSidebar, TalentManagerTopbar } from '../../components/TalentManagerShell';
 import Carregando from '../../components/Carregando';
-import { exportCSV, exportPDF } from '../../lib/exportUtils';
+import { exportCSV, exportPDF } from '../../lib/exportar';
 import { useTM } from './i18n';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
