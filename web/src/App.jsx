@@ -128,6 +128,7 @@ const TalentCandidaturas = lazy(() => import('./pages/talentManager/Candidaturas
 const TalentBadges = lazy(() => import('./pages/talentManager/Badges'));
 const TalentBadgeDetalhe = lazy(() => import('./pages/talentManager/BadgeDetalhe'));
 const TalentRelatorios = lazy(() => import('./pages/talentManager/Relatorios'));
+const TalentHistorico = lazy(() => import('./pages/talentManager/Historico'));
 const TalentNotificacoes = lazy(() => import('./pages/talentManager/Notificacoes'));
 const TalentPerfil = lazy(() => import('./pages/talentManager/Perfil'));
 
@@ -323,6 +324,9 @@ export default function App() {
         } />
         <Route path="/tm/relatorios" element={
           <RotaProtegida perfis={['Talent Manager']}><TalentRelatorios /></RotaProtegida>
+        } />
+        <Route path="/tm/historico" element={
+          <RotaProtegida perfis={['Talent Manager']}><TalentHistorico /></RotaProtegida>
         } />
         <Route path="/tm/notificacoes" element={
           <RotaProtegida perfis={['Talent Manager']}><TalentNotificacoes /></RotaProtegida>
