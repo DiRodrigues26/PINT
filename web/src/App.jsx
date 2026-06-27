@@ -132,6 +132,7 @@ const TalentRelatorios = lazy(() => import('./pages/talentManager/Relatorios'));
 const TalentHistorico = lazy(() => import('./pages/talentManager/Historico'));
 const TalentNotificacoes = lazy(() => import('./pages/talentManager/Notificacoes'));
 const TalentPerfil = lazy(() => import('./pages/talentManager/Perfil'));
+const TalentManagerAvisos = lazy(() => import('./pages/talentManager/TalentManagerAvisos'));
 
 function PerfilEmDesenvolvimento() {
   const { utilizador, logout } = useAuth();
@@ -297,6 +298,9 @@ export default function App() {
         <Route path="/sl/relatorios" element={
           <RotaProtegida perfis={['Service Line']}><ServiceLineRelatorios /></RotaProtegida>
         } />
+        <Route path="/sl/avisos" element={
+          <RotaProtegida perfis={['Service Line']}><ServiceLineAvisos /></RotaProtegida>
+        } />
         <Route path="/sl/ranking" element={
           <RotaProtegida perfis={['Service Line']}><ServiceLineRanking /></RotaProtegida>
         } />
@@ -305,9 +309,6 @@ export default function App() {
         } />
         <Route path="/sl/conquistas" element={
           <RotaProtegida perfis={['Service Line']}><ServiceLineConquistas /></RotaProtegida>
-        } />
-        <Route path="/sl/avisos" element={
-          <RotaProtegida perfis={['Service Line']}><ServiceLineAvisos /></RotaProtegida>
         } />
         <Route path="/sl/*" element={
           <RotaProtegida perfis={['Service Line']}><PerfilEmDesenvolvimento /></RotaProtegida>
@@ -331,6 +332,9 @@ export default function App() {
         } />
         <Route path="/tm/historico" element={
           <RotaProtegida perfis={['Talent Manager']}><TalentHistorico /></RotaProtegida>
+        } />
+        <Route path="/tm/avisos" element={
+          <RotaProtegida perfis={['Talent Manager']}><TalentManagerAvisos /></RotaProtegida>
         } />
         <Route path="/tm/notificacoes" element={
           <RotaProtegida perfis={['Talent Manager']}><TalentNotificacoes /></RotaProtegida>
