@@ -30,6 +30,41 @@ function ficheiroUrl(u) {
   if (!u) return '#';
   return u.startsWith('http') ? u : `/${String(u).replace(/^\//, '')}`;
 }
+function formatarDataHora(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/* Item da timeline "Histórico do Processo" (igual em espírito ao do Service Line) */
+function ItemHistorico({ h, ultimo, tt }) {
+  const LABEL = {
+    CRIACAO: tt('hist_criacao'),
+    CRIAR: tt('hist_criacao'),
+    SUBMISSAO: tt('hist_submetida'),
+    SUBMIT: tt('hist_submetida'),
+    TALENT_CORRETO: tt('hist_talent_correto'),
+    TALENT_INCORRETO: tt('hist_talent_incorreto'),
+    SERVICE_LINE_APROVAR: tt('hist_sl_aprovar'),
+    SERVICE_LINE_REJEITAR: tt('hist_sl_rejeitar'),
+    SERVICE_LINE_SEND_BACK: tt('hist_sl_devolver'),
+  };
+  return (
+    <div className="flex gap-3">
+      <div className="flex flex-col items-center">
+        <div className="mt-0.5 h-3 w-3 shrink-0 rounded-full bg-softinsa-600" />
+        {!ultimo && <div className="mt-1 w-px flex-1 bg-slate-200" />}
+      </div>
+      <div className="pb-5">
+        <p className="text-xs font-semibold text-slate-700">
+          {LABEL[h.acao] || h.acao || h.estado_destino}
+          <span className="ml-2 font-normal text-slate-400">{formatarDataHora(h.data_evento)}</span>
+        </p>
+        {h.nome_responsavel && <p className="text-xs text-slate-500">{tt('por_lbl')} {h.nome_responsavel}</p>}
+        {h.comentario && <p className="mt-1 text-xs italic text-slate-500">{h.comentario}</p>}
+      </div>
+    </div>
+  );
+}
 
 function Campo({ label, children }) {
   return (
@@ -87,6 +122,7 @@ export default function CandidaturaDetalheModal({ idCandidatura, onFechar }) {
   const evidencias = data?.evidencias ?? [];
   const requisitos = data?.requisitos ?? [];
   const avaliacoes = data?.avaliacoes ?? [];
+  const historico = data?.historico ?? [];
   const estado = c?.estado_atual;
   const reqsComEvidencia = new Set(evidencias.map(ev => ev.id_requisito));
 
@@ -250,6 +286,18 @@ export default function CandidaturaDetalheModal({ idCandidatura, onFechar }) {
                   <textarea value={comentario} onChange={e => setComentario(e.target.value)} rows={3}
                     placeholder={tt('comentario_ph')}
                     className="w-full resize-none rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-softinsa-400" />
+                </div>
+              )}
+
+              {/* Histórico do Processo (timeline, com comentários do TM e do Service Line) */}
+              {historico.length > 0 && (
+                <div className="mt-5 border-t border-slate-100 pt-5">
+                  <p className="text-sm font-bold text-slate-900">{tt('hist_processo')}</p>
+                  <div className="mt-3">
+                    {historico.map((h, i) => (
+                      <ItemHistorico key={h.id_historico || i} h={h} ultimo={i === historico.length - 1} tt={tt} />
+                    ))}
+                  </div>
                 </div>
               )}
             </>
