@@ -1288,6 +1288,7 @@ const T = {
     expira_em_dias_pl:   'Expira em {n} dias',
     renovar_badge:       'Renovar badge',
     renovacao_em_curso:  'Renovação em curso',
+    badge_expirado_aviso: 'Este badge expirou e já não está válido',
     /* Candidaturas */
     titulo_cands:        'Candidaturas a Badges',
     desc_cands:          'Gestão das suas candidaturas',
@@ -2706,6 +2707,7 @@ const T = {
     expira_em_dias_pl:   'Expires in {n} days',
     renovar_badge:       'Renew badge',
     renovacao_em_curso:  'Renewal in progress',
+    badge_expirado_aviso: 'This badge has expired and is no longer valid',
     titulo_cands:        'Badge Applications',
     desc_cands:          'Manage your applications',
     info_cands:          'Choose a badge from the catalog to start a new application.',
@@ -4119,6 +4121,7 @@ const T = {
     expira_em_dias_pl:   'Vence en {n} días',
     renovar_badge:       'Renovar insignia',
     renovacao_em_curso:  'Renovación en curso',
+    badge_expirado_aviso: 'Esta insignia ha caducado y ya no es válida',
     titulo_cands:        'Solicitudes de Insignias',
     desc_cands:          'Gestión de sus solicitudes',
     info_cands:          'Elija una insignia del catálogo para iniciar una nueva solicitud.',

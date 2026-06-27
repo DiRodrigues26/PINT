@@ -223,22 +223,13 @@ async function criar(req, res, next) {
     if (badge.length === 0) return res.status(404).json({ erro: 'Badge não encontrado.' });
     if (!badge[0].ativo) return res.status(400).json({ erro: 'Badge inativo.' });
 
-    // verificar se o consultor já tem este badge atribuído e se pode ser renovado
+    // impedir candidatar a um badge já obtido (mesmo que expirado — sem renovação)
     const [jaTem] = await pool.query(
-      'SELECT id_badge_atribuido, data_expiracao FROM badge_atribuido WHERE id_consultor = ? AND id_badge = ? LIMIT 1',
+      'SELECT id_badge_atribuido FROM badge_atribuido WHERE id_consultor = ? AND id_badge = ? LIMIT 1',
       [req.utilizador.id_utilizador, id_badge]
     );
     if (jaTem.length > 0) {
-      const ba = jaTem[0];
-      if (!ba.data_expiracao) {
-        return res.status(409).json({ erro: 'Já tens este badge atribuído permanentemente.' });
-      }
-      const dataExp = new Date(ba.data_expiracao);
-      const limiteRenovacao = new Date();
-      limiteRenovacao.setDate(limiteRenovacao.getDate() + 30);
-      if (dataExp > limiteRenovacao) {
-        return res.status(409).json({ erro: 'Este badge está ativo e não necessita de renovação de momento.' });
-      }
+      return res.status(409).json({ erro: 'Já tens este badge atribuído.' });
     }
 
     // impedir duplicar candidaturas abertas ao mesmo badge

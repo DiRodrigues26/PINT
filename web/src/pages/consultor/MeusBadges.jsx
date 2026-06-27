@@ -27,7 +27,7 @@ const NIVEL_BG   = { A: 'bg-softinsa-600', B: 'bg-blue-500', C: 'bg-indigo-500',
 const NIVEL_TEXT = { A: 'text-softinsa-600', B: 'text-blue-600', C: 'text-indigo-600', D: 'text-violet-700', E: 'text-purple-700' };
 
 /* ─── Card de badge obtido ──────────────────────────────────────────────── */
-function CardObtido({ item, onAbrirModal, podePublicar, podeLinkedin, candidaturaEmCurso, onRenovar, isRenovando }) {
+function CardObtido({ item, onAbrirModal, podePublicar, podeLinkedin }) {
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const expirado = item.data_expiracao && new Date(item.data_expiracao) < new Date();
@@ -68,6 +68,14 @@ function CardObtido({ item, onAbrirModal, podePublicar, podeLinkedin, candidatur
     <div className={`relative flex flex-col rounded-xl border bg-white p-5 shadow-sm ${
       expirado ? 'border-red-200' : expiraEmBreve ? 'border-amber-300' : 'border-slate-200'
     }`}>
+      {/* Aviso de badge expirado */}
+      {expirado && (
+        <div className="mb-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+          <TriangleAlert className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+          {t('badge_expirado_aviso')}
+        </div>
+      )}
+
       {/* Alerta expiração próxima (req 21) */}
       {expiraEmBreve && (
         <div className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
@@ -76,14 +84,16 @@ function CardObtido({ item, onAbrirModal, podePublicar, podeLinkedin, candidatur
         </div>
       )}
 
-      {/* Tag status */}
+      {/* Tag status — "Expirado" tem prioridade (mesmo em badges especiais) */}
       <div className="absolute right-4 top-4">
-        {item.is_conquista_especial ? (
+        {expirado ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-600">
+            <TriangleAlert className="h-3 w-3" /> {t('expirado_tag')}
+          </span>
+        ) : item.is_conquista_especial ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-700">
             <Sparkles className="h-3 w-3" /> {t('conquista_especial')}
           </span>
-        ) : expirado ? (
-          <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-[11px] font-semibold text-red-600">{t('expirado_tag')}</span>
         ) : (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600">
             <CheckCircle className="h-3 w-3" /> {t('ativo_tag')}
@@ -92,7 +102,7 @@ function CardObtido({ item, onAbrirModal, podePublicar, podeLinkedin, candidatur
       </div>
 
       {/* Imagem */}
-      <div className="relative w-fit mx-auto mt-2">
+      <div className={`relative w-fit mx-auto mt-2 ${expirado ? 'opacity-50 grayscale' : ''}`}>
         {item.imagem_url ? (
           <img src={item.imagem_url} alt={item.titulo} className="h-16 w-16 rounded-full object-cover" />
         ) : (
@@ -144,22 +154,6 @@ function CardObtido({ item, onAbrirModal, podePublicar, podeLinkedin, candidatur
         >
           {t('ver_detalhes')}
         </button>
-
-        {(expirado || expiraEmBreve) && (
-          <button
-            type="button"
-            disabled={candidaturaEmCurso || isRenovando}
-            onClick={() => onRenovar(item.id_badge)}
-            className={`w-full rounded-lg py-2 text-sm font-semibold transition flex items-center justify-center gap-1.5 ${
-              candidaturaEmCurso
-                ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                : 'bg-amber-500 hover:bg-amber-600 text-white shadow-sm'
-            }`}
-          >
-            <Sparkles className="h-4 w-4" />
-            {candidaturaEmCurso ? t('renovacao_em_curso') : t('renovar_badge')}
-          </button>
-        )}
 
         {/* Linha: LinkedIn + PDF */}
         <div className="flex gap-2">
@@ -335,17 +329,6 @@ export default function MeusBadges() {
   const podePublicar = !!consents.publicacao_badge;
   const podeLinkedin = !!consents.partilha_linkedin;
 
-  const renovarMutation = useMutation({
-    mutationFn: (idBadge) => api.post('/api/candidaturas', { id_badge: Number(idBadge) }),
-    onSuccess: ({ data }) => {
-      queryClient.invalidateQueries({ queryKey: ['meus-badges'] });
-      queryClient.invalidateQueries({ queryKey: ['candidaturas-ativas'] });
-      toast.success('Candidatura de renovação criada!');
-      navigate(`/candidaturas/${data.id_candidatura}`);
-    },
-    onError: (err) => toast.error(extrairErro(err, 'Erro ao criar candidatura de renovação.')),
-  });
-
   const isLoading = loadObtidos || loadCand;
   const obtidos = obtidosData?.dados ?? [];
   const candidaturasAtivas = useMemo(
@@ -504,9 +487,6 @@ export default function MeusBadges() {
                       onAbrirModal={setModalBadgeId}
                       podePublicar={podePublicar}
                       podeLinkedin={podeLinkedin}
-                      candidaturaEmCurso={candidaturasAtivas.some(c => c.id_badge === b.id_badge)}
-                      onRenovar={(idBadge) => renovarMutation.mutate(idBadge)}
-                      isRenovando={renovarMutation.isPending}
                     />
                   ))}
                 </div>
