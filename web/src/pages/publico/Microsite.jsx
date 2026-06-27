@@ -35,7 +35,7 @@ import slPrint from '../../assets/screenshots/service_line.png';
 
 const LINKS = {
   producao: 'https://pint-production.up.railway.app/',
-  apk: '#',
+  apk: 'https://drive.google.com/file/d/1yD-LCdGXj-joaS-mDI5AUUkgbE-8L6Tc/view?usp=drive_link',
   appLocal: '/login',
 };
 
