@@ -65,7 +65,7 @@ const perfis = [
       'Dashboards, auditoria, filtros e exportações operacionais',
     ],
     destaques: ['Backoffice completo', 'RGPD versionado', 'SLA configurável', 'Relatórios CSV/PDF'],
-    acesso: { email: 'A preencher', password: 'A preencher' },
+    acesso: { email: 'admin@softinsa-badges.com', password: 'admin123456' },
   },
   {
     nome: 'Consultor',
@@ -82,7 +82,7 @@ const perfis = [
       'Preferências, RGPD, notificações, conquistas e assinatura de email',
     ],
     destaques: ['Catálogo pessoal', 'Evidências', 'Certificado/QR', 'Perfil público'],
-    acesso: { email: 'A preencher', password: 'A preencher' },
+    acesso: { email: 'francisco@softinsa.pt', password: '12345678' },
   },
   {
     nome: 'Talent Manager',
@@ -99,7 +99,7 @@ const perfis = [
       'Notificações e perfil de segurança com 2FA',
     ],
     destaques: ['Validação intermédia', 'Monitorização global', 'Relatórios', 'Alertas'],
-    acesso: { email: 'A preencher', password: 'A preencher' },
+    acesso: { email: 'talent.manager@softinsa.test', password: 'Password123!' },
   },
   {
     nome: 'Service Line',
@@ -116,7 +116,7 @@ const perfis = [
       'Notificações e perfil de segurança com experiência consistente',
     ],
     destaques: ['Decisão final', 'Escopo por equipa', 'Ranking', 'Histórico'],
-    acesso: { email: 'A preencher', password: 'A preencher' },
+    acesso: { email: 'service.line.cloud@softinsa.test', password: 'Password123!' },
   },
 ];
 
@@ -258,24 +258,19 @@ const fluxo = [
 
 const demos = [
   {
-    titulo: 'Demonstração web',
-    perfil: 'Aplicação web',
-    duracao: 'até 90s',
-    descricao: 'Vídeo único para demonstrar login, perfis, admin, candidatura, validações, badge atribuído e publicação.',
-  },
-  {
-    titulo: 'Demonstração mobile',
-    perfil: 'Aplicação mobile',
-    duracao: 'até 90s',
-    descricao: 'Vídeo único para demonstrar APK, autenticação mobile, notificações push e principais ecrãs da app.',
+    titulo: 'Demonstração da plataforma',
+    perfil: 'Web & Mobile',
+    duracao: '3:05',
+    descricao: 'Vídeo demonstrativo geral apresentando o ecossistema completo: login, perfis (Consultor, TM, SL, Admin), workflow de candidaturas, notificações push e a aplicação mobile.',
+    embedId: 'tuMpeLeXLW4',
   },
 ];
 
 const acessos = [
-  { perfil: 'Administrador', rota: '/admin', email: 'A preencher', password: 'A preencher' },
-  { perfil: 'Consultor', rota: '/dashboard', email: 'A preencher', password: 'A preencher' },
-  { perfil: 'Talent Manager', rota: '/tm/dashboard', email: 'A preencher', password: 'A preencher' },
-  { perfil: 'Service Line', rota: '/sl/dashboard', email: 'A preencher', password: 'A preencher' },
+  { perfil: 'Administrador', rota: '/admin', email: 'admin@softinsa-badges.com', password: 'admin123456' },
+  { perfil: 'Consultor', rota: '/dashboard', email: 'francisco@softinsa.pt', password: '12345678' },
+  { perfil: 'Talent Manager', rota: '/tm/dashboard', email: 'talent.manager@softinsa.test', password: 'Password123!' },
+  { perfil: 'Service Line', rota: '/sl/dashboard', email: 'service.line.cloud@softinsa.test', password: 'Password123!' },
 ];
 
 const criadores = [
@@ -803,16 +798,18 @@ function Microsite() {
             texto="Área preparada para os dois vídeos finais: uma demonstração da aplicação web e uma demonstração da aplicação mobile, cada uma com duração máxima recomendada de 90 segundos."
           />
 
-          <div className="mt-8 grid gap-5 md:grid-cols-2">
+          <div className="mt-8 max-w-2xl mx-auto">
             {demos.map((demo) => (
               <article key={demo.titulo} className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 shadow-sm">
-                <div className="flex aspect-video items-center justify-center bg-[#0d1b2f] text-white">
-                  <div className="text-center">
-                    <Video className="mx-auto h-10 w-10 text-cyan-200" />
-                    <p className="mt-4 text-sm font-black uppercase text-cyan-100">
-                      Vídeo por adicionar
-                    </p>
-                  </div>
+                <div className="aspect-video w-full bg-[#0d1b2f]">
+                  <iframe
+                    className="w-full h-full"
+                    src={`https://www.youtube.com/embed/${demo.embedId}`}
+                    title={demo.titulo}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
                 </div>
                 <div className="p-5">
                   <div className="flex items-center justify-between gap-3">
