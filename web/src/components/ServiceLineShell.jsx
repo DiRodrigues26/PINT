@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, FileText, Award, Users, BarChart2, Trophy, Bell, User, LogOut, History, Star } from 'lucide-react';
+import { LayoutDashboard, FileText, Award, Users, BarChart2, Trophy, Bell, User, LogOut, History, Star, Megaphone } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -18,6 +18,7 @@ const MENU_KEYS = [
   { key: 'sl_menu_conquistas', to: '/sl/conquistas',    icon: Star },
   { key: 'sl_menu_relatorios', to: '/sl/relatorios',    icon: BarChart2 },
   { key: 'sl_menu_ranking',    to: '/sl/ranking',       icon: Trophy },
+  { key: 'sl_menu_avisos',     to: '/sl/avisos',        icon: Megaphone },
   { key: 'notificacoes',       to: '/sl/notificacoes',  icon: Bell },
   { key: 'perfil',             to: '/sl/perfil',        icon: User },
 ];

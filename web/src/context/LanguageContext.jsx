@@ -716,6 +716,7 @@ const T = {
     sl_menu_conquistas:  'Conquistas',
     sl_menu_relatorios:  'Relatórios',
     sl_menu_ranking:     'Ranking & Pontuação',
+    sl_menu_avisos:      'Informações e Avisos',
     sl_menu_notificacoes:'Notificações',
     sl_menu_perfil:      'Perfil',
     /* SL shared estados */
@@ -1073,6 +1074,7 @@ const T = {
     sl_hist_obtido:              'Obtido',
     /* SL Conquistas */
     sl_conq_subtitulo:           'Conquistas Especiais da Service Line',
+    sl_avisos_subtitulo:         'Informações e avisos para todos os utilizadores',
     sl_conq_titulo:              'Conquistas Especiais',
     sl_conq_desc:                'Badges premium e marcos alcançados pelos consultores',
     sl_conq_kpi_tipos:           'Tipos de Conquista',
@@ -2141,6 +2143,7 @@ const T = {
     sl_menu_conquistas:  'Achievements',
     sl_menu_relatorios:  'Reports',
     sl_menu_ranking:     'Ranking & Points',
+    sl_menu_avisos:      'Information & Notices',
     sl_menu_notificacoes:'Notifications',
     sl_menu_perfil:      'Profile',
     /* SL shared estados */
@@ -2498,6 +2501,7 @@ const T = {
     sl_hist_obtido:              'Obtained',
     /* SL Conquistas */
     sl_conq_subtitulo:           'Service Line Special Achievements',
+    sl_avisos_subtitulo:         'Information and notices for all users',
     sl_conq_titulo:              'Special Achievements',
     sl_conq_desc:                'Premium badges and milestones reached by consultants',
     sl_conq_kpi_tipos:           'Achievement Types',
@@ -3555,6 +3559,7 @@ const T = {
     sl_menu_conquistas:  'Logros',
     sl_menu_relatorios:  'Informes',
     sl_menu_ranking:     'Ranking & Puntos',
+    sl_menu_avisos:      'Información y Avisos',
     sl_menu_notificacoes:'Notificaciones',
     sl_menu_perfil:      'Perfil',
     /* SL shared estados */
@@ -3912,6 +3917,7 @@ const T = {
     sl_hist_obtido:              'Obtenido',
     /* SL Conquistas */
     sl_conq_subtitulo:           'Logros Especiales de la Línea de Servicio',
+    sl_avisos_subtitulo:         'Información y avisos para todos los usuarios',
     sl_conq_titulo:              'Logros Especiales',
     sl_conq_desc:                'Insignias premium e hitos alcanzados por los consultores',
     sl_conq_kpi_tipos:           'Tipos de Logro',

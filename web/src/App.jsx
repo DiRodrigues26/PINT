@@ -101,6 +101,7 @@ const ServiceLineRelatorios = lazy(() => import('./pages/serviceLine/Relatorios'
 const ServiceLineRanking = lazy(() => import('./pages/serviceLine/RankingPontos'));
 const ServiceLineHistorico = lazy(() => import('./pages/serviceLine/Historico'));
 const ServiceLineConquistas = lazy(() => import('./pages/serviceLine/Conquistas'));
+const ServiceLineAvisos = lazy(() => import('./pages/serviceLine/Avisos'));
 
 // Consultor
 const ConsultorDashboard = lazy(() => import('./pages/consultor/Dashboard'));
@@ -304,6 +305,9 @@ export default function App() {
         } />
         <Route path="/sl/conquistas" element={
           <RotaProtegida perfis={['Service Line']}><ServiceLineConquistas /></RotaProtegida>
+        } />
+        <Route path="/sl/avisos" element={
+          <RotaProtegida perfis={['Service Line']}><ServiceLineAvisos /></RotaProtegida>
         } />
         <Route path="/sl/*" element={
           <RotaProtegida perfis={['Service Line']}><PerfilEmDesenvolvimento /></RotaProtegida>

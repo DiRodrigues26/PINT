@@ -8,11 +8,12 @@ router.use(autenticar);
 
 router.get('/', ctrl.listarAtivos);
 router.get('/todos',
-  autorizarPerfis('Administrador'),
+  autorizarPerfis('Administrador', 'Service Line', 'Talent Manager'),
   ctrl.listarTodos
 );
 
-router.use(autorizarPerfis('Administrador'));
+// Gestão de avisos: Administrador, Service Line e Talent Manager (req. Informações/Avisos)
+router.use(autorizarPerfis('Administrador', 'Service Line', 'Talent Manager'));
 router.post('/',       ctrl.criar);
 router.put('/:id',     ctrl.atualizar);
 router.delete('/:id',  ctrl.eliminar);
