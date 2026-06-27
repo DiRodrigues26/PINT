@@ -113,9 +113,15 @@ async function uploadLocal(file, contexto) {
  * @param {string} contexto - subpasta (ex: 'evidencias', 'badges', 'requisitos')
  */
 async function uploadFicheiro(file, contexto) {
-  return temCloudinaryConfigurado()
-    ? uploadCloudinary(file, contexto)
-    : uploadLocal(file, contexto);
+  if (temCloudinaryConfigurado()) {
+    try {
+      return await uploadCloudinary(file, contexto);
+    } catch (err) {
+      console.warn('[UPLOAD] Falha no upload para Cloudinary, a tentar fallback local:', err.message);
+      return uploadLocal(file, contexto);
+    }
+  }
+  return uploadLocal(file, contexto);
 }
 
 /**
