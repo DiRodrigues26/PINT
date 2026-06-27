@@ -119,18 +119,17 @@ export default function AdminNotificacoes() {
     <div className="mx-auto max-w-[1100px] space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/admin/notificacoes/definicoes')}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 transition hover:bg-slate-100 hover:text-softinsa-700"
-            title={t('admin_notifdef_titulo')}
-            aria-label={t('admin_notifdef_titulo')}
-          >
-            <Settings className="h-7 w-7" strokeWidth={1.8} />
-          </button>
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">{t('admin_menu_notificacoes')}</h1>
         </div>
         <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            className="btn bg-slate-100 text-slate-700 hover:bg-slate-200"
+            onClick={() => navigate('/admin/notificacoes/definicoes')}
+          >
+            <Settings className="h-4 w-4" /> {t('admin_notifdef_titulo')}
+          </button>
+          <div className="w-px bg-slate-200 mx-1 hidden lg:block" />
           <button
             type="button"
             className="btn-secondary"
