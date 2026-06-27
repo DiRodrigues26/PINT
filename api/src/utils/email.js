@@ -50,13 +50,23 @@ async function enviarEmail({ para, assunto, html, texto }) {
   // 1) SendGrid, se configurado
   const sg = obterCliente();
   if (sg) {
-    return sg.send({ from: process.env.EMAIL_FROM || remetente(), to: para, subject: assunto, text: texto, html });
+    try {
+      return await sg.send({ from: process.env.EMAIL_FROM || remetente(), to: para, subject: assunto, text: texto, html });
+    } catch (err) {
+      console.warn('[EMAIL] Erro no envio via SendGrid (pode ter esgotado a quota de 100 emails):', err.message);
+      // Se falhar o SendGrid, prossegue para tentar SMTP ou Stub
+    }
   }
 
   // 2) SMTP / Gmail, se configurado
   const smtp = obterSmtp();
   if (smtp) {
-    return smtp.sendMail({ from: remetente(), to: para, subject: assunto, text: texto, html });
+    try {
+      return await smtp.sendMail({ from: remetente(), to: para, subject: assunto, text: texto, html });
+    } catch (err) {
+      console.warn('[EMAIL] Erro no envio via SMTP:', err.message);
+      // Prossegue para o Stub
+    }
   }
 
   // 3) Sem transporte configurado — stub (apenas log)
